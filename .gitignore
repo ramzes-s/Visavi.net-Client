@@ -37,6 +37,10 @@ proguard/
 *.iml
 .kotlin/
 
+# Agent rules
+AGENTS.md
+GEMINI.md
+
 # OS generated files
 .DS_Store
 Thumbs.db
