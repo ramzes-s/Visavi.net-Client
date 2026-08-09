@@ -1,24 +1,79 @@
 package com.ramzes.visavinet.util
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
+
+/**
+ * Компонент с поддержкой выделения текста долгим тапом для копирования
+ * и переходом по клику на ссылки
+ */
+@Composable
+fun ClickableAndSelectableText(
+    text: AnnotatedString,
+    isDark: Boolean,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 14.sp,
+    fontStyle: FontStyle? = null,
+    fontWeight: FontWeight? = null,
+    color: Color = if (isDark) Color.White else Color.Black
+) {
+    val context = LocalContext.current
+
+    SelectionContainer(modifier = modifier) {
+        ClickableText(
+            text = text,
+            style = TextStyle(
+                color = color,
+                fontSize = fontSize,
+                fontStyle = fontStyle,
+                fontWeight = fontWeight
+            ),
+            onClick = { offset ->
+                text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                    .firstOrNull()?.let { annotation ->
+                        val url = annotation.item
+                        if (url.isNotBlank()) {
+                            try {
+                                val fullUrl = when {
+                                    url.startsWith("http://") || url.startsWith("https://") -> url
+                                    url.startsWith("/") -> "https://visavi.net$url"
+                                    else -> "https://visavi.net/$url"
+                                }
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+                    }
+            }
+        )
+    }
+}
 
 /**
  * Блок контента — результат парсинга HTML
@@ -175,17 +230,25 @@ fun RenderContentBlocks(
 }
 
 /**
+ * Извлекает href из тега <a href="...">
+ */
+fun parseHrefFromATag(fullTag: String): String? {
+    val hrefRegex = Regex("href\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
+    val hrefMatch = hrefRegex.find(fullTag) ?: Regex("href\\s*=\\s*'([^']+)'", RegexOption.IGNORE_CASE).find(fullTag)
+    return hrefMatch?.groupValues?.get(1)
+}
+
+/**
  * Рендеринг текстового блока с обработкой inline-тегов
  */
 @Composable
 private fun TextBlock(text: String, isDark: Boolean, html: String? = null) {
-    // Используем HTML если есть, иначе простой текст
     val sourceText = html ?: text
     val annotatedText = parseInlineHtmlTags(sourceText, isDark)
 
-    Text(
+    ClickableAndSelectableText(
         text = annotatedText,
-        color = if (isDark) Color.White else Color.Black,
+        isDark = isDark,
         fontSize = 14.sp,
         modifier = Modifier.padding(vertical = 4.dp)
     )
@@ -193,8 +256,6 @@ private fun TextBlock(text: String, isDark: Boolean, html: String? = null) {
 
 /**
  * Парсинг inline HTML тегов (strong, b, i, u, s, code, a) в AnnotatedString
- * text уже декодирован (HTML entities обработаны)
- * Поддерживает вложенные теги
  */
 fun parseInlineHtmlTags(text: String, isDark: Boolean): AnnotatedString {
     return buildAnnotatedString {
@@ -202,9 +263,6 @@ fun parseInlineHtmlTags(text: String, isDark: Boolean): AnnotatedString {
     }
 }
 
-/**
- * Рекурсивная обработка вложенных тегов
- */
 /**
  * Парсит строку цвета (#hex, rgb, название) в Compose Color
  */
@@ -252,32 +310,34 @@ private fun parseNestedTags(
     text: String,
     isDark: Boolean,
     activeStyles: List<SpanStyle>,
+    currentUrl: String? = null,
     depth: Int = 0
 ) {
     if (depth >= 15 || text.isEmpty()) {
-        builder.appendWithStyles(text, activeStyles)
+        builder.appendWithStyles(text, activeStyles, isDark, currentUrl)
         return
     }
 
     var currentPosition = 0
     
-    // Ищем первый открывающий тег
     val openTagRegex = Regex("<(strong|b|i|u|s|code|span|a)(?:\\s+[^>]*)?>", RegexOption.IGNORE_CASE)
     val match = openTagRegex.find(text, currentPosition) ?: run {
-        // Нет тегов - добавляем текст
-        builder.appendWithStyles(text, activeStyles)
+        builder.appendWithStyles(text, activeStyles, isDark, currentUrl)
         return
     }
     
-    // Добавляем текст до тега
     if (match.range.first > currentPosition) {
         val beforeText = text.substring(currentPosition, match.range.first)
-        builder.appendWithStyles(beforeText, activeStyles)
+        builder.appendWithStyles(beforeText, activeStyles, isDark, currentUrl)
     }
     
     val tagName = match.groupValues[1].lowercase()
+    var nodeUrl: String? = currentUrl
+
+    if (tagName == "a") {
+        parseHrefFromATag(match.value)?.let { nodeUrl = it }
+    }
     
-    // Находим соответствующий закрывающий тег с учётом вложенности
     val closeTagRegex = Regex("</${tagName}>", RegexOption.IGNORE_CASE)
     var searchPos = match.range.last + 1
     var nestingLevel = 1
@@ -292,12 +352,10 @@ private fun parseNestedTags(
             nextClose == null -> break
             nextOpen != null && nextOpen.range.first < nextClose.range.first && 
                 nextOpen.groupValues[1].lowercase() == tagName -> {
-                // Вложенный открывающий тег того же типа
                 nestingLevel++
                 searchPos += nextOpen.range.last + 1
             }
             else -> {
-                // Закрывающий тег
                 nestingLevel--
                 if (nestingLevel == 0) {
                     closeTagPos = searchPos + nextClose.range.first
@@ -308,11 +366,9 @@ private fun parseNestedTags(
     }
     
     if (closeTagPos > 0) {
-        // Извлекаем содержимое между тегами
         val innerStart = match.range.last + 1
         val innerText = text.substring(innerStart, closeTagPos)
         
-        // Добавляем стиль для текущего тега
         val newStyle = when (tagName) {
             "strong", "b" -> SpanStyle(fontWeight = FontWeight.Bold)
             "i" -> SpanStyle(fontStyle = FontStyle.Italic)
@@ -336,32 +392,33 @@ private fun parseNestedTags(
         
         val newActiveStyles = if (newStyle != null) activeStyles + newStyle else activeStyles
         
-        // Рекурсивно обрабатываем содержимое
-        parseNestedTags(builder, innerText, isDark, newActiveStyles, depth + 1)
+        parseNestedTags(builder, innerText, isDark, newActiveStyles, nodeUrl, depth + 1)
         
-        // Пропускаем закрывающий тег
         val afterClosePos = closeTagPos + "</${tagName}>".length
         currentPosition = afterClosePos
         
-        // Обрабатываем оставшийся текст
         if (currentPosition < text.length) {
             val remainingText = text.substring(currentPosition)
-            parseNestedTags(builder, remainingText, isDark, activeStyles, depth + 1)
+            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, depth + 1)
         }
     } else {
-        // Нет закрывающего тега - пропускаем открывающий
         currentPosition = match.range.last + 1
         if (currentPosition < text.length) {
             val remainingText = text.substring(currentPosition)
-            parseNestedTags(builder, remainingText, isDark, activeStyles, depth + 1)
+            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, depth + 1)
         }
     }
 }
 
 /**
- * Добавление текста с применением всех активных стилей
+ * Добавление текста с применением активных стилей и URL аннотаций
  */
-private fun AnnotatedString.Builder.appendWithStyles(text: String, styles: List<SpanStyle>) {
+private fun AnnotatedString.Builder.appendWithStyles(
+    text: String,
+    styles: List<SpanStyle>,
+    isDark: Boolean = true,
+    currentUrl: String? = null
+) {
     if (text.isEmpty()) return
 
     val start = this.length
@@ -371,10 +428,27 @@ private fun AnnotatedString.Builder.appendWithStyles(text: String, styles: List<
     styles.forEach { style ->
         addStyle(style, start, end)
     }
+
+    if (!currentUrl.isNullOrBlank()) {
+        addStringAnnotation(tag = "URL", annotation = currentUrl, start = start, end = end)
+    } else {
+        val urlRegex = Regex("(https?://[^\\s<]+)", RegexOption.IGNORE_CASE)
+        urlRegex.findAll(text).forEach { match ->
+            val uStart = start + match.range.first
+            val uEnd = start + match.range.last + 1
+            val rawUrl = match.value
+            val linkStyle = SpanStyle(
+                color = if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2),
+                textDecoration = TextDecoration.Underline
+            )
+            addStyle(linkStyle, uStart, uEnd)
+            addStringAnnotation(tag = "URL", annotation = rawUrl, start = uStart, end = uEnd)
+        }
+    }
 }
 
 /**
- * Рендеринг блока кода с рамкой и зелёным фоном
+ * Рендеринг блока кода с возможностью выбора текста
  */
 @Composable
 private fun CodeBlock(code: String, isDark: Boolean) {
@@ -393,12 +467,15 @@ private fun CodeBlock(code: String, isDark: Boolean) {
             )
             .padding(12.dp)
     ) {
-        Text(
-            text = code,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 13.sp,
-            lineHeight = 18.sp
-        )
+        SelectionContainer {
+            Text(
+                text = code,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E40AF)
+            )
+        }
     }
 }
 
@@ -413,7 +490,6 @@ private fun QuoteBlock(
     quoteHtml: String? = null,
     footerHtml: String? = null
 ) {
-    // Полупрозрачный оранжевый фон #d67904
     val backgroundColor = Color(0x17D67904)
     val textColor = if (isDark) Color(0xFFF6DAC0) else Color(0x90A95E03)
 
@@ -431,28 +507,28 @@ private fun QuoteBlock(
             )
             .padding(12.dp)
     ) {
-        // Текст цитаты с обработкой inline-тегов
         if (quoteText.isNotBlank()) {
             val quoteSourceText = quoteHtml ?: quoteText
             val annotatedQuote = parseInlineHtmlTags(quoteSourceText, isDark)
-            Text(
+            ClickableAndSelectableText(
                 text = annotatedQuote,
-                color = textColor,
+                isDark = isDark,
                 fontStyle = FontStyle.Italic,
                 fontSize = 14.sp,
+                color = textColor,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }
 
-        // Footer цитаты (жирный) с обработкой inline-тегов
         if (footerText.isNotBlank()) {
             val footerSourceText = footerHtml ?: footerText
             val annotatedFooter = parseInlineHtmlTags(footerSourceText, isDark)
-            Text(
+            ClickableAndSelectableText(
                 text = annotatedFooter,
-                color = textColor,
+                isDark = isDark,
                 fontWeight = FontWeight.Bold,
-                fontSize = 13.sp
+                fontSize = 13.sp,
+                color = textColor
             )
         }
     }
