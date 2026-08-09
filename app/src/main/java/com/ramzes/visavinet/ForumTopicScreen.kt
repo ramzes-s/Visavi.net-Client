@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -535,42 +536,68 @@ fun ForumPostItem(
                     }
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                    ),
+                    modifier = Modifier.wrapContentSize()
                 ) {
-                    if (!isMyPost) {
-                        Text(
-                            text = "Имя",
-                            fontSize = 11.sp,
-                            color = primaryAccent,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clickable {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        if (!isMyPost) {
+                            Text(
+                                text = "Имя",
+                                fontSize = 11.sp,
+                                color = primaryAccent,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable {
                                     val userLogin = post.authorLogin ?: post.authorName ?: "user"
                                     val userLink = "<a class=\"user\" href=\"/users/$userLogin\">@$userLogin</a> "
                                     onQuoteClick(userLink)
                                 }
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
+                            )
 
-                        Text(
-                            text = "Цитата",
-                            fontSize = 11.sp,
-                            color = primaryAccent,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clickable {
+                            Text(
+                                text = "•",
+                                fontSize = 10.sp,
+                                color = secondaryTextColor.copy(alpha = 0.4f)
+                            )
+
+                            Text(
+                                text = "Цитата",
+                                fontSize = 11.sp,
+                                color = primaryAccent,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable {
                                     val author = post.authorName ?: post.authorLogin ?: "Аноним"
                                     val textContent = post.text ?: ""
                                     onQuoteClick("<blockquote class=\"post-quote\"><b>$author</b>: $textContent</blockquote>")
                                 }
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
-                    }
+                            )
 
-                    post.createdAt?.let { time ->
-                        Text(text = formatUnixTime(time), fontSize = 10.sp, color = secondaryTextColor)
+                            if (post.createdAt != null) {
+                                Text(
+                                    text = "•",
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor.copy(alpha = 0.4f)
+                                )
+                            }
+                        }
+
+                        post.createdAt?.let { time ->
+                            Text(
+                                text = formatUnixTime(time),
+                                fontSize = 10.sp,
+                                color = secondaryTextColor,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
