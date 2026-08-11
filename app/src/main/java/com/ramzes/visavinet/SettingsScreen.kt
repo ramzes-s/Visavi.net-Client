@@ -44,9 +44,9 @@ fun SettingsScreen(
     val versionName = remember {
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            packageInfo.versionName ?: "0.8.5"
+            packageInfo.versionName ?: "1.0.0"
         } catch (e: PackageManager.NameNotFoundException) {
-            "0.8.5"
+            "1.0.0"
         }
     }
 

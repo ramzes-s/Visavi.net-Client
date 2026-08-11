@@ -38,149 +38,156 @@ fun ProfileScreen(user: UserData, statusMessage: String?) {
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
     val primaryAccent = getPrimaryAccentColor()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        contentAlignment = Alignment.Center
     ) {
-        statusMessage?.let { msg ->
-            Surface(
-                color = primaryAccent.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Text(
-                    text = msg,
-                    color = primaryAccent,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(12.dp)
-                )
-            }
-        }
-
-        GlassProfileCard(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(12.dp),
-            accentColor = primaryAccent
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Аватар большого размера с неоновой тенью
-                Box(
+            statusMessage?.let { msg ->
+                Surface(
+                    color = primaryAccent.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(6.dp),
                     modifier = Modifier
-                        .size(104.dp)
-                        .drawBehind {
-                            drawIntoCanvas { canvas ->
-                                val paint = Paint()
-                                val fp = paint.asFrameworkPaint()
-                                fp.color = primaryAccent.copy(alpha = 0.45f).toArgb()
-                                fp.setShadowLayer(22f, 0f, 4f, primaryAccent.copy(alpha = 0.45f).toArgb())
-                                canvas.drawCircle(
-                                    Offset(size.width / 2f, size.height / 2f),
-                                    size.width / 2f,
-                                    paint
-                                )
-                            }
-                        },
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                 ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(user.picture)
-                            .placeholder(R.drawable.ic_default_avatar)
-                            .error(R.drawable.ic_default_avatar)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .border(2.dp, primaryAccent.copy(alpha = 0.6f), CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = stripHtml(user.login).ifBlank { "Неизвестный" },
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Black,
-                    color = textColor
-                )
-
-                user.name?.let { name ->
-                    val cleanName = stripHtml(name)
-                    if (cleanName.isNotBlank() && cleanName != user.login) {
-                        Text(
-                            text = cleanName,
-                            fontSize = 14.sp,
-                            color = secondaryTextColor,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Бейдж роли
-                RoleBadge(level = user.level, isDark = isDark)
-
-                user.status?.let { status ->
-                    val cleanStatus = stripHtml(status)
-                    if (cleanStatus.isNotBlank()) {
-                        Text(
-                            text = cleanStatus,
-                            color = secondaryTextColor,
-                            fontSize = 13.sp,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
-                }
-
-                user.lastLogin?.let { lastTime ->
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Вход: ${formatUnixTime(lastTime)}",
-                        color = secondaryTextColor.copy(0.7f),
-                        fontSize = 11.sp
+                        text = msg,
+                        color = primaryAccent,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(12.dp)
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+            GlassProfileCard(
+                modifier = Modifier.fillMaxWidth(),
+                isDark = isDark,
+                shape = RoundedCornerShape(12.dp),
+                accentColor = primaryAccent
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    GlassInfoBlock("КЦ", user.point.toString(), isDark = isDark)
-                    GlassInfoBlock("ЧАТЛЫ", formatMoney(user.money), isDark = isDark)
-                    GlassInfoBlock("РЕЙТИНГ", user.rating.toString(), isDark = isDark)
-                }
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                if (hasExtraInfo(user)) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = Color.White.copy(0.1f))
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    // Аватар увеличенного размера (166.dp) с неоновой тенью
+                    Box(
+                        modifier = Modifier
+                            .size(166.dp)
+                            .drawBehind {
+                                drawIntoCanvas { canvas ->
+                                    val paint = Paint()
+                                    val fp = paint.asFrameworkPaint()
+                                    fp.color = primaryAccent.copy(alpha = 0.45f).toArgb()
+                                    fp.setShadowLayer(26f, 0f, 4f, primaryAccent.copy(alpha = 0.45f).toArgb())
+                                    canvas.drawCircle(
+                                        Offset(size.width / 2f, size.height / 2f),
+                                        size.width / 2f,
+                                        paint
+                                    )
+                                }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        val cleanInfo = stripHtml(user.info)
-                        if (cleanInfo.isNotBlank()) {
-                            ProfileDetailRow("О себе:", cleanInfo, isDark)
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(user.picture)
+                                .placeholder(R.drawable.ic_default_avatar)
+                                .error(R.drawable.ic_default_avatar)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .border(2.dp, primaryAccent.copy(alpha = 0.6f), CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = stripHtml(user.login).ifBlank { "Неизвестный" },
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                        color = textColor
+                    )
+
+                    user.name?.let { name ->
+                        val cleanName = stripHtml(name)
+                        if (cleanName.isNotBlank() && cleanName != user.login) {
+                            Text(
+                                text = cleanName,
+                                fontSize = 14.sp,
+                                color = secondaryTextColor,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
                         }
-                        val cleanSite = stripHtml(user.site)
-                        if (cleanSite.isNotBlank()) {
-                            ProfileDetailRow("Сайт:", cleanSite, isDark)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Бейдж роли
+                    RoleBadge(level = user.level, isDark = isDark)
+
+                    user.status?.let { status ->
+                        val cleanStatus = stripHtml(status)
+                        if (cleanStatus.isNotBlank()) {
+                            Text(
+                                text = cleanStatus,
+                                color = secondaryTextColor,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    }
+
+                    user.lastLogin?.let { lastTime ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Вход: ${formatUnixTime(lastTime)}",
+                            color = secondaryTextColor.copy(0.7f),
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        GlassInfoBlock("КЦ", user.point.toString(), isDark = isDark)
+                        GlassInfoBlock("ЧАТЛЫ", formatMoney(user.money), isDark = isDark)
+                        GlassInfoBlock("РЕЙТИНГ", user.rating.toString(), isDark = isDark)
+                    }
+
+                    if (hasExtraInfo(user)) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = Color.White.copy(0.1f))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val cleanInfo = stripHtml(user.info)
+                            if (cleanInfo.isNotBlank()) {
+                                ProfileDetailRow("О себе:", cleanInfo, isDark)
+                            }
+                            val cleanSite = stripHtml(user.site)
+                            if (cleanSite.isNotBlank()) {
+                                ProfileDetailRow("Сайт:", cleanSite, isDark)
+                            }
                         }
                     }
                 }

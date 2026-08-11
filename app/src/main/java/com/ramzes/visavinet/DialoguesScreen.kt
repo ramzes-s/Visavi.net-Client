@@ -227,7 +227,7 @@ fun DialogueItem(
                             .replace(Regex("</?p[^>]*>", RegexOption.IGNORE_CASE), " ")
                             .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")
                             .trim()
-                        val annotatedPreview = parseInlineHtmlTags(cleanHtml, isDark)
+                        val annotatedPreview = parseInlineHtmlTags(cleanHtml, isDark).first
 
                         Text(
                             text = annotatedPreview,

@@ -6,7 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -24,12 +29,15 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Компонент с поддержкой выделения текста долгим тапом для копирования
- * и переходом по клику на ссылки
+ * Компонент с поддержкой выделения текста долгим тапом для копирования,
+ * переходом по клику на ссылки и поддержкой inline-смайлов
  */
 @Composable
 fun ClickableAndSelectableText(
@@ -39,39 +47,53 @@ fun ClickableAndSelectableText(
     fontSize: TextUnit = 14.sp,
     fontStyle: FontStyle? = null,
     fontWeight: FontWeight? = null,
-    color: Color = if (isDark) Color.White else Color.Black
+    color: Color = if (isDark) Color.White else Color.Black,
+    inlineContent: Map<String, InlineTextContent> = emptyMap()
 ) {
     val context = LocalContext.current
 
     SelectionContainer(modifier = modifier) {
-        ClickableText(
-            text = text,
-            style = TextStyle(
-                color = color,
-                fontSize = fontSize,
-                fontStyle = fontStyle,
-                fontWeight = fontWeight
-            ),
-            onClick = { offset ->
-                text.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                    .firstOrNull()?.let { annotation ->
-                        val url = annotation.item
-                        if (url.isNotBlank()) {
-                            try {
-                                val fullUrl = when {
-                                    url.startsWith("http://") || url.startsWith("https://") -> url
-                                    url.startsWith("/") -> "https://visavi.net$url"
-                                    else -> "https://visavi.net/$url"
+        if (inlineContent.isNotEmpty()) {
+            BasicText(
+                text = text,
+                inlineContent = inlineContent,
+                style = TextStyle(
+                    color = color,
+                    fontSize = fontSize,
+                    fontStyle = fontStyle,
+                    fontWeight = fontWeight
+                )
+            )
+        } else {
+            ClickableText(
+                text = text,
+                style = TextStyle(
+                    color = color,
+                    fontSize = fontSize,
+                    fontStyle = fontStyle,
+                    fontWeight = fontWeight
+                ),
+                onClick = { offset ->
+                    text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                        .firstOrNull()?.let { annotation ->
+                            val url = annotation.item
+                            if (url.isNotBlank()) {
+                                try {
+                                    val fullUrl = when {
+                                        url.startsWith("http://") || url.startsWith("https://") -> url
+                                        url.startsWith("/") -> "https://visavi.net$url"
+                                        else -> "https://visavi.net/$url"
+                                    }
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
                                 }
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
                             }
                         }
-                    }
-            }
-        )
+                }
+            )
+        }
     }
 }
 
@@ -239,28 +261,48 @@ fun parseHrefFromATag(fullTag: String): String? {
 }
 
 /**
- * Рендеринг текстового блока с обработкой inline-тегов
+ * Извлекает src и alt из тега <img ...>
+ */
+fun parseImgSrcAndAlt(imgTag: String): Pair<String?, String?> {
+    val srcRegex = Regex("src\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
+    val srcMatch = srcRegex.find(imgTag) ?: Regex("src\\s*=\\s*'([^']+)'", RegexOption.IGNORE_CASE).find(imgTag)
+    val altRegex = Regex("alt\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
+    val altMatch = altRegex.find(imgTag) ?: Regex("alt\\s*=\\s*'([^']+)'", RegexOption.IGNORE_CASE).find(imgTag)
+
+    var src = srcMatch?.groupValues?.get(1)
+    if (src != null && !src.startsWith("http://") && !src.startsWith("https://")) {
+        src = "https://visavi.net" + (if (src.startsWith("/")) "" else "/") + src
+    }
+    val alt = altMatch?.groupValues?.get(1) ?: "smile"
+    return Pair(src, alt)
+}
+
+/**
+ * Рендеринг текстового блока с обработкой inline-тегов и смайлов
  */
 @Composable
 private fun TextBlock(text: String, isDark: Boolean, html: String? = null) {
     val sourceText = html ?: text
-    val annotatedText = parseInlineHtmlTags(sourceText, isDark)
+    val (annotatedText, inlineMap) = parseInlineHtmlTags(sourceText, isDark)
 
     ClickableAndSelectableText(
         text = annotatedText,
         isDark = isDark,
         fontSize = 14.sp,
+        inlineContent = inlineMap,
         modifier = Modifier.padding(vertical = 4.dp)
     )
 }
 
 /**
- * Парсинг inline HTML тегов (strong, b, i, u, s, code, a) в AnnotatedString
+ * Парсинг inline HTML тегов (strong, b, i, u, s, code, a, img) в AnnotatedString
  */
-fun parseInlineHtmlTags(text: String, isDark: Boolean): AnnotatedString {
-    return buildAnnotatedString {
-        parseNestedTags(this, text, isDark, emptyList())
+fun parseInlineHtmlTags(text: String, isDark: Boolean): Pair<AnnotatedString, Map<String, InlineTextContent>> {
+    val inlineMap = mutableMapOf<String, InlineTextContent>()
+    val annotated = buildAnnotatedString {
+        parseNestedTags(this, text, isDark, emptyList(), inlineMap = inlineMap)
     }
+    return Pair(annotated, inlineMap)
 }
 
 /**
@@ -311,6 +353,7 @@ private fun parseNestedTags(
     isDark: Boolean,
     activeStyles: List<SpanStyle>,
     currentUrl: String? = null,
+    inlineMap: MutableMap<String, InlineTextContent>? = null,
     depth: Int = 0
 ) {
     if (depth >= 15 || text.isEmpty()) {
@@ -320,7 +363,7 @@ private fun parseNestedTags(
 
     var currentPosition = 0
     
-    val openTagRegex = Regex("<(strong|b|i|u|s|code|span|a)(?:\\s+[^>]*)?>", RegexOption.IGNORE_CASE)
+    val openTagRegex = Regex("<(strong|b|i|u|s|code|span|a|img)(?:\\s+[^>]*)?>", RegexOption.IGNORE_CASE)
     val match = openTagRegex.find(text, currentPosition) ?: run {
         builder.appendWithStyles(text, activeStyles, isDark, currentUrl)
         return
@@ -332,6 +375,39 @@ private fun parseNestedTags(
     }
     
     val tagName = match.groupValues[1].lowercase()
+
+    if (tagName == "img") {
+        val (src, alt) = parseImgSrcAndAlt(match.value)
+        if (!src.isNullOrBlank() && inlineMap != null) {
+            val inlineId = "img_${builder.length}_${src.hashCode()}"
+            builder.appendInlineContent(inlineId, alt ?: "smile")
+            inlineMap[inlineId] = InlineTextContent(
+                Placeholder(
+                    width = 20.sp,
+                    height = 20.sp,
+                    placeholderVerticalAlign = PlaceholderVerticalAlign.Center
+                )
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(src)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = alt,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        currentPosition = match.range.last + 1
+        if (currentPosition < text.length) {
+            val remainingText = text.substring(currentPosition)
+            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, inlineMap, depth + 1)
+        }
+        return
+    }
+
     var nodeUrl: String? = currentUrl
 
     if (tagName == "a") {
@@ -392,20 +468,20 @@ private fun parseNestedTags(
         
         val newActiveStyles = if (newStyle != null) activeStyles + newStyle else activeStyles
         
-        parseNestedTags(builder, innerText, isDark, newActiveStyles, nodeUrl, depth + 1)
+        parseNestedTags(builder, innerText, isDark, newActiveStyles, nodeUrl, inlineMap, depth + 1)
         
         val afterClosePos = closeTagPos + "</${tagName}>".length
         currentPosition = afterClosePos
         
         if (currentPosition < text.length) {
             val remainingText = text.substring(currentPosition)
-            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, depth + 1)
+            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, inlineMap, depth + 1)
         }
     } else {
         currentPosition = match.range.last + 1
         if (currentPosition < text.length) {
             val remainingText = text.substring(currentPosition)
-            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, depth + 1)
+            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, inlineMap, depth + 1)
         }
     }
 }
@@ -509,26 +585,28 @@ private fun QuoteBlock(
     ) {
         if (quoteText.isNotBlank()) {
             val quoteSourceText = quoteHtml ?: quoteText
-            val annotatedQuote = parseInlineHtmlTags(quoteSourceText, isDark)
+            val (annotatedQuote, inlineMapQuote) = parseInlineHtmlTags(quoteSourceText, isDark)
             ClickableAndSelectableText(
                 text = annotatedQuote,
                 isDark = isDark,
                 fontStyle = FontStyle.Italic,
                 fontSize = 14.sp,
                 color = textColor,
+                inlineContent = inlineMapQuote,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }
 
         if (footerText.isNotBlank()) {
             val footerSourceText = footerHtml ?: footerText
-            val annotatedFooter = parseInlineHtmlTags(footerSourceText, isDark)
+            val (annotatedFooter, inlineMapFooter) = parseInlineHtmlTags(footerSourceText, isDark)
             ClickableAndSelectableText(
                 text = annotatedFooter,
                 isDark = isDark,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,
-                color = textColor
+                color = textColor,
+                inlineContent = inlineMapFooter
             )
         }
     }
