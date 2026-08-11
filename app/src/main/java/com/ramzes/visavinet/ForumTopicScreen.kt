@@ -33,6 +33,8 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.FileData
 import com.ramzes.visavinet.network.ForumPost
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import com.ramzes.visavinet.network.ForumTopic
 import com.ramzes.visavinet.network.TopicInfo
 import com.ramzes.visavinet.ui.components.GlassCard
@@ -86,11 +88,30 @@ fun ForumTopicScreen(
         imm.hideSoftInputFromWindow((context as? android.app.Activity)?.currentFocus?.windowToken, 0)
     }
 
-    LaunchedEffect(listState) {
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(listState, viewModel.posts.size) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull()?.index }
+            .distinctUntilChanged()
             .collect { firstVisibleIndex ->
-                if (firstVisibleIndex != null && firstVisibleIndex <= 3) {
-                    viewModel.loadMorePosts(context)
+                if (firstVisibleIndex != null && firstVisibleIndex <= 2 && !viewModel.isLoadingOlderPosts) {
+                    val currentFirstIndex = listState.firstVisibleItemIndex
+                    val currentFirstOffset = listState.firstVisibleItemScrollOffset
+                    viewModel.loadOlderPosts(context) { addedCount ->
+                        coroutineScope.launch {
+                            listState.scrollToItem(currentFirstIndex + addedCount, currentFirstOffset)
+                        }
+                    }
+                }
+            }
+    }
+
+    LaunchedEffect(listState, viewModel.posts.size) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .distinctUntilChanged()
+            .collect { lastVisibleIndex ->
+                if (lastVisibleIndex != null && lastVisibleIndex >= viewModel.posts.size - 2) {
+                    viewModel.loadNewerPosts(context)
                 }
             }
     }
@@ -167,7 +188,7 @@ fun ForumTopicScreen(
                             contentPadding = PaddingValues(12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (viewModel.isLoadingMorePosts) {
+                            if (viewModel.isLoadingOlderPosts) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -185,8 +206,8 @@ fun ForumTopicScreen(
                             }
 
                             item {
-                                val pageText = if (viewModel.postsCurrentPage > 1)
-                                    "Страница ${viewModel.postsCurrentPage}"
+                                val pageText = if (viewModel.minLoadedPage > 1)
+                                    "Страница ${viewModel.minLoadedPage} из ${viewModel.postsLastPage}"
                                 else
                                     "Начало темы"
                                 ForumDividerWithText(text = pageText, isDark = isDark)
@@ -217,6 +238,47 @@ fun ForumTopicScreen(
                                     onImageClick = { url -> selectedImageForLightbox = url },
                                     isDark = isDark
                                 )
+                            }
+
+                            if (viewModel.isLoadingNewerPosts) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            color = primaryAccent,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+                                }
+                            }
+
+                            viewModel.appendPostsErrorMessage?.let { err ->
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = err, fontSize = 12.sp, color = Color(0xFFCF6679))
+                                            TextButton(onClick = {
+                                                viewModel.loadOlderPosts(context)
+                                                viewModel.loadNewerPosts(context)
+                                            }) {
+                                                Text("Повторить", fontSize = 12.sp, color = primaryAccent)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

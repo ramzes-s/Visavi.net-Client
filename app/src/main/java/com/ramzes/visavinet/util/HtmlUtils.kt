@@ -606,11 +606,11 @@ fun sanitizeHtml(html: String?): String {
 }
 
 /**
- * Форматирование времени в читаемый формат
+ * Форматирование времени в читаемый формат (dd.MM.yy HH:mm)
  */
 fun formatUnixTime(timestamp: Long): String {
     if (timestamp <= 0) return ""
-    val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+    val sdf = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
 

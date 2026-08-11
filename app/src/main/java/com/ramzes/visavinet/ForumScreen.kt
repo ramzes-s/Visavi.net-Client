@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -13,6 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -390,41 +395,55 @@ fun ForumSectionItem(
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
     val primaryAccent = getPrimaryAccentColor()
 
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        isDark = isDark,
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = section.title ?: "Без названия",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .drawBehind {
+                val stripeWidth = 4.dp.toPx()
+                drawRect(
+                    color = primaryAccent,
+                    topLeft = Offset.Zero,
+                    size = Size(stripeWidth, size.height)
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "Тем: ${section.topicsCount}", fontSize = 12.sp, color = secondaryTextColor)
-                    Text(text = "Сообщений: ${section.postsCount}", fontSize = 12.sp, color = secondaryTextColor)
-                }
             }
+    ) {
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            isDark = isDark,
+            onClick = onClick
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = section.title ?: "Без названия",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
 
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = primaryAccent,
-                modifier = Modifier.size(24.dp)
-            )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "Тем: ${section.topicsCount}", fontSize = 12.sp, color = secondaryTextColor)
+                        Text(text = "Сообщений: ${section.postsCount}", fontSize = 12.sp, color = secondaryTextColor)
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = primaryAccent,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }
@@ -439,54 +458,68 @@ fun ForumSubsectionItem(
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
     val primaryAccent = getPrimaryAccentColor()
 
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        isDark = isDark,
-        onClick = onClick
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = subsection.title ?: "Без названия",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = primaryAccent,
-                    modifier = Modifier.size(20.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .drawBehind {
+                val stripeWidth = 4.dp.toPx()
+                drawRect(
+                    color = primaryAccent,
+                    topLeft = Offset.Zero,
+                    size = Size(stripeWidth, size.height)
                 )
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(text = "Тем: ${subsection.topicsCount}", fontSize = 11.sp, color = secondaryTextColor)
-                    Text(text = "Постов: ${subsection.postsCount}", fontSize = 11.sp, color = secondaryTextColor)
-                }
-
-                subsection.lastTopicTitle?.let { title ->
+    ) {
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            isDark = isDark,
+            onClick = onClick
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "➲ $title",
-                        fontSize = 11.sp,
+                        text = subsection.title ?: "Без названия",
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = secondaryTextColor,
+                        color = textColor,
                         maxLines = 1,
                         modifier = Modifier.weight(1f)
                     )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = primaryAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(text = "Тем: ${subsection.topicsCount}", fontSize = 11.sp, color = secondaryTextColor)
+                        Text(text = "Постов: ${subsection.postsCount}", fontSize = 11.sp, color = secondaryTextColor)
+                    }
+
+                    subsection.lastTopicTitle?.let { title ->
+                        Text(
+                            text = "➲ $title",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = secondaryTextColor,
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
@@ -502,15 +535,16 @@ fun ForumTopicItem(
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+    val closedTitleColor = if (isDark) Color(0xFF8E8E93) else Color(0xFF7C7C80)
     val primaryAccent = getPrimaryAccentColor()
 
     val isMyTopic = currentLogin != null && (topic.authorLogin == currentLogin || topic.authorName == currentLogin)
+    val glowColor = if (isMyTopic) primaryAccent.copy(alpha = 0.22f) else Color.Transparent
 
-    val glowColor = when {
-        isMyTopic -> primaryAccent.copy(alpha = 0.22f)
-        topic.locked -> NeonAmber.copy(0.25f)
-        topic.closed -> Color(0x33CF6679)
-        else -> Color.Transparent
+    val titleColor = when {
+        topic.closed -> closedTitleColor
+        topic.locked -> AmberGold
+        else -> textColor
     }
 
     GlassCard(
@@ -537,7 +571,7 @@ fun ForumTopicItem(
                         text = topic.title ?: "Без названия",
                         fontSize = 14.sp,
                         fontWeight = if (topic.locked) FontWeight.Bold else FontWeight.Medium,
-                        color = if (topic.locked) NeonAmber else textColor,
+                        color = titleColor,
                         maxLines = 2
                     )
                 }

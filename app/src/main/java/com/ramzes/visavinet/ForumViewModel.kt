@@ -48,9 +48,18 @@ class ForumViewModel : ViewModel() {
     var isLoadingSections by mutableStateOf(false)
     var isLoadingSection by mutableStateOf(false)
     var isLoadingMoreSection by mutableStateOf(false)
+    var minLoadedPage by mutableStateOf(1)
+        private set
+    var maxLoadedPage by mutableStateOf(1)
+        private set
+    var isLoadingOlderPosts by mutableStateOf(false)
+        private set
+    var isLoadingNewerPosts by mutableStateOf(false)
+        private set
     var isLoadingPosts by mutableStateOf(false)
     var isLoadingMorePosts by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
+    var appendPostsErrorMessage by mutableStateOf<String?>(null)
 
     var sectionCurrentPage by mutableStateOf(1)
         private set
@@ -88,12 +97,10 @@ class ForumViewModel : ViewModel() {
     fun loadSection(context: Context, sectionId: Int, page: Int = 1, append: Boolean = false) {
         val itemsPerPage = getItemsPerPage(context)
 
+        if (append && (isLoadingMoreSection || isLoadingSection)) return
+        if (append) isLoadingMoreSection = true else isLoadingSection = true
+
         viewModelScope.launch {
-            if (append) {
-                isLoadingMoreSection = true
-            } else {
-                isLoadingSection = true
-            }
             errorMessage = null
             try {
                 val response = VisaviApi.instance.getForumSection(sectionId, page, itemsPerPage)
@@ -107,12 +114,11 @@ class ForumViewModel : ViewModel() {
                     }
 
                     val rawTopics = body.data ?: emptyList()
-                    val resultTopics = rawTopics
 
                     if (append) {
-                        topics = topics + resultTopics
+                        topics = (topics + rawTopics).distinctBy { it.id }
                     } else {
-                        topics = resultTopics
+                        topics = rawTopics
                         val rootSection = findSectionById(rootSections, sectionId)
                         subsections = rootSection?.children ?: emptyList()
                     }
@@ -134,32 +140,46 @@ class ForumViewModel : ViewModel() {
         loadSection(context, sectionId, sectionCurrentPage + 1, append = true)
     }
 
-    fun loadTopic(context: Context, topicId: Int, page: Int = 1, append: Boolean = false) {
-        val itemsPerPage = getItemsPerPage(context)
+    fun loadTopic(context: Context, topicId: Int) {
+        if (isLoadingPosts) return
+        isLoadingPosts = true
+        errorMessage = null
+        appendPostsErrorMessage = null
 
         viewModelScope.launch {
-            if (append) {
-                isLoadingMorePosts = true
-            } else {
-                isLoadingPosts = true
-            }
-            errorMessage = null
             try {
-                val response = VisaviApi.instance.getTopicPosts(topicId, page, itemsPerPage, order = "asc")
+                val itemsPerPage = getItemsPerPage(context)
+                // Сначала запрашиваем 1-ю страницу для получения meta info
+                val response = VisaviApi.instance.getTopicPosts(topicId, 1, itemsPerPage, order = "asc")
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
                     currentTopic = body.topic
+                    val lastPage = body.meta?.lastPage ?: 1
+                    postsLastPage = lastPage
 
-                    body.meta?.let { meta ->
-                        postsCurrentPage = meta.currentPage
-                        postsLastPage = meta.lastPage
-                    }
-
-                    val newPosts = body.data ?: emptyList()
-                    if (append) {
-                        posts = (newPosts + posts).sortedBy { it.createdAt }
+                    if (lastPage > 1) {
+                        // Загружаем последнюю страницу со свежими сообщениями
+                        val lastPageResponse = VisaviApi.instance.getTopicPosts(topicId, lastPage, itemsPerPage, order = "asc")
+                        if (lastPageResponse.isSuccessful && lastPageResponse.body() != null) {
+                            val lastBody = lastPageResponse.body()!!
+                            val newPosts = lastBody.data ?: emptyList()
+                            posts = newPosts.distinctBy { it.id }.sortedBy { it.createdAt }
+                            minLoadedPage = lastPage
+                            maxLoadedPage = lastPage
+                            postsCurrentPage = lastPage
+                        } else {
+                            val newPosts = body.data ?: emptyList()
+                            posts = newPosts.distinctBy { it.id }.sortedBy { it.createdAt }
+                            minLoadedPage = 1
+                            maxLoadedPage = 1
+                            postsCurrentPage = 1
+                        }
                     } else {
-                        posts = newPosts.sortedBy { it.createdAt }
+                        val newPosts = body.data ?: emptyList()
+                        posts = newPosts.distinctBy { it.id }.sortedBy { it.createdAt }
+                        minLoadedPage = 1
+                        maxLoadedPage = 1
+                        postsCurrentPage = 1
                     }
                 } else {
                     errorMessage = response.extractErrorMessage("Ошибка загрузки сообщений темы")
@@ -168,15 +188,84 @@ class ForumViewModel : ViewModel() {
                 errorMessage = "Ошибка сети: ${e.message}"
             } finally {
                 isLoadingPosts = false
-                isLoadingMorePosts = false
             }
         }
     }
 
-    fun loadMorePosts(context: Context) {
-        if (isLoadingMorePosts || postsCurrentPage >= postsLastPage) return
+    private var lastOlderLoadTimestamp = 0L
+
+    fun loadOlderPosts(context: Context, onSuccess: ((addedCount: Int) -> Unit)? = null) {
+        val now = System.currentTimeMillis()
+        if (now - lastOlderLoadTimestamp < 600) return
+        if (isLoadingOlderPosts || isLoadingPosts || minLoadedPage <= 1) return
         val topicId = navigationState.topicId ?: return
-        loadTopic(context, topicId, postsCurrentPage + 1, append = true)
+        val targetPage = minLoadedPage - 1
+
+        isLoadingOlderPosts = true
+        lastOlderLoadTimestamp = now
+        appendPostsErrorMessage = null
+
+        viewModelScope.launch {
+            try {
+                val itemsPerPage = getItemsPerPage(context)
+                val response = VisaviApi.instance.getTopicPosts(topicId, targetPage, itemsPerPage, order = "asc")
+                if (response.isSuccessful && response.body() != null) {
+                    val newPosts = response.body()?.data ?: emptyList()
+                    if (newPosts.isNotEmpty()) {
+                        val oldSize = posts.size
+                        val combined = (newPosts + posts).distinctBy { it.id }.sortedBy { it.createdAt }
+                        val addedCount = combined.size - oldSize
+                        posts = combined
+                        minLoadedPage = targetPage
+                        if (addedCount > 0) {
+                            onSuccess?.invoke(addedCount)
+                        }
+                    } else {
+                        minLoadedPage = targetPage
+                    }
+                } else {
+                    appendPostsErrorMessage = response.extractErrorMessage("Ошибка подгрузки сообщений")
+                }
+            } catch (e: Exception) {
+                appendPostsErrorMessage = "Ошибка сети: ${e.message}"
+            } finally {
+                isLoadingOlderPosts = false
+            }
+        }
+    }
+
+    private var lastNewerLoadTimestamp = 0L
+
+    fun loadNewerPosts(context: Context) {
+        val now = System.currentTimeMillis()
+        if (now - lastNewerLoadTimestamp < 600) return
+        if (isLoadingNewerPosts || isLoadingPosts || maxLoadedPage >= postsLastPage) return
+        val topicId = navigationState.topicId ?: return
+        val targetPage = maxLoadedPage + 1
+
+        isLoadingNewerPosts = true
+        lastNewerLoadTimestamp = now
+        appendPostsErrorMessage = null
+
+        viewModelScope.launch {
+            try {
+                val itemsPerPage = getItemsPerPage(context)
+                val response = VisaviApi.instance.getTopicPosts(topicId, targetPage, itemsPerPage, order = "asc")
+                if (response.isSuccessful && response.body() != null) {
+                    val newPosts = response.body()?.data ?: emptyList()
+                    if (newPosts.isNotEmpty()) {
+                        posts = (posts + newPosts).distinctBy { it.id }.sortedBy { it.createdAt }
+                    }
+                    maxLoadedPage = targetPage
+                } else {
+                    appendPostsErrorMessage = response.extractErrorMessage("Ошибка подгрузки сообщений")
+                }
+            } catch (e: Exception) {
+                appendPostsErrorMessage = "Ошибка сети: ${e.message}"
+            } finally {
+                isLoadingNewerPosts = false
+            }
+        }
     }
 
     fun navigateToSection(section: ForumSection, context: Context) {
@@ -288,7 +377,7 @@ class ForumViewModel : ViewModel() {
 
                 if (response.isSuccessful) {
                     com.ramzes.visavinet.util.AntifloodManager.markMessageSent()
-                    loadTopic(context, topicId, 1, append = false)
+                    loadTopic(context, topicId)
                     onSuccess()
                 } else {
                     onError(response.extractErrorMessage("Ошибка создания ответа"))
