@@ -63,7 +63,8 @@ fun MessagesScreen(
     sendErrorMessage: String? = null,
     onClearError: () -> Unit = {},
     scrollToBottom: Boolean = false,
-    onScrollComplete: () -> Unit = {}
+    onScrollComplete: () -> Unit = {},
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
 ) {
     val isDark = isDarkTheme()
     val listState = rememberLazyListState()
@@ -173,6 +174,7 @@ fun MessagesScreen(
                         GlassMessageItem(
                             message = message,
                             onUserClick = onUserClick,
+                            onTopicClick = onTopicClick,
                             onImageClick = { url -> selectedImageForLightbox = url },
                             isDark = isDark
                         )
@@ -345,6 +347,7 @@ fun DividerWithText(text: String, isDark: Boolean = true) {
 fun GlassMessageItem(
     message: MessageData,
     onUserClick: (String) -> Unit = {},
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
     onImageClick: (String) -> Unit = {},
     isDark: Boolean = true
 ) {
@@ -418,7 +421,12 @@ fun GlassMessageItem(
 
             message.text?.let { text ->
                 val blocks = parseHtmlToBlocks(text)
-                RenderContentBlocks(blocks = blocks, isDark = isDark)
+                RenderContentBlocks(
+                    blocks = blocks,
+                    isDark = isDark,
+                    onUserClick = onUserClick,
+                    onTopicClick = onTopicClick
+                )
             }
 
             if (message.files.isNotEmpty()) {

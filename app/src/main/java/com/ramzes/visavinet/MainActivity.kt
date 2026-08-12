@@ -191,14 +191,13 @@ fun MainNavigation(
                         dialoguesViewModel.backToDialogues()
                         showMessagesScreen = false
                     }
-                    currentScreen == Screen.Forum && showForumTopicScreen -> {
-                        forumViewModel.navigateBack()
+                    currentScreen == Screen.Forum && forumViewModel.navigationState.level == ForumNavigationLevel.TOPIC -> {
+                        forumViewModel.navigateBack(context.applicationContext)
                         showForumTopicScreen = false
                         selectedForumTopic = null
                     }
-                    currentScreen == Screen.Forum && !showForumTopicScreen &&
-                            forumViewModel.navigationState.level != ForumNavigationLevel.SECTIONS -> {
-                        forumViewModel.navigateBack()
+                    currentScreen == Screen.Forum && forumViewModel.navigationState.level == ForumNavigationLevel.SECTION -> {
+                        forumViewModel.navigateBack(context.applicationContext)
                     }
                     currentScreen == Screen.Forum && forumViewModel.navigationState.level == ForumNavigationLevel.SECTIONS -> {
                         currentScreen = Screen.Profile
@@ -221,6 +220,37 @@ fun MainNavigation(
     }
 
     LaunchedEffect(intent) {
+        val dataUri = intent?.data
+        if (dataUri != null) {
+            val urlString = dataUri.toString()
+            when (val target = com.ramzes.visavinet.util.parseVisaviUrl(urlString)) {
+                is com.ramzes.visavinet.util.VisaviUrlTarget.User -> {
+                    userProfileLoading = true
+                    userProfileError = null
+                    dialoguesViewModel.loadUserProfile(
+                        context = context.applicationContext,
+                        login = target.login,
+                        onSuccess = { user ->
+                            userProfileData = user
+                            userProfileLoading = false
+                            showUserProfile = true
+                        },
+                        onError = { error ->
+                            userProfileError = error
+                            userProfileLoading = false
+                            showUserProfile = true
+                        }
+                    )
+                }
+                is com.ramzes.visavinet.util.VisaviUrlTarget.Topic -> {
+                    resetSubScreens()
+                    currentScreen = Screen.Forum
+                    forumViewModel.navigateToTopicId(context.applicationContext, target.topicId, target.page, target.postId)
+                }
+                else -> {}
+            }
+        }
+
         val openDialogues = intent?.getBooleanExtra("OPEN_DIALOGUES", false) ?: false
         if (openDialogues) {
             while (viewModel.isInitialChecking && viewModel.currentUser == null) {
@@ -570,6 +600,11 @@ fun MainNavigation(
                                                     }
                                                 )
                                             },
+                                            onTopicClick = { topicId, page, postId ->
+                                                resetSubScreens()
+                                                currentScreen = Screen.Forum
+                                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
+                                            },
                                             onSendMessage = { text, files ->
                                                 dialoguesViewModel.sendMessage(
                                                     context = context.applicationContext,
@@ -619,15 +654,41 @@ fun MainNavigation(
                                     }
                                 }
                                 Screen.Forum -> {
-                                    if (showForumTopicScreen && selectedForumTopic != null) {
+                                    if (forumViewModel.navigationState.level == ForumNavigationLevel.TOPIC) {
+                                        val topicObj = forumViewModel.currentTopic?.let {
+                                            ForumTopic(
+                                                id = it.id,
+                                                title = it.title,
+                                                authorLogin = it.authorLogin,
+                                                authorName = it.authorName,
+                                                closed = it.closed,
+                                                locked = it.locked,
+                                                postsCount = it.postsCount,
+                                                visits = it.visits,
+                                                note = it.note
+                                            )
+                                        } ?: selectedForumTopic ?: ForumTopic(
+                                            id = forumViewModel.navigationState.topicId ?: 0,
+                                            title = forumViewModel.navigationState.topicTitle ?: "Тема",
+                                            authorLogin = "",
+                                            authorName = null,
+                                            closed = false,
+                                            locked = false,
+                                            postsCount = 0,
+                                            visits = 0,
+                                            note = null
+                                        )
+
                                         ForumTopicScreen(
                                             viewModel = forumViewModel,
-                                            topic = selectedForumTopic!!,
+                                            topic = topicObj,
                                             currentLogin = viewModel.currentUser?.login,
                                             onBackClick = {
-                                                forumViewModel.navigateBack()
-                                                showForumTopicScreen = false
-                                                selectedForumTopic = null
+                                                forumViewModel.navigateBack(context.applicationContext)
+                                                if (forumViewModel.navigationState.level != ForumNavigationLevel.TOPIC) {
+                                                    showForumTopicScreen = false
+                                                    selectedForumTopic = null
+                                                }
                                             },
                                             onUserClick = { login ->
                                                 userProfileLoading = true
@@ -655,6 +716,7 @@ fun MainNavigation(
                                             onTopicClick = { topic ->
                                                 selectedForumTopic = topic
                                                 showForumTopicScreen = true
+                                                forumViewModel.navigateToTopic(topic, context.applicationContext)
                                             }
                                         )
                                     }

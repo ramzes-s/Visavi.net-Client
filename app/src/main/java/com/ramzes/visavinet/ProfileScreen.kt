@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -180,9 +181,10 @@ fun ProfileScreen(user: UserData, statusMessage: String?) {
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            val cleanInfo = stripHtml(user.info)
+                            val rawInfo = stripHtml(user.info)
+                            val cleanInfo = if (rawInfo.length > 120) rawInfo.take(120).trimEnd() + "…" else rawInfo
                             if (cleanInfo.isNotBlank()) {
-                                ProfileDetailRow("О себе:", cleanInfo, isDark)
+                                ProfileDetailRow("О себе:", cleanInfo, isDark, maxLines = 2)
                             }
                             val cleanSite = stripHtml(user.site)
                             if (cleanSite.isNotBlank()) {
@@ -233,7 +235,12 @@ fun RoleBadge(level: String?, isDark: Boolean) {
 }
 
 @Composable
-fun ProfileDetailRow(label: String, value: String, isDark: Boolean) {
+fun ProfileDetailRow(
+    label: String,
+    value: String,
+    isDark: Boolean,
+    maxLines: Int = Int.MAX_VALUE
+) {
     val textColor = if (isDark) Color.White else LightText
     val labelColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
 
@@ -242,7 +249,16 @@ fun ProfileDetailRow(label: String, value: String, isDark: Boolean) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(text = label, fontSize = 12.sp, color = labelColor)
-        Text(text = value, fontSize = 12.sp, color = textColor, fontWeight = FontWeight.Medium)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = value,
+            fontSize = 12.sp,
+            color = textColor,
+            fontWeight = FontWeight.Medium,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
+        )
     }
 }
 

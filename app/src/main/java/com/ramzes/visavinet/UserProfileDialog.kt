@@ -227,9 +227,10 @@ private fun UserProfileContent(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val cleanInfo = stripHtml(user.info)
+                val rawInfo = stripHtml(user.info)
+                val cleanInfo = if (rawInfo.length > 120) rawInfo.take(120).trimEnd() + "…" else rawInfo
                 if (cleanInfo.isNotBlank()) {
-                    ProfileDetailRow("О себе:", cleanInfo, isDark)
+                    ProfileDetailRow("О себе:", cleanInfo, isDark, maxLines = 2)
                 }
                 val cleanSite = stripHtml(user.site)
                 if (cleanSite.isNotBlank()) {

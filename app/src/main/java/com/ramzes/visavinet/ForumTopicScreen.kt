@@ -226,6 +226,9 @@ fun ForumTopicScreen(
                                     post = post,
                                     currentLogin = currentLogin,
                                     onUserClick = onUserClick,
+                                    onTopicClick = { topicId, page, postId ->
+                                        viewModel.navigateToTopicId(context, topicId, page, postId)
+                                    },
                                     onQuoteClick = { textToInsert ->
                                         replyText = if (replyText.isBlank()) {
                                             textToInsert
@@ -557,6 +560,7 @@ fun ForumPostItem(
     post: ForumPost,
     currentLogin: String?,
     onUserClick: (String) -> Unit,
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
     onQuoteClick: (String) -> Unit,
     onImageClick: (String) -> Unit,
     isDark: Boolean
@@ -668,7 +672,12 @@ fun ForumPostItem(
 
             post.text?.let { text ->
                 val blocks = parseHtmlToBlocks(text)
-                RenderContentBlocks(blocks = blocks, isDark = isDark)
+                RenderContentBlocks(
+                    blocks = blocks,
+                    isDark = isDark,
+                    onUserClick = onUserClick,
+                    onTopicClick = onTopicClick
+                )
             }
 
             if (post.files.isNotEmpty()) {

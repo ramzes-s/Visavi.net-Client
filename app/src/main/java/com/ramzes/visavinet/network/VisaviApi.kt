@@ -280,6 +280,8 @@ data class ForumSection(
 
 data class ForumTopic(
     @SerializedName("id") val id: Int,
+    @SerializedName("forum_id") val forumId: Int? = null,
+    @SerializedName("section_id") val sectionId: Int? = null,
     @SerializedName("title") val title: String? = null,
     @SerializedName("login") val authorLogin: String? = null,
     @SerializedName("name") val authorName: String? = null,
@@ -295,6 +297,9 @@ data class ForumTopic(
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
+    val realForumId: Int?
+        get() = forumId ?: sectionId
+
     val createdAt: Long?
         get() = createdAtRaw?.let { parseIsoDateTime(it) }
 
@@ -340,6 +345,8 @@ data class ForumInfo(
 
 data class TopicInfo(
     @SerializedName("id") val id: Int,
+    @SerializedName("forum_id") val forumId: Int? = null,
+    @SerializedName("section_id") val sectionId: Int? = null,
     @SerializedName("title") val title: String? = null,
     @SerializedName("login") val authorLogin: String? = null,
     @SerializedName("name") val authorName: String? = null,
@@ -355,6 +362,9 @@ data class TopicInfo(
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
+    val realForumId: Int?
+        get() = forumId ?: sectionId
+
     val createdAt: Long?
         get() = createdAtRaw?.let { parseIsoDateTime(it) }
 
@@ -394,7 +404,8 @@ data class ForumPostsData(
     @SerializedName("data") val data: List<ForumPost>? = null,
     @SerializedName("links") val links: DialogueLinks? = null,
     @SerializedName("meta") val meta: PaginationMeta? = null,
-    @SerializedName("topic") val topic: TopicInfo? = null
+    @SerializedName("topic") val topic: TopicInfo? = null,
+    @SerializedName("forum") val forum: ForumInfo? = null
 )
 
 /**

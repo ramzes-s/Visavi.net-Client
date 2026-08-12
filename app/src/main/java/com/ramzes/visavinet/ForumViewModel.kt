@@ -140,7 +140,33 @@ class ForumViewModel : ViewModel() {
         loadSection(context, sectionId, sectionCurrentPage + 1, append = true)
     }
 
-    fun loadTopic(context: Context, topicId: Int) {
+    fun findSectionById(sectionId: Int, sections: List<ForumSection> = rootSections): ForumSection? {
+        for (sec in sections) {
+            if (sec.id == sectionId) return sec
+            sec.children?.let { sub ->
+                val found = findSectionById(sectionId, sub)
+                if (found != null) return found
+            }
+        }
+        return null
+    }
+
+    fun getSectionChain(sectionId: Int, sections: List<ForumSection> = rootSections): List<ForumSection> {
+        for (sec in sections) {
+            if (sec.id == sectionId) {
+                return listOf(sec)
+            }
+            sec.children?.let { childs ->
+                val subChain = getSectionChain(sectionId, childs)
+                if (subChain.isNotEmpty()) {
+                    return listOf(sec) + subChain
+                }
+            }
+        }
+        return emptyList()
+    }
+
+    fun loadTopic(context: Context, topicId: Int, isFromDirectLink: Boolean = false) {
         if (isLoadingPosts) return
         isLoadingPosts = true
         errorMessage = null
@@ -149,16 +175,60 @@ class ForumViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val itemsPerPage = getItemsPerPage(context)
-                // Сначала запрашиваем 1-ю страницу для получения meta info
                 val response = VisaviApi.instance.getTopicPosts(topicId, 1, itemsPerPage, order = "asc")
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
                     currentTopic = body.topic
+
+                    val targetForumId = body.forum?.id ?: body.topic?.realForumId
+
+                    if (isFromDirectLink && targetForumId != null && targetForumId > 0) {
+                        if (rootSections.isEmpty()) {
+                            try {
+                                val secResponse = VisaviApi.instance.getForumSections()
+                                if (secResponse.isSuccessful && secResponse.body() != null) {
+                                    rootSections = secResponse.body()?.data ?: emptyList()
+                                }
+                            } catch (_: Exception) {}
+                        }
+
+                        val chain = getSectionChain(targetForumId)
+                        val newStack = mutableListOf<ForumNavigationState>()
+                        newStack.add(ForumNavigationState(level = ForumNavigationLevel.SECTIONS))
+                        for (sec in chain) {
+                            newStack.add(
+                                ForumNavigationState(
+                                    level = ForumNavigationLevel.SECTION,
+                                    sectionId = sec.id,
+                                    sectionTitle = sec.title
+                                )
+                            )
+                        }
+
+                        val lastSection = chain.lastOrNull()
+                        val sectionTitleToUse = body.forum?.title ?: lastSection?.title ?: navigationState.sectionTitle ?: "Форум"
+                        val sectionIdToUse = body.forum?.id ?: lastSection?.id ?: targetForumId
+
+                        backStack.clear()
+                        backStack.addAll(newStack)
+
+                        navigationState = ForumNavigationState(
+                            level = ForumNavigationLevel.TOPIC,
+                            sectionId = sectionIdToUse,
+                            sectionTitle = sectionTitleToUse,
+                            topicId = topicId,
+                            topicTitle = body.topic?.title ?: "Тема #$topicId"
+                        )
+                    } else if (body.topic?.title != null) {
+                        navigationState = navigationState.copy(
+                            topicTitle = body.topic.title
+                        )
+                    }
+
                     val lastPage = body.meta?.lastPage ?: 1
                     postsLastPage = lastPage
 
                     if (lastPage > 1) {
-                        // Загружаем последнюю страницу со свежими сообщениями
                         val lastPageResponse = VisaviApi.instance.getTopicPosts(topicId, lastPage, itemsPerPage, order = "asc")
                         if (lastPageResponse.isSuccessful && lastPageResponse.body() != null) {
                             val lastBody = lastPageResponse.body()!!
@@ -295,11 +365,60 @@ class ForumViewModel : ViewModel() {
         loadTopic(context, topic.id)
     }
 
-    fun navigateBack(): Boolean {
+    fun navigateToTopicId(context: Context, topicId: Int, page: Int? = null, postId: Int? = null) {
+        navigationState = ForumNavigationState(
+            level = ForumNavigationLevel.TOPIC,
+            topicId = topicId,
+            topicTitle = "Загрузка темы..."
+        )
+        posts = emptyList()
+        postsCurrentPage = page ?: 1
+        postsLastPage = 1
+        loadTopic(context, topicId, isFromDirectLink = true)
+    }
+
+    fun navigateBack(context: Context? = null): Boolean {
+        // Убираем элементы уровня TOPIC со входа стека при выходе из темы
+        while (backStack.isNotEmpty() && backStack.last().level == ForumNavigationLevel.TOPIC) {
+            backStack.removeAt(backStack.size - 1)
+        }
+
         if (backStack.isNotEmpty()) {
-            navigationState = backStack.removeAt(backStack.size - 1)
+            val prevState = backStack.removeAt(backStack.size - 1)
+            navigationState = prevState
+            if (context != null) {
+                when (prevState.level) {
+                    ForumNavigationLevel.SECTIONS -> {
+                        if (rootSections.isEmpty()) loadRootSections(context)
+                    }
+                    ForumNavigationLevel.SECTION -> {
+                        prevState.sectionId?.let { loadSection(context, it) }
+                    }
+                    ForumNavigationLevel.TOPIC -> {
+                        // Не перегружаем заново
+                    }
+                }
+            }
             return true
         }
+
+        if (navigationState.level == ForumNavigationLevel.TOPIC || navigationState.level == ForumNavigationLevel.SECTION) {
+            val secId = navigationState.sectionId
+            val secTitle = navigationState.sectionTitle
+            if (navigationState.level == ForumNavigationLevel.TOPIC && secId != null && secId > 0) {
+                navigationState = ForumNavigationState(
+                    level = ForumNavigationLevel.SECTION,
+                    sectionId = secId,
+                    sectionTitle = secTitle ?: "Раздел"
+                )
+                if (context != null) loadSection(context, secId)
+            } else {
+                navigationState = ForumNavigationState(level = ForumNavigationLevel.SECTIONS)
+                if (context != null) loadRootSections(context)
+            }
+            return true
+        }
+
         return false
     }
 

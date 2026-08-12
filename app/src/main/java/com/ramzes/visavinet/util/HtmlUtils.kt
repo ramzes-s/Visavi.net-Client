@@ -11,8 +11,10 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -32,12 +34,90 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.ramzes.visavinet.ui.theme.LightText
+import com.ramzes.visavinet.ui.theme.LightTextSecondary
+import com.ramzes.visavinet.ui.theme.TextLightGray
 import java.text.SimpleDateFormat
 import java.util.*
 
+sealed class VisaviUrlTarget {
+    data class Topic(val topicId: Int, val page: Int? = null, val postId: Int? = null) : VisaviUrlTarget()
+    data class User(val login: String) : VisaviUrlTarget()
+    object Other : VisaviUrlTarget()
+}
+
+fun parseVisaviUrl(url: String): VisaviUrlTarget {
+    if (url.isBlank()) return VisaviUrlTarget.Other
+    val clean = url.trim()
+
+    // 1. Профиль пользователя: /users/login или https://visavi.net/users/login
+    val userRegex = Regex("(?:https?://visavi\\.net)?/users/([^/?#]+)", RegexOption.IGNORE_CASE)
+    userRegex.find(clean)?.let { match ->
+        val login = match.groupValues[1]
+        if (login.isNotBlank()) return VisaviUrlTarget.User(login)
+    }
+
+    // 2. Тема форума: /topics/44999?page=2#post_717088 или /forum/topic/44999
+    val topicRegex = Regex("(?:https?://visavi\\.net)?/(?:topics|forum/topic)/(\\d+)(?:\\?[^#]*)?(?:#(?:post_)?(\\d+))?", RegexOption.IGNORE_CASE)
+    topicRegex.find(clean)?.let { match ->
+        val topicId = match.groupValues[1].toIntOrNull()
+        val postId = match.groupValues[2].toIntOrNull()
+
+        val pageRegex = Regex("[?&]page=(\\d+)", RegexOption.IGNORE_CASE)
+        val page = pageRegex.find(clean)?.groupValues?.get(1)?.toIntOrNull()
+
+        if (topicId != null) {
+            return VisaviUrlTarget.Topic(topicId = topicId, page = page, postId = postId)
+        }
+    }
+
+    return VisaviUrlTarget.Other
+}
+
+fun handleVisaviUrlClick(
+    context: android.content.Context,
+    url: String,
+    onUserClick: ((String) -> Unit)? = null,
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+) {
+    when (val target = parseVisaviUrl(url)) {
+        is VisaviUrlTarget.User -> {
+            if (onUserClick != null) {
+                onUserClick(target.login)
+            } else {
+                openExternalUrl(context, url)
+            }
+        }
+        is VisaviUrlTarget.Topic -> {
+            if (onTopicClick != null) {
+                onTopicClick(target.topicId, target.page, target.postId)
+            } else {
+                openExternalUrl(context, url)
+            }
+        }
+        is VisaviUrlTarget.Other -> {
+            openExternalUrl(context, url)
+        }
+    }
+}
+
+fun openExternalUrl(context: android.content.Context, url: String) {
+    try {
+        val fullUrl = when {
+            url.startsWith("http://") || url.startsWith("https://") -> url
+            url.startsWith("/") -> "https://visavi.net$url"
+            else -> "https://visavi.net/$url"
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
 /**
  * Компонент с поддержкой выделения текста долгим тапом для копирования,
- * переходом по клику на ссылки и поддержкой inline-смайлов
+ * переходом по клику на ссылки (внутренние темы/профили и внешние) и поддержкой inline-смайлов
  */
 @Composable
 fun ClickableAndSelectableText(
@@ -48,7 +128,9 @@ fun ClickableAndSelectableText(
     fontStyle: FontStyle? = null,
     fontWeight: FontWeight? = null,
     color: Color = if (isDark) Color.White else Color.Black,
-    inlineContent: Map<String, InlineTextContent> = emptyMap()
+    inlineContent: Map<String, InlineTextContent> = emptyMap(),
+    onUserClick: ((String) -> Unit)? = null,
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -78,17 +160,7 @@ fun ClickableAndSelectableText(
                         .firstOrNull()?.let { annotation ->
                             val url = annotation.item
                             if (url.isNotBlank()) {
-                                try {
-                                    val fullUrl = when {
-                                        url.startsWith("http://") || url.startsWith("https://") -> url
-                                        url.startsWith("/") -> "https://visavi.net$url"
-                                        else -> "https://visavi.net/$url"
-                                    }
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                                handleVisaviUrlClick(context, url, onUserClick, onTopicClick)
                             }
                         }
                 }
@@ -163,19 +235,30 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
             val footerPattern = Regex("<footer[^>]*>(.*?)</footer>", setOf(RegexOption.IGNORE_CASE))
             val footerMatch = footerPattern.find(innerHtml)
 
-            val quoteHtml = if (footerMatch != null) {
+            val rawQuoteHtml = if (footerMatch != null) {
                 innerHtml.substring(0, footerMatch.range.first).trim()
             } else {
                 innerHtml.trim()
             }
 
-            val footerHtml = footerMatch?.groupValues?.get(1)?.trim() ?: ""
+            val rawFooterHtml = footerMatch?.groupValues?.get(1)?.trim() ?: ""
+
+            // Очищаем теги <div> и </div> для обеих разновидностей цитат
+            val cleanQuoteHtml = rawQuoteHtml
+                .replace(Regex("<div[^>]*>", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("</div>", RegexOption.IGNORE_CASE), "")
+                .trim()
+
+            val cleanFooterHtml = rawFooterHtml
+                .replace(Regex("<div[^>]*>", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("</div>", RegexOption.IGNORE_CASE), "")
+                .trim()
 
             blocks.add(ContentBlock.QuoteBlock(
-                quoteText = quoteHtml,
-                footerText = footerHtml,
-                quoteHtml = quoteHtml,
-                footerHtml = footerHtml
+                quoteText = cleanQuoteHtml,
+                footerText = cleanFooterHtml,
+                quoteHtml = cleanQuoteHtml,
+                footerHtml = cleanFooterHtml
             ))
         }
 
@@ -232,19 +315,21 @@ private fun decodeHtmlEntities(html: String): String {
 @Composable
 fun RenderContentBlocks(
     blocks: List<ContentBlock>,
-    isDark: Boolean = true
+    isDark: Boolean = true,
+    onUserClick: ((String) -> Unit)? = null,
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         blocks.forEach { block ->
             when (block) {
                 is ContentBlock.TextBlock -> {
-                    TextBlock(block.text, isDark, block.html)
+                    TextBlock(block.text, isDark, block.html, onUserClick, onTopicClick)
                 }
                 is ContentBlock.CodeBlock -> {
                     CodeBlock(block.code, isDark)
                 }
                 is ContentBlock.QuoteBlock -> {
-                    QuoteBlock(block.quoteText, block.footerText, isDark, block.quoteHtml, block.footerHtml)
+                    QuoteBlock(block.quoteText, block.footerText, isDark, block.quoteHtml, block.footerHtml, onUserClick, onTopicClick)
                 }
             }
         }
@@ -281,7 +366,13 @@ fun parseImgSrcAndAlt(imgTag: String): Pair<String?, String?> {
  * Рендеринг текстового блока с обработкой inline-тегов и смайлов
  */
 @Composable
-private fun TextBlock(text: String, isDark: Boolean, html: String? = null) {
+private fun TextBlock(
+    text: String,
+    isDark: Boolean,
+    html: String? = null,
+    onUserClick: ((String) -> Unit)? = null,
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+) {
     val sourceText = html ?: text
     val (annotatedText, inlineMap) = parseInlineHtmlTags(sourceText, isDark)
 
@@ -290,6 +381,8 @@ private fun TextBlock(text: String, isDark: Boolean, html: String? = null) {
         isDark = isDark,
         fontSize = 14.sp,
         inlineContent = inlineMap,
+        onUserClick = onUserClick,
+        onTopicClick = onTopicClick,
         modifier = Modifier.padding(vertical = 4.dp)
     )
 }
@@ -299,8 +392,12 @@ private fun TextBlock(text: String, isDark: Boolean, html: String? = null) {
  */
 fun parseInlineHtmlTags(text: String, isDark: Boolean): Pair<AnnotatedString, Map<String, InlineTextContent>> {
     val inlineMap = mutableMapOf<String, InlineTextContent>()
+    val cleanText = text
+        .replace(Regex("<div[^>]*>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("</div>", RegexOption.IGNORE_CASE), "")
+        .trim()
     val annotated = buildAnnotatedString {
-        parseNestedTags(this, text, isDark, emptyList(), inlineMap = inlineMap)
+        parseNestedTags(this, cleanText, isDark, emptyList(), inlineMap = inlineMap)
     }
     return Pair(annotated, inlineMap)
 }
@@ -555,6 +652,19 @@ private fun CodeBlock(code: String, isDark: Boolean) {
     }
 }
 
+fun parseQuoteFooter(footerSource: String): Pair<String, String?> {
+    val clean = footerSource.trim()
+    val dateRegex = Regex("(.*?)\\s+((?:\\d{2}\\.\\d{2}\\.\\d{2,4}|Сегодня|Вчера)\\s*(?:[/,-]?\\s*\\d{2}:\\d{2})?)$", RegexOption.IGNORE_CASE)
+    val match = dateRegex.find(clean)
+    return if (match != null) {
+        val authorPart = match.groupValues[1].trim()
+        val datePart = match.groupValues[2].trim()
+        Pair(authorPart, datePart)
+    } else {
+        Pair(clean, null)
+    }
+}
+
 /**
  * Рендеринг блока цитаты с оранжевым фоном
  */
@@ -564,10 +674,12 @@ private fun QuoteBlock(
     footerText: String,
     isDark: Boolean,
     quoteHtml: String? = null,
-    footerHtml: String? = null
+    footerHtml: String? = null,
+    onUserClick: ((String) -> Unit)? = null,
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
 ) {
     val backgroundColor = Color(0x17D67904)
-    val textColor = if (isDark) Color(0xFFF6DAC0) else Color(0x90A95E03)
+    val textColor = if (isDark) Color.White else LightText
 
     Column(
         modifier = Modifier
@@ -593,21 +705,48 @@ private fun QuoteBlock(
                 fontSize = 14.sp,
                 color = textColor,
                 inlineContent = inlineMapQuote,
-                modifier = Modifier.padding(bottom = 4.dp)
+                onUserClick = onUserClick,
+                onTopicClick = onTopicClick
             )
         }
 
         if (footerText.isNotBlank()) {
             val footerSourceText = footerHtml ?: footerText
-            val (annotatedFooter, inlineMapFooter) = parseInlineHtmlTags(footerSourceText, isDark)
-            ClickableAndSelectableText(
-                text = annotatedFooter,
-                isDark = isDark,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                color = textColor,
-                inlineContent = inlineMapFooter
+            val (authorPart, datePart) = parseQuoteFooter(footerSourceText)
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 6.dp),
+                color = Color(0x30D67904)
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val (annotatedAuthor, inlineMapAuthor) = parseInlineHtmlTags(authorPart, isDark)
+                ClickableAndSelectableText(
+                    text = annotatedAuthor,
+                    isDark = isDark,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = textColor,
+                    inlineContent = inlineMapAuthor,
+                    onUserClick = onUserClick,
+                    onTopicClick = onTopicClick,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                if (!datePart.isNullOrBlank()) {
+                    val secondaryColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+                    Text(
+                        text = datePart,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = secondaryColor
+                    )
+                }
+            }
         }
     }
 }
