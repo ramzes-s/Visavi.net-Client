@@ -239,7 +239,7 @@ fun MessagesScreen(
                                 messageText = it
                             }
                         },
-                        placeholderText = "Сообщение (мин. $textMin симв.)...",
+                        placeholderText = "Сообщение...",
                         isDark = isDark,
                         modifier = Modifier.weight(1f),
                         trailingIcon = {

@@ -37,6 +37,7 @@ import coil.request.ImageRequest
 import com.ramzes.visavinet.ui.theme.LightText
 import com.ramzes.visavinet.ui.theme.LightTextSecondary
 import com.ramzes.visavinet.ui.theme.TextLightGray
+import com.ramzes.visavinet.network.VisaviApi
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -49,16 +50,17 @@ sealed class VisaviUrlTarget {
 fun parseVisaviUrl(url: String): VisaviUrlTarget {
     if (url.isBlank()) return VisaviUrlTarget.Other
     val clean = url.trim()
+    val hostPattern = Regex.escape(VisaviApi.BASE_HOST)
 
-    // 1. Профиль пользователя: /users/login или https://visavi.net/users/login
-    val userRegex = Regex("(?:https?://visavi\\.net)?/users/([^/?#]+)", RegexOption.IGNORE_CASE)
+    // 1. Профиль пользователя: /users/login или https://domain/users/login
+    val userRegex = Regex("(?:https?://$hostPattern)?/users/([^/?#]+)", RegexOption.IGNORE_CASE)
     userRegex.find(clean)?.let { match ->
         val login = match.groupValues[1]
         if (login.isNotBlank()) return VisaviUrlTarget.User(login)
     }
 
     // 2. Тема форума: /topics/44999?page=2#post_717088 или /forum/topic/44999
-    val topicRegex = Regex("(?:https?://visavi\\.net)?/(?:topics|forum/topic)/(\\d+)(?:\\?[^#]*)?(?:#(?:post_)?(\\d+))?", RegexOption.IGNORE_CASE)
+    val topicRegex = Regex("(?:https?://$hostPattern)?/(?:topics|forum/topic)/(\\d+)(?:\\?[^#]*)?(?:#(?:post_)?(\\d+))?", RegexOption.IGNORE_CASE)
     topicRegex.find(clean)?.let { match ->
         val topicId = match.groupValues[1].toIntOrNull()
         val postId = match.groupValues[2].toIntOrNull()
@@ -105,8 +107,8 @@ fun openExternalUrl(context: android.content.Context, url: String) {
     try {
         val fullUrl = when {
             url.startsWith("http://") || url.startsWith("https://") -> url
-            url.startsWith("/") -> "https://visavi.net$url"
-            else -> "https://visavi.net/$url"
+            url.startsWith("/") -> "https://${VisaviApi.BASE_HOST}$url"
+            else -> "https://${VisaviApi.BASE_HOST}/$url"
         }
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
         context.startActivity(intent)
@@ -369,7 +371,7 @@ fun parseImgSrcAndAlt(imgTag: String): Pair<String?, String?> {
 
     var src = srcMatch?.groupValues?.get(1)
     if (src != null && !src.startsWith("http://") && !src.startsWith("https://")) {
-        src = "https://visavi.net" + (if (src.startsWith("/")) "" else "/") + src
+        src = "https://${VisaviApi.BASE_HOST}" + (if (src.startsWith("/")) "" else "/") + src
     }
     val alt = altMatch?.groupValues?.get(1) ?: "smile"
     return Pair(src, alt)

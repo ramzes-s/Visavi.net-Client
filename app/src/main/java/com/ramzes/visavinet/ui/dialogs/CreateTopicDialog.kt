@@ -123,7 +123,7 @@ fun CreateTopicDialog(
                                 titleText = it
                             }
                         },
-                        placeholderText = "Заголовок темы (от $titleMin до $titleMax симв.)...",
+                        placeholderText = "Заголовок темы...",
                         isDark = isDark
                     )
 
@@ -148,7 +148,7 @@ fun CreateTopicDialog(
                                 contentText = it
                             }
                         },
-                        placeholderText = "Текст темы (мин. $textMin симв.)...",
+                        placeholderText = "Текст темы...",
                         singleLine = false,
                         maxLines = 6,
                         modifier = Modifier.heightIn(min = 100.dp),

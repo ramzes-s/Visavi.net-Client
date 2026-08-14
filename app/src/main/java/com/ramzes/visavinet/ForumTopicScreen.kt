@@ -347,7 +347,7 @@ fun ForumTopicScreen(
                                     replyText = it
                                 }
                             },
-                            placeholderText = "Ответить в тему (мин. $textMin симв.)...",
+                            placeholderText = "Ответить в тему...",
                             isDark = isDark,
                             modifier = Modifier.weight(1f),
                             trailingIcon = {

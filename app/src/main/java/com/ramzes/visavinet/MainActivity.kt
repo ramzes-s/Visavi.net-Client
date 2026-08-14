@@ -44,6 +44,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.ramzes.visavinet.network.ForumTopic
+import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.service.NewMessagesService
 import com.ramzes.visavinet.ui.components.*
 import com.ramzes.visavinet.ui.theme.*
@@ -379,7 +380,7 @@ fun MainNavigation(
 
                             Column {
                                 Text(
-                                    text = viewModel.siteConfig?.site?.title?.ifBlank { null } ?: "Visavi.net",
+                                    text = viewModel.siteConfig?.site?.title?.ifBlank { null } ?: VisaviApi.BASE_HOST.replaceFirstChar { it.uppercase() },
                                     style = androidx.compose.ui.text.TextStyle(
                                         brush = Brush.linearGradient(colors = logoGradient),
                                         fontSize = 20.sp,
@@ -876,7 +877,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Visavi.net",
+                    text = VisaviApi.BASE_HOST.replaceFirstChar { it.uppercase() },
                     color = primaryAccent,
                     fontSize = 44.sp,
                     fontWeight = FontWeight.Black

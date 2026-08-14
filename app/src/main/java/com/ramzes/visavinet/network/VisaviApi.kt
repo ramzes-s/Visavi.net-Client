@@ -518,7 +518,8 @@ interface VisaviApiService {
 }
 
 object VisaviApi {
-    private const val BASE_URL = "https://visavi.net/"
+    const val BASE_HOST = "visavi.net"
+    const val BASE_URL = "https://$BASE_HOST/"
 
     private var apiToken: String? = null
 
