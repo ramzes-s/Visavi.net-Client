@@ -182,7 +182,7 @@ sealed class ContentBlock {
  * Парсинг HTML в список блоков контента
  */
 fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
-    if (html == null) return emptyList()
+    if (html == null || html.isBlank()) return emptyList()
 
     // Декодируем HTML entities
     val decoded = decodeHtmlEntities(html)
@@ -200,6 +200,10 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
     val prePattern = Regex("<pre[^>]*>(.*?)</pre>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
     allMatches.addAll(prePattern.findAll(processed))
 
+    // Находим все <code> блоки
+    val codePattern = Regex("<code[^>]*>(.*?)</code>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    allMatches.addAll(codePattern.findAll(processed))
+
     // Находим все <blockquote> блоки
     val quotePattern = Regex("<blockquote[^>]*>(.*?)</blockquote>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
     allMatches.addAll(quotePattern.findAll(processed))
@@ -211,23 +215,25 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
     var currentPosition = 0
 
     for (match in allMatches) {
-        // Защита от некорректных позиций
+        // Защита от некорректных позиций и вложенных блоков (например code внутри pre)
         val startPos = maxOf(0, match.range.first)
         if (startPos < currentPosition) continue
 
         // Добавляем текст до текущего блока
         val textBefore = processed.substring(currentPosition, startPos)
-        if (textBefore.isNotBlank()) {
-            // Сохраняем HTML для inline-обработки (уже декодированный)
-            blocks.add(ContentBlock.TextBlock(text = textBefore, html = textBefore))
+        val cleanBefore = stripOrphanCodeTags(textBefore)
+        if (cleanBefore.isNotBlank()) {
+            blocks.add(ContentBlock.TextBlock(text = cleanBefore, html = cleanBefore))
         }
 
         val tag = match.value.lowercase()
 
-        // Обрабатываем <pre>
-        if (tag.startsWith("<pre")) {
-            val code = match.groupValues[1].trim()
-            blocks.add(ContentBlock.CodeBlock(code))
+        // Обрабатываем <pre> и <code> как самостоятельные блоки кода
+        if (tag.startsWith("<pre") || tag.startsWith("<code")) {
+            val rawCode = match.groupValues[1]
+            // Вырезаем служебные вложенные теги (<span>, <code>, etc.)
+            val cleanCode = rawCode.replace(Regex("<[^>]+>"), "").trim('\r', '\n')
+            blocks.add(ContentBlock.CodeBlock(cleanCode))
         }
         // Обрабатываем <blockquote>
         else if (tag.startsWith("<blockquote")) {
@@ -267,9 +273,10 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
 
     // Добавляем оставшийся текст
     if (currentPosition < processed.length) {
-        val remainingText = processed.substring(currentPosition, processed.length)
-        if (remainingText.isNotBlank()) {
-            blocks.add(ContentBlock.TextBlock(text = remainingText, html = remainingText))
+        val remainingText = processed.substring(currentPosition)
+        val cleanRemaining = stripOrphanCodeTags(remainingText)
+        if (cleanRemaining.isNotBlank()) {
+            blocks.add(ContentBlock.TextBlock(text = cleanRemaining, html = cleanRemaining))
         }
     }
 
@@ -282,6 +289,12 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
     }
 
     return blocks
+}
+
+private fun stripOrphanCodeTags(text: String): String {
+    return text
+        .replace(Regex("</?pre[^>]*>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("</?code[^>]*>", RegexOption.IGNORE_CASE), "")
 }
 
 /**
@@ -621,23 +634,20 @@ private fun AnnotatedString.Builder.appendWithStyles(
 }
 
 /**
- * Рендеринг блока кода с возможностью выбора текста
+ * Рендеринг блока кода с серым полупрозрачным фоном, рамкой и моноширинным шрифтом
  */
 @Composable
 private fun CodeBlock(code: String, isDark: Boolean) {
+    val bgColor = if (isDark) Color(0x0F808080) else Color(0x06000000)
+    val borderColor = if (isDark) Color(0x33FFFFFF) else Color(0x22000000)
+    val codeTextColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .background(
-                color = if (isDark) Color(0x401E3A8A) else Color(0x201E40AF),
-                shape = RoundedCornerShape(8.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = if (isDark) Color(0x803B82F6) else Color(0x401E40AF),
-                shape = RoundedCornerShape(8.dp)
-            )
+            .padding(vertical = 6.dp)
+            .background(color = bgColor, shape = RoundedCornerShape(8.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
             .padding(12.dp)
     ) {
         SelectionContainer {
@@ -646,7 +656,7 @@ private fun CodeBlock(code: String, isDark: Boolean) {
                 fontFamily = FontFamily.Monospace,
                 fontSize = 13.sp,
                 lineHeight = 18.sp,
-                color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E40AF)
+                color = codeTextColor
             )
         }
     }
@@ -823,12 +833,37 @@ fun sanitizeHtml(html: String?): String {
 }
 
 /**
- * Форматирование времени в читаемый формат (dd.MM.yy HH:mm)
+ * Форматирование времени в читаемый формат:
+ * - Если дата совпадает с текущей: "Сегодня в HH:mm"
+ * - Если дата совпадает со вчерашней: "Вчера в HH:mm"
+ * - Иначе: "dd.MM.yy HH:mm"
  */
 fun formatUnixTime(timestamp: Long): String {
     if (timestamp <= 0) return ""
-    val sdf = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+    val date = Date(timestamp)
+
+    val nowCal = Calendar.getInstance()
+    val dateCal = Calendar.getInstance().apply { time = date }
+    val yesterdayCal = Calendar.getInstance().apply {
+        add(Calendar.DAY_OF_YEAR, -1)
+    }
+
+    val isToday = nowCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
+                  nowCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
+
+    val isYesterday = yesterdayCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
+                      yesterdayCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
+
+    val timeSdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+    return when {
+        isToday -> "Сегодня в ${timeSdf.format(date)}"
+        isYesterday -> "Вчера в ${timeSdf.format(date)}"
+        else -> {
+            val sdf = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
+            sdf.format(date)
+        }
+    }
 }
 
 /**
