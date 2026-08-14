@@ -53,6 +53,7 @@ fun ForumTopicScreen(
     topic: ForumTopic,
     currentLogin: String?,
     userRating: Int = 0,
+    isTabletLayout: Boolean = false,
     onBackClick: () -> Unit,
     onUserClick: (String) -> Unit = {}
 ) {
@@ -136,16 +137,18 @@ fun ForumTopicScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            val sectionTitle = viewModel.navigationState.sectionTitle
-                ?: viewModel.currentSection?.title
-                ?: "Раздел"
+            if (!isTabletLayout) {
+                val sectionTitle = viewModel.navigationState.sectionTitle
+                    ?: viewModel.currentSection?.title
+                    ?: "Раздел"
 
-            ForumTopicTopBar(
-                sectionTitle = sectionTitle,
-                onBackClick = onBackClick,
-                textColor = textColor,
-                isDark = isDark
-            )
+                ForumTopicTopBar(
+                    sectionTitle = sectionTitle,
+                    onBackClick = onBackClick,
+                    textColor = textColor,
+                    isDark = isDark
+                )
+            }
 
             SwipeRefresh(
                 state = swipeRefreshState,

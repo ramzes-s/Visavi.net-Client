@@ -15,10 +15,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.blur
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
@@ -109,6 +112,7 @@ fun MainNavigation(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var currentScreen by remember { mutableStateOf(Screen.Profile) }
+    var isTabletMode by remember { mutableStateOf(prefs.getBoolean("tablet_mode", false)) }
 
     var showMessagesScreen by remember { mutableStateOf(false) }
     var showForumTopicScreen by remember { mutableStateOf(false) }
@@ -289,6 +293,10 @@ fun MainNavigation(
         } else if (viewModel.currentUser == null) {
             LoginScreen(viewModel)
         } else {
+            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+            val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val isTabletScreen = configuration.screenWidthDp >= 600
+            val showPermanentDrawer = isTabletMode || isLandscape || isTabletScreen
             val isDark = isDarkTheme()
             val drawerBgColor = if (isDark) Color(0xF8090B10) else Color(0xF8F0F4F8)
             val drawerTextColor = if (isDark) Color.White else LightText
@@ -296,215 +304,224 @@ fun MainNavigation(
             val drawerSelectedItemColor = primaryAccent.copy(alpha = 0.25f)
             val drawerScrimColor = if (isDark) Color(0xCC000000) else Color(0x99000000)
 
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                gesturesEnabled = true,
-                scrimColor = drawerScrimColor,
-                drawerContent = {
-                    ModalDrawerSheet(
-                        drawerContainerColor = drawerBgColor,
-                        drawerShape = RectangleShape,
-                        modifier = Modifier.width(260.dp)
-                    ) {
+            @Composable
+            fun ColumnScope.DrawerContentBody() {
+                val drawerScrollState = rememberScrollState()
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(drawerScrollState)
+                ) {
+                    if (!showPermanentDrawer) {
                         Spacer(Modifier.height(36.dp))
+                    } else {
+                        Spacer(Modifier.height(6.dp))
+                    }
 
-                        val logoGradient = if (isDark) {
-                            listOf(primaryAccent, Color.White, primaryAccent.copy(alpha = 0.85f))
-                        } else {
-                            listOf(primaryAccent, DarkNavyBlue, primaryAccent)
-                        }
-                        val headerBorder = if (isDark) {
-                            listOf(primaryAccent.copy(alpha = 0.5f), Color.White.copy(alpha = 0.2f), Color.Transparent)
-                        } else {
-                            listOf(primaryAccent.copy(alpha = 0.6f), LightTextSecondary.copy(alpha = 0.3f), Color.Transparent)
-                        }
+                    val logoGradient = if (isDark) {
+                        listOf(primaryAccent, Color.White, primaryAccent.copy(alpha = 0.85f))
+                    } else {
+                        listOf(primaryAccent, DarkNavyBlue, primaryAccent)
+                    }
+                    val headerBorder = if (isDark) {
+                        listOf(primaryAccent.copy(alpha = 0.5f), Color.White.copy(alpha = 0.2f), Color.Transparent)
+                    } else {
+                        listOf(primaryAccent.copy(alpha = 0.6f), LightTextSecondary.copy(alpha = 0.3f), Color.Transparent)
+                    }
 
-                        // Стилизованный премиум-логотип Visavi.net в боковом меню
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            primaryAccent.copy(alpha = 0.22f),
-                                            primaryAccent.copy(alpha = 0.06f),
-                                            Color.Transparent
-                                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = if (showPermanentDrawer) 6.dp else 12.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        primaryAccent.copy(alpha = 0.22f),
+                                        primaryAccent.copy(alpha = 0.06f),
+                                        Color.Transparent
                                     )
                                 )
-                                .border(
-                                    width = 1.dp,
-                                    brush = Brush.linearGradient(headerBorder),
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(12.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.linearGradient(headerBorder),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(
-                                            Brush.linearGradient(
-                                                colors = listOf(
-                                                    primaryAccent,
-                                                    DarkNavyBlue
-                                                )
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                primaryAccent,
+                                                DarkNavyBlue
                                             )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Code,
-                                        contentDescription = "Разработка",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-
-                                Column {
-                                    Text(
-                                        text = viewModel.siteConfig?.site?.title?.ifBlank { null } ?: "Visavi.net",
-                                        style = androidx.compose.ui.text.TextStyle(
-                                            brush = Brush.linearGradient(colors = logoGradient),
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.Black,
-                                            letterSpacing = 0.5.sp
                                         )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Code,
+                                    contentDescription = "Разработка",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = viewModel.siteConfig?.site?.title?.ifBlank { null } ?: "Visavi.net",
+                                    style = androidx.compose.ui.text.TextStyle(
+                                        brush = Brush.linearGradient(colors = logoGradient),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Black,
+                                        letterSpacing = 0.5.sp
                                     )
-                                    Text(
-                                        text = "Developer Community",
-                                        color = if (isDark) TextLightGray.copy(0.6f) else LightTextSecondary,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.8.sp
-                                    )
-                                }
+                                )
+                                Text(
+                                    text = "Developer Community",
+                                    color = if (isDark) TextLightGray.copy(0.6f) else LightTextSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.8.sp
+                                )
                             }
                         }
+                    }
 
-                        HorizontalDivider(color = Color.White.copy(0.1f))
-                        Spacer(Modifier.height(12.dp))
+                    HorizontalDivider(color = Color.White.copy(0.1f))
+                    Spacer(Modifier.height(6.dp))
 
-                        val itemColors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = drawerSelectedItemColor,
-                            unselectedContainerColor = Color.Transparent,
-                            selectedTextColor = drawerTextColor,
-                            unselectedTextColor = drawerTextColor,
-                            selectedIconColor = drawerLogoColor,
-                            unselectedIconColor = drawerTextColor
-                        )
+                    val itemColors = NavigationDrawerItemDefaults.colors(
+                        selectedContainerColor = drawerSelectedItemColor,
+                        unselectedContainerColor = Color.Transparent,
+                        selectedTextColor = drawerTextColor,
+                        unselectedTextColor = drawerTextColor,
+                        selectedIconColor = drawerLogoColor,
+                        unselectedIconColor = drawerTextColor
+                    )
 
-                        NavigationDrawerItem(
-                            label = { Text(text = "ПРОФИЛЬ", fontWeight = FontWeight.Bold) },
-                            selected = currentScreen == Screen.Profile,
-                            shape = RectangleShape,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                resetSubScreens()
-                                currentScreen = Screen.Profile
-                                scope.launch { drawerState.close() }
-                            },
-                            colors = itemColors
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        NavigationDrawerItem(
-                            label = {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(text = "ДИАЛОГИ", fontWeight = FontWeight.Bold)
-                                    if (dialoguesViewModel.newMessagesCount > 0) {
-                                        Surface(
-                                            color = primaryAccent,
-                                            shape = CircleShape
-                                        ) {
-                                            Text(
-                                                text = "+${dialoguesViewModel.newMessagesCount}",
-                                                color = Color.White,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                            )
-                                        }
+                    val itemHeight = if (showPermanentDrawer) 42.dp else 52.dp
+
+                    NavigationDrawerItem(
+                        label = { Text(text = "ПРОФИЛЬ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Profile,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Profile
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
+                        label = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "ДИАЛОГИ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                if (dialoguesViewModel.newMessagesCount > 0) {
+                                    Surface(
+                                        color = primaryAccent,
+                                        shape = CircleShape
+                                    ) {
+                                        Text(
+                                            text = "+${dialoguesViewModel.newMessagesCount}",
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                        )
                                     }
                                 }
-                            },
-                            selected = currentScreen == Screen.Private,
-                            shape = RectangleShape,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                resetSubScreens()
-                                currentScreen = Screen.Private
-                                dialoguesViewModel.resetNewMessagesCount()
-                                scope.launch { drawerState.close() }
-                            },
-                            colors = itemColors
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        NavigationDrawerItem(
-                            label = { Text(text = "ФОРУМ", fontWeight = FontWeight.Bold) },
-                            selected = currentScreen == Screen.Forum,
-                            shape = RectangleShape,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                resetSubScreens()
-                                currentScreen = Screen.Forum
-                                scope.launch { drawerState.close() }
-                            },
-                            colors = itemColors
-                        )
+                            }
+                        },
+                        selected = currentScreen == Screen.Private,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Private
+                            dialoguesViewModel.resetNewMessagesCount()
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
+                        label = { Text(text = "ФОРУМ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Forum,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Forum
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
 
+                    if (!showPermanentDrawer) {
                         Spacer(Modifier.weight(1f))
-
-                        HorizontalDivider(color = Color.White.copy(0.1f))
-
-                        NavigationDrawerItem(
-                            label = { Text(text = "НАСТРОЙКИ", fontWeight = FontWeight.Bold) },
-                            selected = currentScreen == Screen.Settings,
-                            shape = RectangleShape,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                resetSubScreens()
-                                currentScreen = Screen.Settings
-                                scope.launch { drawerState.close() }
-                            },
-                            colors = itemColors
-                        )
-
-                        HorizontalDivider(color = Color.White.copy(0.1f))
-                        NavigationDrawerItem(
-                            label = { Text(text = "ВЫХОД", fontWeight = FontWeight.Black, color = primaryAccent) },
-                            selected = false,
-                            shape = RectangleShape,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                resetSubScreens()
-                                viewModel.logout(context.applicationContext)
-                                dialoguesViewModel.clear()
-                                forumViewModel.clear()
-                                NewMessagesService.stop(context)
-                            },
-                            colors = itemColors
-                        )
-                        Spacer(Modifier.height(24.dp))
+                    } else {
+                        Spacer(Modifier.height(8.dp))
                     }
+
+                    NavigationDrawerItem(
+                        label = { Text(text = "НАСТРОЙКИ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Settings,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Settings
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
+                        label = { Text(text = "ВЫХОД", fontWeight = FontWeight.Black, color = primaryAccent, fontSize = 14.sp) },
+                        selected = false,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            viewModel.logout(context.applicationContext)
+                            dialoguesViewModel.clear()
+                            forumViewModel.clear()
+                            NewMessagesService.stop(context)
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(16.dp))
                 }
-            ) {
+            }
+
+            @Composable
+            fun AppMainScaffold(showMenuIcon: Boolean) {
                 val textColor = if (isDark) Color.White else LightText
                 val iconTint = primaryAccent
 
                 var contentModifier: Modifier = Modifier
-                if (drawerState.isOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (!showPermanentDrawer && drawerState.isOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     contentModifier = contentModifier.blur(20.dp)
                 }
+
+                val isForumTopic = currentScreen == Screen.Forum && forumViewModel.navigationState.level == ForumNavigationLevel.TOPIC
 
                 Scaffold(
                     modifier = contentModifier,
@@ -523,8 +540,16 @@ fun MainNavigation(
                                         }
                                     }
                                     Screen.Forum -> {
-                                        if (showForumTopicScreen && selectedForumTopic != null) {
-                                            selectedForumTopic?.title ?: "Тема"
+                                        if (isForumTopic) {
+                                            val sectionTitle = forumViewModel.navigationState.sectionTitle
+                                                ?: forumViewModel.currentSection?.title
+                                                ?: "Раздел"
+                                            val topicTitle = forumViewModel.currentTopic?.title ?: selectedForumTopic?.title ?: "Тема"
+                                            if (showPermanentDrawer) {
+                                                "$sectionTitle / $topicTitle"
+                                            } else {
+                                                topicTitle
+                                            }
                                         } else {
                                             "Форум"
                                         }
@@ -535,7 +560,9 @@ fun MainNavigation(
                                     text = titleText,
                                     color = textColor,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp,
+                                    fontSize = if (isForumTopic && showPermanentDrawer) 17.sp else 20.sp,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     modifier = if (currentScreen == Screen.Private && showMessagesScreen) Modifier.clickable {
                                         dialoguesViewModel.backToDialogues()
                                         showMessagesScreen = false
@@ -543,8 +570,20 @@ fun MainNavigation(
                                 )
                             },
                             navigationIcon = {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = null, tint = iconTint)
+                                if (isForumTopic && showPermanentDrawer) {
+                                    IconButton(onClick = {
+                                        forumViewModel.navigateBack(context.applicationContext)
+                                        if (forumViewModel.navigationState.level != ForumNavigationLevel.TOPIC) {
+                                            showForumTopicScreen = false
+                                            selectedForumTopic = null
+                                        }
+                                    }) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = iconTint)
+                                    }
+                                } else if (showMenuIcon) {
+                                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                        Icon(Icons.Default.Menu, contentDescription = null, tint = iconTint)
+                                    }
                                 }
                             },
                             actions = {
@@ -683,6 +722,7 @@ fun MainNavigation(
                                             viewModel = forumViewModel,
                                             topic = topicObj,
                                             currentLogin = viewModel.currentUser?.login,
+                                            isTabletLayout = showPermanentDrawer,
                                             onBackClick = {
                                                 forumViewModel.navigateBack(context.applicationContext)
                                                 if (forumViewModel.navigationState.level != ForumNavigationLevel.TOPIC) {
@@ -724,15 +764,49 @@ fun MainNavigation(
                                 Screen.Settings -> SettingsScreen(
                                     onThemeChange = onThemeChange,
                                     onTabletModeChange = { isTablet ->
+                                        isTabletMode = isTablet
                                         prefs.edit().putBoolean("tablet_mode", isTablet).apply()
                                     },
-                                    isTabletMode = prefs.getBoolean("tablet_mode", false),
+                                    isTabletMode = isTabletMode,
                                     userRating = viewModel.currentUser?.rating ?: 0
                                 )
                             }
                         }
                     }
                 )
+            }
+
+            if (showPermanentDrawer) {
+                PermanentNavigationDrawer(
+                    drawerContent = {
+                        PermanentDrawerSheet(
+                            drawerContainerColor = drawerBgColor,
+                            drawerShape = RectangleShape,
+                            modifier = Modifier.width(240.dp)
+                        ) {
+                            DrawerContentBody()
+                        }
+                    }
+                ) {
+                    AppMainScaffold(showMenuIcon = false)
+                }
+            } else {
+                ModalNavigationDrawer(
+                    drawerState = drawerState,
+                    gesturesEnabled = true,
+                    scrimColor = drawerScrimColor,
+                    drawerContent = {
+                        ModalDrawerSheet(
+                            drawerContainerColor = drawerBgColor,
+                            drawerShape = RectangleShape,
+                            modifier = Modifier.width(260.dp)
+                        ) {
+                            DrawerContentBody()
+                        }
+                    }
+                ) {
+                    AppMainScaffold(showMenuIcon = true)
+                }
             }
 
             if (showUserProfile) {
