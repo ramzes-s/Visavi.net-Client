@@ -122,16 +122,10 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Основной акцентный цвет",
+                    text = "Акцентный цвет",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Выберите оттенок кнопок, свечения и оформления (10 вариантов)",
-                    fontSize = 12.sp,
-                    color = secondaryTextColor
                 )
                 Spacer(modifier = Modifier.height(14.dp))
 

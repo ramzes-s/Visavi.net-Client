@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -27,6 +28,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.ForumInfo
 import com.ramzes.visavinet.network.ForumSection
+import com.ramzes.visavinet.network.TextLimits
 import com.ramzes.visavinet.network.ForumTopic
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.dialogs.CreateTopicDialog
@@ -39,6 +41,7 @@ fun ForumScreen(
     viewModel: ForumViewModel,
     currentLogin: String? = null,
     userRating: Int = 0,
+    forumConfig: TextLimits? = null,
     onTopicClick: (ForumTopic) -> Unit
 ) {
     val context = LocalContext.current
@@ -148,6 +151,7 @@ fun ForumScreen(
                     createTopicError = null
                     showCreateTopicDialog = true 
                 },
+                shape = CircleShape,
                 containerColor = accentColor,
                 contentColor = Color.Black,
                 modifier = Modifier
@@ -167,6 +171,10 @@ fun ForumScreen(
                 showCreateTopicDialog = false 
             },
             errorMessage = createTopicError,
+            titleMin = forumConfig?.titleMin ?: 3,
+            titleMax = forumConfig?.titleMax ?: 50,
+            textMin = forumConfig?.textMin ?: 5,
+            textMax = forumConfig?.textMax ?: 5000,
             onSubmit = { title, text, files ->
                 createTopicError = null
                 viewModel.createTopic(

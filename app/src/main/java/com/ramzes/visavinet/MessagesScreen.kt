@@ -64,7 +64,9 @@ fun MessagesScreen(
     onClearError: () -> Unit = {},
     scrollToBottom: Boolean = false,
     onScrollComplete: () -> Unit = {},
-    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    textMin: Int = 5,
+    textMax: Int = 1000
 ) {
     val isDark = isDarkTheme()
     val listState = rememberLazyListState()
@@ -228,10 +230,16 @@ fun MessagesScreen(
                         )
                     }
 
+                    val isTextValid = messageText.trim().length in textMin..textMax
+
                     GlassTextField(
                         value = messageText,
-                        onValueChange = { messageText = it },
-                        placeholderText = "Сообщение...",
+                        onValueChange = {
+                            if (it.length <= textMax) {
+                                messageText = it
+                            }
+                        },
+                        placeholderText = "Сообщение (мин. $textMin симв.)...",
                         isDark = isDark,
                         modifier = Modifier.weight(1f),
                         trailingIcon = {
@@ -248,7 +256,7 @@ fun MessagesScreen(
 
                     IconButton(
                         onClick = {
-                            if (messageText.isNotBlank() && !isSendingMessage) {
+                            if (isTextValid && !isSendingMessage) {
                                 val formatted = com.ramzes.visavinet.util.ensureParagraphTags(messageText)
                                 onSendMessage(formatted, selectedFiles)
                                 messageText = ""
@@ -256,7 +264,7 @@ fun MessagesScreen(
                                 hideKeyboard()
                             }
                         },
-                        enabled = messageText.isNotBlank() && !isSendingMessage,
+                        enabled = isTextValid && !isSendingMessage,
                         modifier = Modifier.size(44.dp)
                     ) {
                         if (isSendingMessage) {
@@ -269,7 +277,7 @@ fun MessagesScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Отправить",
-                                tint = if (messageText.isNotBlank()) primaryAccent else primaryAccent.copy(0.3f)
+                                tint = if (isTextValid && !isSendingMessage) primaryAccent else primaryAccent.copy(alpha = 0.35f)
                             )
                         }
                     }

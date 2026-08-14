@@ -55,7 +55,9 @@ fun ForumTopicScreen(
     userRating: Int = 0,
     isTabletLayout: Boolean = false,
     onBackClick: () -> Unit,
-    onUserClick: (String) -> Unit = {}
+    onUserClick: (String) -> Unit = {},
+    textMin: Int = 5,
+    textMax: Int = 5000
 ) {
     val context = LocalContext.current
     val isDark = isDarkTheme()
@@ -336,10 +338,16 @@ fun ForumTopicScreen(
                             )
                         }
 
+                        val isReplyValid = replyText.trim().length in textMin..textMax
+
                         GlassTextField(
                             value = replyText,
-                            onValueChange = { replyText = it; replyError = null },
-                            placeholderText = "Ответить в тему...",
+                            onValueChange = {
+                                if (it.length <= textMax) {
+                                    replyText = it
+                                }
+                            },
+                            placeholderText = "Ответить в тему (мин. $textMin симв.)...",
                             isDark = isDark,
                             modifier = Modifier.weight(1f),
                             trailingIcon = {
@@ -356,7 +364,7 @@ fun ForumTopicScreen(
 
                         IconButton(
                             onClick = {
-                                if (replyText.isNotBlank() && !isSendingReply) {
+                                if (isReplyValid && !isSendingReply) {
                                     isSendingReply = true
                                     val formattedReply = com.ramzes.visavinet.util.ensureParagraphTags(replyText)
                                     viewModel.createPost(
@@ -378,7 +386,7 @@ fun ForumTopicScreen(
                                     )
                                 }
                             },
-                            enabled = replyText.isNotBlank() && !isSendingReply,
+                            enabled = isReplyValid && !isSendingReply,
                             modifier = Modifier.size(44.dp)
                         ) {
                             if (isSendingReply) {
@@ -391,7 +399,7 @@ fun ForumTopicScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.Send,
                                     contentDescription = "Отправить",
-                                    tint = if (replyText.isNotBlank()) primaryAccent else primaryAccent.copy(0.3f)
+                                    tint = if (isReplyValid && !isSendingReply) primaryAccent else primaryAccent.copy(alpha = 0.35f)
                                 )
                             }
                         }
@@ -403,13 +411,16 @@ fun ForumTopicScreen(
 
     if (showFullscreenInput) {
         val topicTitle = topic.title ?: ""
+        val isReplyValid = replyText.trim().length in textMin..textMax
         FullscreenInputModal(
             text = replyText,
             onTextChanged = { replyText = it },
             selectedFiles = selectedFiles,
             onFilesChanged = { selectedFiles = it },
+            textMin = textMin,
+            textMax = textMax,
             onSend = {
-                if (replyText.isNotBlank() && !isSendingReply) {
+                if (isReplyValid && !isSendingReply) {
                     isSendingReply = true
                     viewModel.createPost(
                         context = context.applicationContext,

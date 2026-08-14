@@ -44,6 +44,8 @@ fun FullscreenInputModal(
     onTextChanged: (String) -> Unit,
     selectedFiles: List<Uri> = emptyList(),
     onFilesChanged: (List<Uri>) -> Unit = {},
+    textMin: Int = 5,
+    textMax: Int = 1000,
     onSend: () -> Unit,
     onDismiss: () -> Unit,
     isSending: Boolean = false,
@@ -157,8 +159,10 @@ fun FullscreenInputModal(
                         GlassTextField(
                             value = textFieldValue,
                             onValueChange = { newValue ->
-                                textFieldValue = newValue
-                                onTextChanged(newValue.text)
+                                if (newValue.text.length <= textMax) {
+                                    textFieldValue = newValue
+                                    onTextChanged(newValue.text)
+                                }
                             },
                             placeholderText = "Текст сообщения...",
                             singleLine = false,
@@ -196,6 +200,8 @@ fun FullscreenInputModal(
                             }
                         }
 
+                        val isTextValid = textFieldValue.text.trim().length in textMin..textMax
+
                         // Управление
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -223,7 +229,7 @@ fun FullscreenInputModal(
                                     onTextChanged(formatted)
                                     onSend()
                                 },
-                                enabled = textFieldValue.text.isNotBlank() && !isSending,
+                                enabled = isTextValid && !isSending,
                                 isDark = isDark,
                                 accentColor = primaryAccent
                             ) {

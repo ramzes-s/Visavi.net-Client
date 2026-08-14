@@ -664,7 +664,9 @@ fun MainNavigation(
                                             scrollToBottom = dialoguesViewModel.scrollToBottom,
                                             onScrollComplete = {
                                                 dialoguesViewModel.resetScrollToBottom()
-                                            }
+                                            },
+                                            textMin = viewModel.siteConfig?.message?.textMin ?: 5,
+                                            textMax = viewModel.siteConfig?.message?.textMax ?: 1000
                                         )
                                     } else {
                                         DialoguesScreen(
@@ -747,12 +749,15 @@ fun MainNavigation(
                                                         showUserProfile = true
                                                     }
                                                 )
-                                            }
+                                            },
+                                            textMin = viewModel.siteConfig?.forum?.textMin ?: 5,
+                                            textMax = viewModel.siteConfig?.forum?.textMax ?: 5000
                                         )
                                     } else {
                                         ForumScreen(
                                             viewModel = forumViewModel,
                                             currentLogin = viewModel.currentUser?.login,
+                                            forumConfig = viewModel.siteConfig?.forum,
                                             onTopicClick = { topic ->
                                                 selectedForumTopic = topic
                                                 showForumTopicScreen = true

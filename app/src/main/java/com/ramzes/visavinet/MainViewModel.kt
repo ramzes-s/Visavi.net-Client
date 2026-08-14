@@ -28,8 +28,8 @@ class MainViewModel : ViewModel() {
     var statusMessage by mutableStateOf<String?>(null)
 
     fun checkAutoLogin(context: Context) {
-        // Безусловная загрузка базового открытого конфига API сайта при запуске приложения
-        fetchSiteConfig()
+        // Загрузка или автообновление конфига API сайта при запуске приложения (кеш в памяти + 24ч лимит)
+        fetchSiteConfig(context, force = false)
 
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
         val token = prefs.getString("api_token", null)
@@ -65,7 +65,7 @@ class MainViewModel : ViewModel() {
                     if (userResponse.isSuccessful && userResponse.body()?.data != null) {
                         currentUser = userResponse.body()!!.data
                         NewMessagesService.start(context)
-                        fetchSiteConfig()
+                        fetchSiteConfig(context, force = true)
                     } else {
                         errorMessage = userResponse.extractErrorMessage("Не удалось загрузить данные профиля")
                     }
@@ -102,7 +102,7 @@ class MainViewModel : ViewModel() {
                     currentUser = response.body()!!.data
                     saveToken(context, trimmedToken)
                     NewMessagesService.start(context)
-                    fetchSiteConfig()
+                    fetchSiteConfig(context, force = true)
                 } else {
                     VisaviApi.clearToken()
                     errorMessage = response.extractErrorMessage("Недействительный API-Токен")
@@ -117,16 +117,60 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun fetchSiteConfig() {
+    fun loadCachedConfig(context: Context) {
+        if (siteConfig != null) return
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val json = prefs.getString("site_config_json", null)
+            if (!json.isNullOrBlank()) {
+                val gson = com.google.gson.Gson()
+                siteConfig = gson.fromJson(json, ConfigData::class.java)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun shouldUpdateConfig(context: Context): Boolean {
+        if (siteConfig == null) return true
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val lastUpdated = prefs.getLong("site_config_updated_at", 0L)
+        val now = System.currentTimeMillis()
+        val dayInMs = 24 * 60 * 60 * 1000L
+        return (now - lastUpdated) > dayInMs
+    }
+
+    fun fetchSiteConfig(context: Context, force: Boolean = false) {
+        loadCachedConfig(context)
+        if (!force && !shouldUpdateConfig(context)) {
+            return
+        }
         viewModelScope.launch {
             try {
                 val response = VisaviApi.instance.getConfig()
-                if (response.isSuccessful) {
-                    siteConfig = response.body()
+                if (response.isSuccessful && response.body() != null) {
+                    val newConfig = response.body()
+                    siteConfig = newConfig
+                    saveConfigToPrefs(context, newConfig)
                 }
             } catch (e: Exception) {
-                // Неблокирующая загрузка конфига
+                // При ошибке остаётся ранее загруженный из памяти/диска конфиг
             }
+        }
+    }
+
+    private fun saveConfigToPrefs(context: Context, config: ConfigData?) {
+        if (config == null) return
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val gson = com.google.gson.Gson()
+            val json = gson.toJson(config)
+            prefs.edit()
+                .putString("site_config_json", json)
+                .putLong("site_config_updated_at", System.currentTimeMillis())
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

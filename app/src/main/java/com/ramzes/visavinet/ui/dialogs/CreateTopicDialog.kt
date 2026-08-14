@@ -38,7 +38,11 @@ fun CreateTopicDialog(
     onDismiss: () -> Unit,
     onSubmit: (title: String, text: String, files: List<Uri>) -> Unit,
     isSubmitting: Boolean = false,
-    errorMessage: String? = null
+    errorMessage: String? = null,
+    titleMin: Int = 3,
+    titleMax: Int = 50,
+    textMin: Int = 5,
+    textMax: Int = 5000
 ) {
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
@@ -114,8 +118,12 @@ fun CreateTopicDialog(
 
                     GlassTextField(
                         value = titleText,
-                        onValueChange = { titleText = it },
-                        placeholderText = "Заголовок темы...",
+                        onValueChange = {
+                            if (it.length <= titleMax) {
+                                titleText = it
+                            }
+                        },
+                        placeholderText = "Заголовок темы (от $titleMin до $titleMax симв.)...",
                         isDark = isDark
                     )
 
@@ -123,7 +131,9 @@ fun CreateTopicDialog(
 
                     FormattingToolbar(
                         onInsertTag = { tagStart, tagEnd ->
-                            contentText = insertBbTag(contentText, tagStart, tagEnd)
+                            if (contentText.length <= textMax) {
+                                contentText = insertBbTag(contentText, tagStart, tagEnd)
+                            }
                         },
                         onExpandFullscreen = { showFullscreenInput = true },
                         isDark = isDark
@@ -133,8 +143,12 @@ fun CreateTopicDialog(
 
                     GlassTextField(
                         value = contentText,
-                        onValueChange = { contentText = it },
-                        placeholderText = "Текст сообщения...",
+                        onValueChange = {
+                            if (it.length <= textMax) {
+                                contentText = it
+                            }
+                        },
+                        placeholderText = "Текст темы (мин. $textMin симв.)...",
                         singleLine = false,
                         maxLines = 6,
                         modifier = Modifier.heightIn(min = 100.dp),
@@ -165,6 +179,10 @@ fun CreateTopicDialog(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
+                    val isTitleValid = titleText.trim().length in titleMin..titleMax
+                    val isTextValid = contentText.trim().length in textMin..textMax
+                    val isFormValid = isTitleValid && isTextValid
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -187,11 +205,11 @@ fun CreateTopicDialog(
 
                         GlassButton(
                             onClick = {
-                                if (titleText.isNotBlank() && contentText.isNotBlank() && !isSubmitting) {
+                                if (isFormValid && !isSubmitting) {
                                     onSubmit(titleText, contentText, selectedFiles)
                                 }
                             },
-                            enabled = titleText.isNotBlank() && contentText.isNotBlank() && !isSubmitting,
+                            enabled = isFormValid && !isSubmitting,
                             isDark = isDark,
                             accentColor = primaryAccent
                         ) {
@@ -226,8 +244,12 @@ fun CreateTopicDialog(
             onTextChanged = { contentText = it },
             selectedFiles = selectedFiles,
             onFilesChanged = { selectedFiles = it },
+            textMin = textMin,
+            textMax = textMax,
             onSend = {
-                if (titleText.isNotBlank() && contentText.isNotBlank() && !isSubmitting) {
+                val isTitleValid = titleText.trim().length in titleMin..titleMax
+                val isTextValid = contentText.trim().length in textMin..textMax
+                if (isTitleValid && isTextValid && !isSubmitting) {
                     onSubmit(titleText, contentText, selectedFiles)
                     showFullscreenInput = false
                 }
