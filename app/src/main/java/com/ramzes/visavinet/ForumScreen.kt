@@ -21,7 +21,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.accompanist.swiperefresh.SwipeRefresh
@@ -153,7 +157,7 @@ fun ForumScreen(
                 },
                 shape = CircleShape,
                 containerColor = accentColor,
-                contentColor = Color.Black,
+                contentColor = if (isDark) Color.Black else Color.White,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(24.dp)
@@ -429,12 +433,12 @@ fun ForumSectionItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = section.title ?: "Без названия",
-                        fontSize = 17.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = textColor
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -442,6 +446,39 @@ fun ForumSectionItem(
                     ) {
                         Text(text = "Тем: ${section.topicsCount}", fontSize = 12.sp, color = secondaryTextColor)
                         Text(text = "Сообщений: ${section.postsCount}", fontSize = 12.sp, color = secondaryTextColor)
+                    }
+
+                    if (!section.lastTopicTitle.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val lastTopicAnnotated = buildAnnotatedString {
+                                withStyle(SpanStyle(color = primaryAccent, fontWeight = FontWeight.Bold)) {
+                                    append("➲ ")
+                                }
+                                withStyle(SpanStyle(color = textColor, fontWeight = FontWeight.Medium)) {
+                                    append(section.lastTopicTitle)
+                                }
+                            }
+                            Text(
+                                text = lastTopicAnnotated,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            section.lastPostAt?.takeIf { it > 0 }?.let { time ->
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = formatUnixTime(time),
+                                    fontSize = 11.sp,
+                                    color = secondaryTextColor
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -496,6 +533,7 @@ fun ForumSubsectionItem(
                         fontWeight = FontWeight.Bold,
                         color = textColor,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                     Icon(
@@ -509,24 +547,43 @@ fun ForumSubsectionItem(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(text = "Тем: ${subsection.topicsCount}", fontSize = 11.sp, color = secondaryTextColor)
-                        Text(text = "Постов: ${subsection.postsCount}", fontSize = 11.sp, color = secondaryTextColor)
-                    }
+                    Text(text = "Тем: ${subsection.topicsCount}", fontSize = 11.sp, color = secondaryTextColor)
+                    Text(text = "Постов: ${subsection.postsCount}", fontSize = 11.sp, color = secondaryTextColor)
+                }
 
-                    subsection.lastTopicTitle?.let { title ->
+                if (!subsection.lastTopicTitle.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val lastTopicAnnotated = buildAnnotatedString {
+                            withStyle(SpanStyle(color = primaryAccent, fontWeight = FontWeight.Bold)) {
+                                append("➲ ")
+                            }
+                            withStyle(SpanStyle(color = textColor, fontWeight = FontWeight.Medium)) {
+                                append(subsection.lastTopicTitle)
+                            }
+                        }
                         Text(
-                            text = "➲ $title",
+                            text = lastTopicAnnotated,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = secondaryTextColor,
                             maxLines = 1,
-                            modifier = Modifier.weight(1f)
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
+                        subsection.lastPostAt?.takeIf { it > 0 }?.let { time ->
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = formatUnixTime(time),
+                                fontSize = 10.sp,
+                                color = secondaryTextColor
+                            )
+                        }
                     }
                 }
             }

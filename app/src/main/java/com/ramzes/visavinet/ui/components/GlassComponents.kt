@@ -118,17 +118,33 @@ fun GlassBackground(
                     radius = width * 0.7f
                 )
             } else {
+                // Сфера 1: Мягкий акцентный оттенок сверху слева
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            accentColor.copy(alpha = 0.15f * glowAnim1),
+                            accentColor.copy(alpha = 0.22f * glowAnim1),
+                            accentColor.copy(alpha = 0.08f * glowAnim1),
                             Color.Transparent
                         ),
-                        center = Offset(width * 0.2f, height * 0.2f),
-                        radius = width * 0.55f
+                        center = Offset(width * 0.25f, height * 0.15f),
+                        radius = width * 0.7f
                     ),
-                    center = Offset(width * 0.2f, height * 0.2f),
-                    radius = width * 0.55f
+                    center = Offset(width * 0.25f, height * 0.15f),
+                    radius = width * 0.7f
+                )
+
+                // Сфера 2: Мягкий акцентный оттенок снизу справа
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            accentColor.copy(alpha = 0.16f * glowAnim2),
+                            Color.Transparent
+                        ),
+                        center = Offset(width * 0.85f, height * 0.8f),
+                        radius = width * 0.65f
+                    ),
+                    center = Offset(width * 0.85f, height * 0.8f),
+                    radius = width * 0.65f
                 )
             }
         }
@@ -149,6 +165,7 @@ fun GlassCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val accentColor = getPrimaryAccentColor()
     val glassBg = if (isDark) GlassDarkBg else GlassLightBg
 
     val borderBrush = if (glowColor != Color.Transparent) {
@@ -159,7 +176,18 @@ fun GlassCard(
             )
         )
     } else {
-        if (isDark) GlassBorderDark else GlassBorderLight
+        if (isDark) {
+            GlassBorderDark
+        } else {
+            Brush.linearGradient(
+                colors = listOf(
+                    Color.White,
+                    accentColor.copy(alpha = 0.22f),
+                    Color(0x50CBD5E1),
+                    Color(0x3094A3B8)
+                )
+            )
+        }
     }
 
     val baseModifier = modifier.clip(shape)

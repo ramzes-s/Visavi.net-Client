@@ -10,9 +10,9 @@ val SoftDark = Color(0xFF040508)       // Глубокая тень
 val TextLightGray = Color(0xFFB8C2CC)  // Вспомогательный текст
 
 // Светлая тема
-val LightWhite = Color(0xFFF0F4F8)         // Основной фон
-val LightGray = Color(0xFFE2E8F0)          // Вторичный фон
-val LightShadow = Color(0xFFCBD5E1)        // Тень
+val LightWhite = Color(0xFFD6DFE8)         // Затемненный комфортный фон с достаточным контрастом
+val LightGray = Color(0xFFC2CFDC)          // Вторичный фон
+val LightShadow = Color(0xFFAAB8C8)        // Тень
 val LightHighlight = Color(0xFFFFFFFF)     // Блик
 val LightText = Color(0xFF0F172A)          // Основной текст
 val LightTextSecondary = Color(0xFF64748B) // Вторичный текст
@@ -58,7 +58,7 @@ val AvailableAccentColors = listOf(
 // Стеклянные подложки (Строгие без лишних цветных пятен)
 val GlassDarkBg = Color(0x3B111827)       // Полупрозрачный строгий тёмный
 val GlassDarkSurface = Color(0x291F2937)  // Полупрозрачный поверхностный
-val GlassLightBg = Color(0xCCFFFFFF)      // Полупрозрачный светлый
+val GlassLightBg = Color(0xF0FFFFFF)      // Полупрозрачный светлый фон карточек
 val GlassLightSurface = Color(0x99FFFFFF) // Полупрозрачный светлый поверхностный
 
 // Строгие окантовки элементов с небольшим скруглением
