@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -405,7 +406,9 @@ fun GlassTextField(
                     visualTransformation = visualTransformation,
                     keyboardOptions = keyboardOptions,
                     keyboardActions = keyboardActions,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { isFocused = it.isFocused }
                 )
             }
             if (trailingIcon != null) {
@@ -484,7 +487,9 @@ fun GlassTextField(
                     )
                 }
 
-                var tfModifier: Modifier = Modifier.fillMaxWidth()
+                var tfModifier: Modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { isFocused = it.isFocused }
                 if (focusRequester != null) {
                     tfModifier = tfModifier.focusRequester(focusRequester)
                 }

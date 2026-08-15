@@ -17,8 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -242,6 +244,7 @@ fun ForumTopicScreen(
                                         } else {
                                             "$replyText\n$textToInsert"
                                         }
+                                        showFullscreenInput = true
                                     },
                                     onImageClick = { url -> selectedImageForLightbox = url },
                                     isDark = isDark
@@ -627,45 +630,48 @@ fun ForumPostItem(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         if (!isMyPost) {
-                            Text(
-                                text = "Имя",
-                                fontSize = 11.sp,
-                                color = primaryAccent,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.clickable {
+                            IconButton(
+                                onClick = {
                                     val userLogin = post.authorLogin ?: post.authorName ?: "user"
                                     val userLink = "<a class=\"user\" href=\"/users/$userLogin\">@$userLogin</a> "
                                     onQuoteClick(userLink)
-                                }
-                            )
+                                },
+                                modifier = Modifier.size(22.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AlternateEmail,
+                                    contentDescription = "Обратиться по имени",
+                                    tint = primaryAccent,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
 
-                            Text(
-                                text = "•",
-                                fontSize = 10.sp,
-                                color = secondaryTextColor.copy(alpha = 0.4f)
-                            )
-
-                            Text(
-                                text = "Цитата",
-                                fontSize = 11.sp,
-                                color = primaryAccent,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.clickable {
+                            IconButton(
+                                onClick = {
                                     val author = post.authorName ?: post.authorLogin ?: "Аноним"
                                     val textContent = post.text ?: ""
-                                    onQuoteClick("<blockquote class=\"post-quote\"><b>$author</b>: $textContent</blockquote>")
-                                }
-                            )
+                                    onQuoteClick("<blockquote class=\"post-quote\"><b>$author</b>: $textContent</blockquote>\n")
+                                },
+                                modifier = Modifier.size(22.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FormatQuote,
+                                    contentDescription = "Цитировать",
+                                    tint = primaryAccent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
 
                             if (post.createdAt != null) {
                                 Text(
                                     text = "•",
                                     fontSize = 10.sp,
-                                    color = secondaryTextColor.copy(alpha = 0.4f)
+                                    color = secondaryTextColor.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(horizontal = 2.dp)
                                 )
                             }
                         }

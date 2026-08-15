@@ -58,7 +58,7 @@ fun FullscreenInputModal(
 
     val htmlTransformation = remember(primaryAccent) { HtmlVisualTransformation() }
 
-    var textFieldValue by remember {
+    var textFieldValue by remember(text) {
         mutableStateOf(TextFieldValue(text, selection = TextRange(text.length)))
     }
     val focusRequester = remember { FocusRequester() }
@@ -71,14 +71,20 @@ fun FullscreenInputModal(
         }
     }
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(100)
+            textFieldValue = textFieldValue.copy(selection = TextRange(textFieldValue.text.length))
+            try {
+                focusRequester.requestFocus()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         var blurModifier = Modifier
             .fillMaxSize()
             .background(backdropColor)
