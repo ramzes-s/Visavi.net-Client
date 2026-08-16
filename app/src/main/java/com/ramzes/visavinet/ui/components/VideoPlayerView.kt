@@ -68,6 +68,11 @@ fun VideoPlayerView(
                     )
                     setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                     useController = true
+                    setShowNextButton(false)
+                    setShowPreviousButton(false)
+                    setShowFastForwardButton(false)
+                    setShowRewindButton(false)
+                    setShowSubtitleButton(false)
                 }
             },
             modifier = Modifier.fillMaxSize()
@@ -138,6 +143,11 @@ fun VideoFullscreenDialog(
                         )
                         setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                         useController = true
+                        setShowNextButton(false)
+                        setShowPreviousButton(false)
+                        setShowFastForwardButton(false)
+                        setShowRewindButton(false)
+                        setShowSubtitleButton(false)
                     }
                 },
                 modifier = Modifier.fillMaxSize()
