@@ -268,6 +268,7 @@ data class ForumSection(
     @SerializedName("last_post_user_login") val lastPostUserLogin: String? = null,
     @SerializedName("last_post_user_name") val lastPostUserName: String? = null,
     @SerializedName("last_post_at") val lastPostAtRaw: String? = null,
+    @SerializedName("parent") val parent: ForumSection? = null,
     @SerializedName("children") val children: List<ForumSection>? = null
 ) {
     val lastPostAt: Long?
@@ -282,6 +283,7 @@ data class ForumTopic(
     @SerializedName("id") val id: Int,
     @SerializedName("forum_id") val forumId: Int? = null,
     @SerializedName("section_id") val sectionId: Int? = null,
+    @SerializedName("forum") val forum: ForumSection? = null,
     @SerializedName("title") val title: String? = null,
     @SerializedName("login") val authorLogin: String? = null,
     @SerializedName("name") val authorName: String? = null,
@@ -298,7 +300,7 @@ data class ForumTopic(
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
     val realForumId: Int?
-        get() = forumId ?: sectionId
+        get() = forumId ?: sectionId ?: forum?.id
 
     val createdAt: Long?
         get() = createdAtRaw?.let { parseIsoDateTime(it) }
@@ -337,7 +339,8 @@ data class ForumInfo(
     @SerializedName("last_topic_title") val lastTopicTitle: String? = null,
     @SerializedName("last_post_user_login") val lastPostUserLogin: String? = null,
     @SerializedName("last_post_user_name") val lastPostUserName: String? = null,
-    @SerializedName("last_post_at") val lastPostAtRaw: String? = null
+    @SerializedName("last_post_at") val lastPostAtRaw: String? = null,
+    @SerializedName("parent") val parent: ForumSection? = null
 ) {
     val lastPostAt: Long?
         get() = lastPostAtRaw?.let { parseIsoDateTime(it) }
@@ -347,6 +350,7 @@ data class TopicInfo(
     @SerializedName("id") val id: Int,
     @SerializedName("forum_id") val forumId: Int? = null,
     @SerializedName("section_id") val sectionId: Int? = null,
+    @SerializedName("forum") val forum: ForumSection? = null,
     @SerializedName("title") val title: String? = null,
     @SerializedName("login") val authorLogin: String? = null,
     @SerializedName("name") val authorName: String? = null,
@@ -363,7 +367,7 @@ data class TopicInfo(
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
     val realForumId: Int?
-        get() = forumId ?: sectionId
+        get() = forumId ?: sectionId ?: forum?.id
 
     val createdAt: Long?
         get() = createdAtRaw?.let { parseIsoDateTime(it) }

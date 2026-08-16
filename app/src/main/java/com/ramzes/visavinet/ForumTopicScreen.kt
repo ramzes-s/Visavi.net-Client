@@ -142,7 +142,8 @@ fun ForumTopicScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (!isTabletLayout) {
-                val sectionTitle = viewModel.navigationState.sectionTitle
+                val sectionTitle = viewModel.currentTopic?.forum?.title
+                    ?: viewModel.navigationState.sectionTitle
                     ?: viewModel.currentSection?.title
                     ?: "Раздел"
 
@@ -512,6 +513,26 @@ fun TopicInfoCard(
         glowColor = getPrimaryAccentColor().copy(alpha = 0.15f)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            val forum = topicInfo?.forum ?: topic.forum
+            val breadcrumbs = if (forum != null) {
+                if (forum.parent != null && !forum.parent.title.isNullOrBlank()) {
+                    "${forum.parent.title} ❯ ${forum.title ?: ""}"
+                } else {
+                    forum.title
+                }
+            } else null
+
+            if (!breadcrumbs.isNullOrBlank()) {
+                Text(
+                    text = breadcrumbs,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = getPrimaryAccentColor(),
+                    maxLines = 1,
+                    modifier = Modifier.padding(bottom = 3.dp)
+                )
+            }
+
             Text(
                 text = topicInfo?.title ?: topic.title ?: "Тема",
                 fontSize = 15.sp,

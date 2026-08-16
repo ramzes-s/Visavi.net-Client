@@ -119,8 +119,25 @@ class ForumViewModel : ViewModel() {
                         topics = (topics + rawTopics).distinctBy { it.id }
                     } else {
                         topics = rawTopics
-                        val rootSection = findSectionById(rootSections, sectionId)
+                        val rootSection = findSectionById(sectionId)
                         subsections = rootSection?.children ?: emptyList()
+
+                        // Если стек навигации пуст, но у подраздела есть родительский раздел
+                        if (backStack.isEmpty() && body.forum?.parent != null) {
+                            val chain = buildForumHierarchyChain(body.forum.parent)
+                            val newStack = mutableListOf<ForumNavigationState>()
+                            newStack.add(ForumNavigationState(level = ForumNavigationLevel.SECTIONS))
+                            for (sec in chain) {
+                                newStack.add(
+                                    ForumNavigationState(
+                                        level = ForumNavigationLevel.SECTION,
+                                        sectionId = sec.id,
+                                        sectionTitle = sec.title
+                                    )
+                                )
+                            }
+                            backStack.addAll(newStack)
+                        }
                     }
                 } else {
                     errorMessage = response.extractErrorMessage("Ошибка загрузки тем форума")
@@ -149,6 +166,19 @@ class ForumViewModel : ViewModel() {
             }
         }
         return null
+    }
+
+    fun buildForumHierarchyChain(forum: ForumSection?): List<ForumSection> {
+        if (forum == null) return emptyList()
+        val chain = mutableListOf<ForumSection>()
+        var current: ForumSection? = forum
+        val visited = mutableSetOf<Int>()
+        while (current != null && !visited.contains(current.id)) {
+            visited.add(current.id)
+            chain.add(0, current) // Добавляем от корня к текущему элементу
+            current = current.parent
+        }
+        return chain
     }
 
     fun getSectionChain(sectionId: Int, sections: List<ForumSection> = rootSections): List<ForumSection> {
@@ -180,19 +210,22 @@ class ForumViewModel : ViewModel() {
                     val body = response.body()!!
                     currentTopic = body.topic
 
-                    val targetForumId = body.forum?.id ?: body.topic?.realForumId
+                    val forum = body.topic?.forum
+                    val forumId = forum?.id ?: body.forum?.id ?: body.topic?.realForumId
+                    val forumTitle = forum?.title ?: body.forum?.title
 
-                    if (isFromDirectLink && targetForumId != null && targetForumId > 0) {
-                        if (rootSections.isEmpty()) {
-                            try {
-                                val secResponse = VisaviApi.instance.getForumSections()
-                                if (secResponse.isSuccessful && secResponse.body() != null) {
-                                    rootSections = secResponse.body()?.data ?: emptyList()
-                                }
-                            } catch (_: Exception) {}
-                        }
+                    // Формируем цепочку разделов от корня к подразделу темы
+                    val chain = buildForumHierarchyChain(forum)
 
-                        val chain = getSectionChain(targetForumId)
+                    val targetSectionTitle = forumTitle
+                        ?: chain.lastOrNull()?.title
+                        ?: navigationState.sectionTitle
+                        ?: "Форум"
+                    val targetSectionId = forumId
+                        ?: chain.lastOrNull()?.id
+                        ?: navigationState.sectionId
+
+                    if (isFromDirectLink || backStack.isEmpty()) {
                         val newStack = mutableListOf<ForumNavigationState>()
                         newStack.add(ForumNavigationState(level = ForumNavigationLevel.SECTIONS))
                         for (sec in chain) {
@@ -204,26 +237,15 @@ class ForumViewModel : ViewModel() {
                                 )
                             )
                         }
-
-                        val lastSection = chain.lastOrNull()
-                        val sectionTitleToUse = body.forum?.title ?: lastSection?.title ?: navigationState.sectionTitle ?: "Форум"
-                        val sectionIdToUse = body.forum?.id ?: lastSection?.id ?: targetForumId
-
                         backStack.clear()
                         backStack.addAll(newStack)
-
-                        navigationState = ForumNavigationState(
-                            level = ForumNavigationLevel.TOPIC,
-                            sectionId = sectionIdToUse,
-                            sectionTitle = sectionTitleToUse,
-                            topicId = topicId,
-                            topicTitle = body.topic?.title ?: "Тема #$topicId"
-                        )
-                    } else if (body.topic?.title != null) {
-                        navigationState = navigationState.copy(
-                            topicTitle = body.topic.title
-                        )
                     }
+
+                    navigationState = navigationState.copy(
+                        sectionId = targetSectionId,
+                        sectionTitle = targetSectionTitle,
+                        topicTitle = body.topic?.title ?: navigationState.topicTitle
+                    )
 
                     val lastPage = body.meta?.lastPage ?: 1
                     postsLastPage = lastPage
@@ -402,21 +424,79 @@ class ForumViewModel : ViewModel() {
             return true
         }
 
-        if (navigationState.level == ForumNavigationLevel.TOPIC || navigationState.level == ForumNavigationLevel.SECTION) {
-            val secId = navigationState.sectionId
-            val secTitle = navigationState.sectionTitle
-            if (navigationState.level == ForumNavigationLevel.TOPIC && secId != null && secId > 0) {
+        if (navigationState.level == ForumNavigationLevel.TOPIC) {
+            val parentForum = currentTopic?.forum
+            val targetSectionId = parentForum?.id ?: navigationState.sectionId
+            val targetSectionTitle = parentForum?.title ?: navigationState.sectionTitle ?: "Раздел"
+
+            if (targetSectionId != null && targetSectionId > 0) {
+                if (parentForum?.parent != null) {
+                    val chain = buildForumHierarchyChain(parentForum.parent)
+                    backStack.add(ForumNavigationState(level = ForumNavigationLevel.SECTIONS))
+                    for (sec in chain) {
+                        backStack.add(
+                            ForumNavigationState(
+                                level = ForumNavigationLevel.SECTION,
+                                sectionId = sec.id,
+                                sectionTitle = sec.title
+                            )
+                        )
+                    }
+                } else {
+                    backStack.add(ForumNavigationState(level = ForumNavigationLevel.SECTIONS))
+                }
+
                 navigationState = ForumNavigationState(
                     level = ForumNavigationLevel.SECTION,
-                    sectionId = secId,
-                    sectionTitle = secTitle ?: "Раздел"
+                    sectionId = targetSectionId,
+                    sectionTitle = targetSectionTitle
                 )
-                if (context != null) loadSection(context, secId)
+                if (context != null) loadSection(context, targetSectionId)
+                return true
             } else {
                 navigationState = ForumNavigationState(level = ForumNavigationLevel.SECTIONS)
                 if (context != null) loadRootSections(context)
+                return true
             }
-            return true
+        }
+
+        if (navigationState.level == ForumNavigationLevel.SECTION) {
+            val currentParentId = currentSection?.parentId
+                ?: navigationState.sectionId?.let { secId -> findSectionById(secId)?.parentId }
+                ?: 0
+
+            if (currentParentId > 0) {
+                val parentSec = currentSection?.parent ?: findSectionById(currentParentId)
+                val parentTitle = parentSec?.title ?: findSectionById(currentParentId)?.title ?: "Раздел"
+
+                if (parentSec?.parent != null || (parentSec?.parentId != null && parentSec.parentId > 0)) {
+                    val grandParentChain = buildForumHierarchyChain(parentSec.parent)
+                    backStack.add(ForumNavigationState(level = ForumNavigationLevel.SECTIONS))
+                    for (sec in grandParentChain) {
+                        backStack.add(
+                            ForumNavigationState(
+                                level = ForumNavigationLevel.SECTION,
+                                sectionId = sec.id,
+                                sectionTitle = sec.title
+                            )
+                        )
+                    }
+                } else {
+                    backStack.add(ForumNavigationState(level = ForumNavigationLevel.SECTIONS))
+                }
+
+                navigationState = ForumNavigationState(
+                    level = ForumNavigationLevel.SECTION,
+                    sectionId = currentParentId,
+                    sectionTitle = parentTitle
+                )
+                if (context != null) loadSection(context, currentParentId)
+                return true
+            } else {
+                navigationState = ForumNavigationState(level = ForumNavigationLevel.SECTIONS)
+                if (context != null) loadRootSections(context)
+                return true
+            }
         }
 
         return false

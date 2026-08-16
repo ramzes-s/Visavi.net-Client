@@ -205,6 +205,7 @@ fun ForumTopBar(
     textColor: Color,
     isDark: Boolean
 ) {
+    val context = LocalContext.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.Transparent
@@ -217,7 +218,7 @@ fun ForumTopBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (viewModel.navigationState.level != ForumNavigationLevel.SECTIONS) {
-                IconButton(onClick = { viewModel.navigateBack() }) {
+                IconButton(onClick = { viewModel.navigateBack(context.applicationContext) }) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
