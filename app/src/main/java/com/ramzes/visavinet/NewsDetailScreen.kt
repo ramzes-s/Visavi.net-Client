@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,10 +64,12 @@ fun NewsDetailScreen(
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
     val listState = rememberLazyListState()
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingDetail)
+    val coroutineScope = rememberCoroutineScope()
 
     var commentText by remember { mutableStateOf("") }
     var replyingToCommentId by remember { mutableStateOf<Int?>(null) }
     var replyingToLogin by remember { mutableStateOf<String?>(null) }
+    var highlightedCommentId by remember { mutableStateOf<Int?>(null) }
     var attachedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
@@ -210,8 +213,22 @@ fun NewsDetailScreen(
                             NewsCommentCard(
                                 comment = comment,
                                 isDark = isDark,
+                                isHighlighted = highlightedCommentId == comment.id,
                                 onUserClick = onUserClick,
                                 onTopicClick = onTopicClick,
+                                onParentCommentClick = { parentId ->
+                                    val targetIndex = viewModel.comments.indexOfFirst { it.id == parentId }
+                                    if (targetIndex != -1) {
+                                        coroutineScope.launch {
+                                            highlightedCommentId = parentId
+                                            listState.animateScrollToItem(index = 2 + targetIndex)
+                                            kotlinx.coroutines.delay(2000)
+                                            if (highlightedCommentId == parentId) {
+                                                highlightedCommentId = null
+                                            }
+                                        }
+                                    }
+                                },
                                 onReplyClick = {
                                     replyingToCommentId = comment.id
                                     replyingToLogin = comment.user?.login
@@ -606,8 +623,10 @@ fun NewsMainContentCard(
 fun NewsCommentCard(
     comment: NewsCommentItem,
     isDark: Boolean,
+    isHighlighted: Boolean = false,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
+    onParentCommentClick: ((parentId: Int) -> Unit)? = null,
     onReplyClick: () -> Unit,
     onImageClick: (String) -> Unit
 ) {
@@ -621,11 +640,13 @@ fun NewsCommentCard(
         (comment.safeMedia + comment.safeFiles).distinctBy { it.id }
     }
 
+    val parentId = comment.parent?.id?.takeIf { it > 0 } ?: comment.parentId
+
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         isDark = isDark,
         shape = RoundedCornerShape(6.dp),
-        glowColor = Color.Transparent
+        glowColor = if (isHighlighted) getPrimaryAccentColor().copy(alpha = 0.6f) else Color.Transparent
     ) {
         Column(
             modifier = Modifier
@@ -640,15 +661,34 @@ fun NewsCommentCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 6.dp)
+                        .then(
+                            if (parentId != null && parentId > 0 && onParentCommentClick != null) {
+                                Modifier.clickable { onParentCommentClick(parentId) }
+                            } else {
+                                Modifier
+                            }
+                        )
                 ) {
-                    Text(
-                        text = "В ответ @${comment.parent.login}: ${comment.parent.excerpt ?: ""}",
-                        color = getSecondaryAccentColor(),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Reply,
+                            contentDescription = null,
+                            tint = getSecondaryAccentColor(),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "В ответ @${comment.parent.login}: ${comment.parent.excerpt ?: ""}",
+                            color = getSecondaryAccentColor(),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
