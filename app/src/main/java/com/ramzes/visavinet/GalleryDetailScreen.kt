@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.ramzes.visavinet
 
 import android.net.Uri

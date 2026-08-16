@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.ramzes.visavinet
 
 import android.net.Uri
@@ -15,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -708,7 +711,7 @@ fun NewsCommentCard(
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
-                            Icons.Default.Reply,
+                            Icons.AutoMirrored.Filled.Reply,
                             contentDescription = "Ответить",
                             tint = getSecondaryAccentColor(),
                             modifier = Modifier.size(16.dp)

@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.ramzes.visavinet.util
 
 import android.content.Intent

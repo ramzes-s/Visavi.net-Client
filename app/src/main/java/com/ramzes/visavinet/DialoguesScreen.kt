@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.ramzes.visavinet
 
 import androidx.compose.foundation.clickable
@@ -7,8 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -221,14 +223,14 @@ fun DialogueItem(
                 ) {
                     if (isIncoming) {
                         Icon(
-                            imageVector = Icons.Default.ArrowForward,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Входящее",
                             tint = secondaryTextColor,
                             modifier = Modifier.size(14.dp)
                         )
                     } else if (isOutgoing) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Исходящее",
                             tint = secondaryTextColor,
                             modifier = Modifier.size(14.dp)
