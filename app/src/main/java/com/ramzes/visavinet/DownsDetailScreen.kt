@@ -796,7 +796,7 @@ fun DownCommentCard(
     }
 
     val allFiles = remember(comment.media, comment.files) {
-        (comment.media + comment.files).distinctBy { it.id }
+        (comment.safeMedia + comment.safeFiles).distinctBy { it.id }
     }
 
     GlassCard(

@@ -188,9 +188,12 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
 
     // Декодируем HTML entities
     val decoded = decodeHtmlEntities(html)
+    val sanitized = decoded
+        .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
 
     // Заменяем </p> и <br> на переносы строк
-    var processed = decoded
+    var processed = sanitized
         .replace(Regex("</p\\s*>", RegexOption.IGNORE_CASE), "\n")
         .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
@@ -431,10 +434,17 @@ fun parseColorString(colorStr: String?): Color? {
                     val r = hex[0].toString().repeat(2)
                     val g = hex[1].toString().repeat(2)
                     val b = hex[2].toString().repeat(2)
-                    Color(android.graphics.Color.parseColor("#FF$r$g$b"))
+                    val colorLong = "FF$r$g$b".toLong(16)
+                    Color(colorLong)
                 }
-                6 -> Color(android.graphics.Color.parseColor("#FF$hex"))
-                8 -> Color(android.graphics.Color.parseColor("#$hex"))
+                6 -> {
+                    val colorLong = "FF$hex".toLong(16)
+                    Color(colorLong)
+                }
+                8 -> {
+                    val colorLong = hex.toLong(16)
+                    Color(colorLong)
+                }
                 else -> null
             }
         } else if (clean.startsWith("rgb", ignoreCase = true)) {
@@ -442,9 +452,7 @@ fun parseColorString(colorStr: String?): Color? {
             if (digits.size >= 3) {
                 Color(digits[0].coerceIn(0, 255), digits[1].coerceIn(0, 255), digits[2].coerceIn(0, 255))
             } else null
-        } else {
-            Color(android.graphics.Color.parseColor(clean))
-        }
+        } else null
     } catch (e: Exception) {
         null
     }
@@ -827,11 +835,14 @@ fun htmlToAnnotatedString(html: String?, isDark: Boolean = true): AnnotatedStrin
 }
 
 /**
- * Очистка HTML от запрещённых тегов
+ * Очистка HTML от запрещённых тегов и скриптов
  */
 fun sanitizeHtml(html: String?): String {
     if (html == null) return ""
-    return html.replace(Regex("<[^>]*>"), "")
+    val withoutScripts = html
+        .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
+    return withoutScripts.replace(Regex("<[^>]*>"), "")
 }
 
 /**

@@ -499,7 +499,7 @@ fun GalleryMainContentCard(
     }
 
     val mediaFiles = remember(photo.media, photo.files) {
-        (photo.media + photo.files).distinctBy { it.id }
+        photo.allMedia
     }
 
     var selectedMediaIndex by remember { mutableIntStateOf(0) }
@@ -679,7 +679,7 @@ fun GalleryCommentCard(
     }
 
     val allFiles = remember(comment.media, comment.files) {
-        (comment.media + comment.files).distinctBy { it.id }
+        (comment.safeMedia + comment.safeFiles).distinctBy { it.id }
     }
 
     GlassCard(

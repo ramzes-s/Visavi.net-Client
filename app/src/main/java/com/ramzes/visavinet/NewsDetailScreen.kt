@@ -484,7 +484,7 @@ fun NewsMainContentCard(
     }
 
     val allFiles = remember(news.media, news.files) {
-        (news.media + news.files).distinctBy { it.id }
+        (news.safeMedia + news.safeFiles).distinctBy { it.id }
     }
 
     GlassCard(
@@ -615,7 +615,7 @@ fun NewsCommentCard(
     }
 
     val allFiles = remember(comment.media, comment.files) {
-        (comment.media + comment.files).distinctBy { it.id }
+        (comment.safeMedia + comment.safeFiles).distinctBy { it.id }
     }
 
     GlassCard(

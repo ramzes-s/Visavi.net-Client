@@ -19,11 +19,12 @@ data class ApiErrorResponse(
     @SerializedName("errors") val errors: Map<String, List<String>>? = null
 ) {
     fun getFormattedError(): String {
+        val validationErrors = errors?.values?.flatten()?.filter { it.isNotBlank() }
+        if (!validationErrors.isNullOrEmpty()) {
+            return validationErrors.joinToString("\n")
+        }
         if (!message.isNullOrBlank()) return message
         if (!error.isNullOrBlank()) return error
-        if (!errors.isNullOrEmpty()) {
-            return errors.values.flatten().joinToString("\n")
-        }
         return "Ошибка сервера"
     }
 }
@@ -33,11 +34,23 @@ data class ApiErrorResponse(
  */
 fun <T> Response<T>.extractErrorMessage(defaultMsg: String = "Ошибка сервера"): String {
     return try {
-        val errorBodyStr = errorBody()?.string()
+        val errorBodyStr = errorBody()?.string()?.trim()
         if (!errorBodyStr.isNullOrBlank()) {
-            val gson = Gson()
-            val parsedError = gson.fromJson(errorBodyStr, ApiErrorResponse::class.java)
-            parsedError?.getFormattedError() ?: defaultMsg
+            // Если ответ в формате HTML (например, 502/504 от Nginx/Cloudflare)
+            if (errorBodyStr.startsWith("<") || errorBodyStr.contains("<html", ignoreCase = true)) {
+                when (code()) {
+                    401 -> "Требуется авторизация"
+                    403 -> "Доступ запрещен"
+                    404 -> "Запрашиваемый ресурс не найден"
+                    429 -> "Слишком много запросов. Пожалуйста, подождите"
+                    502, 503, 504 -> "Сервер временно недоступен (${code()})"
+                    else -> "$defaultMsg (${code()})"
+                }
+            } else {
+                val gson = Gson()
+                val parsedError = gson.fromJson(errorBodyStr, ApiErrorResponse::class.java)
+                parsedError?.getFormattedError() ?: defaultMsg
+            }
         } else {
             message().ifBlank { defaultMsg }
         }
@@ -168,13 +181,32 @@ data class NewMessagesResponse(
     @SerializedName("dialogues") val dialogues: List<NewMessageInfo>? = null
 )
 
-internal fun parseIsoDateTime(isoDate: String): Long {
-    return try {
-        val format = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.getDefault())
-        format.parse(isoDate)?.time ?: 0L
-    } catch (e: Exception) {
-        0L
+fun parseIsoDateTime(isoDate: String?): Long? {
+    if (isoDate.isNullOrBlank()) return null
+    val clean = isoDate.trim()
+    val patterns = arrayOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+    for (pattern in patterns) {
+        try {
+            val sdf = java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+                isLenient = false
+            }
+            val date = sdf.parse(clean)
+            if (date != null) return date.time
+        } catch (e: Exception) {
+            // пробуем следующий формат
+        }
     }
+    return null
 }
 
 data class ApiData(
@@ -310,15 +342,18 @@ data class ForumTopic(
 }
 
 data class ForumPost(
-    @SerializedName("id") val id: Int,
+    @SerializedName("id") val id: Int = 0,
     @SerializedName("login") val authorLogin: String? = null,
     @SerializedName("name") val authorName: String? = null,
     @SerializedName("text") val text: String? = null,
     @SerializedName("rating") val rating: Int = 0,
-    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("files") val filesRaw: List<FileData>? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
+    val files: List<FileData>
+        get() = filesRaw ?: emptyList()
+
     val createdAt: Long?
         get() = createdAtRaw?.let { parseIsoDateTime(it) }
 
@@ -439,8 +474,8 @@ data class NewsItem(
     @SerializedName("top") val top: Boolean = false,
     @SerializedName("comments_count") val commentsCount: Int = 0,
     @SerializedName("user") val user: NewsAuthor? = null,
-    @SerializedName("media") val media: List<FileData> = emptyList(),
-    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("media") val media: List<FileData>? = null,
+    @SerializedName("files") val files: List<FileData>? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
@@ -449,16 +484,25 @@ data class NewsItem(
 
     val updatedAt: Long?
         get() = updatedAtRaw?.let { parseIsoDateTime(it) }
+
+    val safeMedia: List<FileData>
+        get() = media ?: emptyList()
+
+    val safeFiles: List<FileData>
+        get() = files ?: emptyList()
+
+    val primaryMedia: FileData?
+        get() = safeMedia.firstOrNull() ?: safeFiles.firstOrNull()
 }
 
 data class NewsCommentParent(
-    @SerializedName("id") val id: Int,
+    @SerializedName("id") val id: Int = 0,
     @SerializedName("login") val login: String? = null,
     @SerializedName("excerpt") val excerpt: String? = null
 )
 
 data class NewsCommentItem(
-    @SerializedName("id") val id: Int,
+    @SerializedName("id") val id: Int = 0,
     @SerializedName("parent_id") val parentId: Int? = null,
     @SerializedName("depth") val depth: Int = 0,
     @SerializedName("parent") val parent: NewsCommentParent? = null,
@@ -467,12 +511,18 @@ data class NewsCommentItem(
     @SerializedName("rating") val rating: Int = 0,
     @SerializedName("vote") val vote: NewsVote? = null,
     @SerializedName("user") val user: NewsAuthor? = null,
-    @SerializedName("media") val media: List<FileData> = emptyList(),
-    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("media") val media: List<FileData>? = null,
+    @SerializedName("files") val files: List<FileData>? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null
 ) {
     val createdAt: Long?
         get() = createdAtRaw?.let { parseIsoDateTime(it) }
+
+    val safeMedia: List<FileData>
+        get() = media ?: emptyList()
+
+    val safeFiles: List<FileData>
+        get() = files ?: emptyList()
 }
 
 data class NewsCommentsWrapper(
@@ -498,7 +548,7 @@ data class CommentCreateResponse(
 )
 
 data class PhotoItem(
-    @SerializedName("id") val id: Int,
+    @SerializedName("id") val id: Int = 0,
     @SerializedName("title") val title: String? = null,
     @SerializedName("text") val text: String? = null,
     @SerializedName("url") val url: String? = null,
@@ -507,8 +557,8 @@ data class PhotoItem(
     @SerializedName("closed") val closed: Boolean = false,
     @SerializedName("comments_count") val commentsCount: Int = 0,
     @SerializedName("user") val user: NewsAuthor? = null,
-    @SerializedName("media") val media: List<FileData> = emptyList(),
-    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("media") val media: List<FileData>? = null,
+    @SerializedName("files") val files: List<FileData>? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
@@ -518,8 +568,14 @@ data class PhotoItem(
     val updatedAt: Long?
         get() = updatedAtRaw?.let { parseIsoDateTime(it) }
 
+    val safeMedia: List<FileData>
+        get() = media ?: emptyList()
+
+    val safeFiles: List<FileData>
+        get() = files ?: emptyList()
+
     val allMedia: List<FileData>
-        get() = (media + files).distinctBy { it.id }
+        get() = (safeMedia + safeFiles).distinctBy { it.id }
 
     val primaryMedia: FileData?
         get() = allMedia.firstOrNull()

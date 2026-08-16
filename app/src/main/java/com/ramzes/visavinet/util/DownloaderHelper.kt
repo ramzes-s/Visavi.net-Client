@@ -8,6 +8,24 @@ import android.widget.Toast
 
 object DownloaderHelper {
 
+    fun sanitizeFileName(name: String?): String {
+        if (name.isNullOrBlank()) {
+            return "download_${System.currentTimeMillis()}"
+        }
+        // Удаляем пути, относительные ссылки (../, ..\), спецсимволы и недопустимые знаки
+        val cleaned = name
+            .replace("\\", "/")
+            .substringAfterLast("/")
+            .replace(Regex("[\\\\/:*?\"<>|\u0000-\u001F]"), "_")
+            .trim('.', ' ', '_')
+
+        return if (cleaned.isBlank()) {
+            "download_${System.currentTimeMillis()}"
+        } else {
+            cleaned.take(128)
+        }
+    }
+
     fun downloadFile(
         context: Context,
         url: String,
@@ -16,9 +34,8 @@ object DownloaderHelper {
     ) {
         try {
             val uri = Uri.parse(url)
-            val effectiveFileName = fileName?.ifBlank { null }
-                ?: uri.lastPathSegment
-                ?: "download_${System.currentTimeMillis()}"
+            val rawName = fileName?.ifBlank { null } ?: uri.lastPathSegment
+            val effectiveFileName = sanitizeFileName(rawName)
 
             val request = DownloadManager.Request(uri).apply {
                 setTitle(effectiveFileName)
