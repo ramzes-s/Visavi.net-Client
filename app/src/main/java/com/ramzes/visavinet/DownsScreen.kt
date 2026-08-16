@@ -187,8 +187,8 @@ fun DownsCategoriesView(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             // Специальная карточка «Все новые загрузки»
                             item {
@@ -197,40 +197,40 @@ fun DownsCategoriesView(
                                         .fillMaxWidth()
                                         .clickable(onClick = onAllNewClick),
                                     isDark = isDark,
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = RoundedCornerShape(6.dp),
                                     glowColor = getPrimaryAccentColor().copy(alpha = 0.25f)
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(14.dp),
+                                            .padding(horizontal = 6.dp, vertical = 4.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             Icons.Default.Bolt,
                                             contentDescription = null,
                                             tint = getPrimaryAccentColor(),
-                                            modifier = Modifier.size(24.dp)
+                                            modifier = Modifier.size(28.dp)
                                         )
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = "Все новые загрузки",
                                                 color = textColor,
                                                 fontWeight = FontWeight.Bold,
-                                                fontSize = 15.sp
+                                                fontSize = 13.5.sp
                                             )
                                             Text(
                                                 text = "Лента последних добавленных файлов",
                                                 color = secondaryTextColor,
-                                                fontSize = 12.sp
+                                                fontSize = 11.sp
                                             )
                                         }
                                         Icon(
                                             Icons.AutoMirrored.Filled.ArrowForward,
                                             contentDescription = null,
                                             tint = getSecondaryAccentColor(),
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
                                 }
@@ -270,13 +270,13 @@ fun DownsCategoryCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         isDark = isDark,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         glowColor = Color.Transparent
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(horizontal = 6.dp, vertical = 4.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -286,19 +286,18 @@ fun DownsCategoryCard(
                     Icons.Default.Folder,
                     contentDescription = null,
                     tint = getSecondaryAccentColor(),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(28.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = category.name ?: "Категория",
                         color = textColor,
-                        fontSize = 15.sp,
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -306,13 +305,13 @@ fun DownsCategoryCard(
                         Text(
                             text = "Файлов: ${category.totalDownsCount}",
                             color = secondaryTextColor,
-                            fontSize = 12.sp
+                            fontSize = 11.sp
                         )
                         if (category.subcategories.isNotEmpty()) {
                             Text(
                                 text = "• Подкатегорий: ${category.subcategories.size}",
                                 color = getPrimaryAccentColor(),
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -322,38 +321,38 @@ fun DownsCategoryCard(
                     Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
                     tint = secondaryTextColor.copy(alpha = 0.5f),
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
             // Быстрые чипсы подкатегорий
             if (category.subcategories.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(category.subcategories) { sub ->
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(8.dp),
                             color = if (isDark) Color(0x33000000) else Color(0x1A000000),
-                            modifier = Modifier.height(26.dp)
+                            modifier = Modifier.height(20.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp),
+                                modifier = Modifier.padding(horizontal = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     Icons.Default.FolderOpen,
                                     contentDescription = null,
                                     tint = getSecondaryAccentColor(),
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(10.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "${sub.name ?: "Подраздел"} (${sub.downsCount})",
                                     color = textColor,
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -458,47 +457,47 @@ fun DownsListView(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     // Блок подкатегорий текущей категории
                     val currentCat = viewModel.currentCategory
                     if (currentCat != null && currentCat.subcategories.isNotEmpty()) {
                         item {
-                            Column(modifier = Modifier.padding(bottom = 6.dp)) {
+                            Column(modifier = Modifier.padding(bottom = 2.dp)) {
                                 Text(
                                     text = "Подкатегории",
                                     color = textColor,
-                                    fontSize = 14.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 6.dp)
+                                    modifier = Modifier.padding(bottom = 4.dp, start = 2.dp)
                                 )
                                 LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     items(currentCat.subcategories) { subcat ->
                                         GlassCard(
                                             modifier = Modifier.clickable { onSubcategoryClick(subcat) },
                                             isDark = isDark,
-                                            shape = RoundedCornerShape(8.dp),
+                                            shape = RoundedCornerShape(6.dp),
                                             glowColor = Color.Transparent
                                         ) {
                                             Row(
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Icon(
                                                     Icons.Default.Folder,
                                                     contentDescription = null,
                                                     tint = getPrimaryAccentColor(),
-                                                    modifier = Modifier.size(16.dp)
+                                                    modifier = Modifier.size(13.dp)
                                                 )
-                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
                                                 Text(
                                                     text = "${subcat.name ?: "Подраздел"} (${subcat.totalDownsCount})",
                                                     color = textColor,
-                                                    fontSize = 12.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.SemiBold
                                                 )
                                             }
@@ -520,17 +519,41 @@ fun DownsListView(
                             ) {
                                 CircularProgressIndicator(
                                     color = getPrimaryAccentColor(),
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(36.dp),
                                     strokeWidth = 3.dp
                                 )
                             }
                         }
-                    } else if (viewModel.downsList.isEmpty()) {
+                    } else if (viewModel.downsErrorMessage != null && viewModel.downsList.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(32.dp),
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = viewModel.downsErrorMessage ?: "Ошибка",
+                                        color = Color(0xFFEF4444),
+                                        fontSize = 14.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Button(
+                                        onClick = { viewModel.loadDownsForCurrentCategory(context, refresh = true) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = getPrimaryAccentColor())
+                                    ) {
+                                        Text("Повторить", color = Color.Black)
+                                    }
+                                }
+                            }
+                        }
+                    } else if (viewModel.downsList.isEmpty() && !viewModel.isLoadingDowns) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(48.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -600,13 +623,13 @@ fun DownItemCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         isDark = isDark,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(6.dp),
         glowColor = Color.Transparent
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.Top
         ) {
             // Превью скриншота или иконка файла
@@ -614,8 +637,8 @@ fun DownItemCard(
             if (screenshot?.path != null) {
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(4.dp))
                         .background(Color(0xFF1E293B))
                 ) {
                     AsyncImage(
@@ -630,9 +653,9 @@ fun DownItemCard(
                 }
             } else {
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(4.dp),
                     color = if (isDark) Color(0x33000000) else Color(0x1A000000),
-                    modifier = Modifier.size(56.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -642,38 +665,38 @@ fun DownItemCard(
                             Icons.Default.InsertDriveFile,
                             contentDescription = null,
                             tint = getPrimaryAccentColor(),
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             // Текстовая информация
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = down.title ?: "Без названия",
                     color = textColor,
-                    fontSize = 14.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 if (previewText.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = previewText,
                         color = secondaryTextColor,
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        lineHeight = 15.sp
+                        lineHeight = 14.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 // Автор и дата
                 Row(
@@ -688,18 +711,18 @@ fun DownItemCard(
                                 .build(),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(16.dp)
+                                .size(14.dp)
                                 .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                     }
 
                     val authorLogin = down.user?.login
                     Text(
                         text = down.user?.name ?: authorLogin ?: "Автор",
                         color = authorColor,
-                        fontSize = 11.sp,
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -717,26 +740,26 @@ fun DownItemCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 // Метрики: скачивания, комментарии, рейтинг
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Default.Download,
                             contentDescription = "Скачиваний",
                             tint = getPrimaryAccentColor(),
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(11.dp)
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "${down.downloads}",
                             color = textColor,
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -746,13 +769,13 @@ fun DownItemCard(
                             Icons.Default.ChatBubbleOutline,
                             contentDescription = "Комментариев",
                             tint = getSecondaryAccentColor(),
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(11.dp)
                         )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "${down.commentsCount}",
                             color = getSecondaryAccentColor(),
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -763,7 +786,7 @@ fun DownItemCard(
                                 Icons.Default.Star,
                                 contentDescription = "Рейтинг",
                                 tint = AmberGold,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(2.dp))
                             Text(
