@@ -331,6 +331,12 @@ data class ForumTopic(
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
+    val lastPostAuthor: String?
+        get() = lastPostUserName?.ifBlank { null }
+            ?: lastPostUserLogin?.ifBlank { null }
+            ?: authorName?.ifBlank { null }
+            ?: authorLogin?.ifBlank { null }
+
     val realForumId: Int?
         get() = forumId ?: sectionId ?: forum?.id
 

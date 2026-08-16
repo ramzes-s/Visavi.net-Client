@@ -689,7 +689,7 @@ fun ForumTopicItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = topic.authorName ?: topic.authorLogin ?: "Аноним",
+                        text = topic.lastPostAuthor ?: "Аноним",
                         fontSize = 12.sp,
                         color = secondaryTextColor,
                         fontWeight = FontWeight.Bold
