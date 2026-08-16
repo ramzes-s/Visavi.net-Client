@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Screen { Profile, News, Gallery, Private, Forum, Settings }
+enum class Screen { Profile, News, Gallery, Downs, Private, Forum, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,6 +111,7 @@ fun MainNavigation(
     val forumViewModel: ForumViewModel = viewModel()
     val newsViewModel: NewsViewModel = viewModel()
     val galleryViewModel: GalleryViewModel = viewModel()
+    val downsViewModel: DownsViewModel = viewModel()
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -231,6 +232,12 @@ fun MainNavigation(
                     currentScreen == Screen.Gallery && !showGalleryDetailScreen -> {
                         currentScreen = Screen.Profile
                     }
+                    currentScreen == Screen.Downs -> {
+                        val handled = downsViewModel.navigateBack(context.applicationContext)
+                        if (!handled) {
+                            currentScreen = Screen.Profile
+                        }
+                    }
                     currentScreen == Screen.Private && !showMessagesScreen -> {
                         currentScreen = Screen.Profile
                     }
@@ -239,8 +246,8 @@ fun MainNavigation(
         }
     }
 
-    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level) {
-        backCallback.isEnabled = currentScreen == Screen.Private || currentScreen == Screen.Forum || currentScreen == Screen.News || currentScreen == Screen.Gallery
+    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level, downsViewModel.navigationLevel) {
+        backCallback.isEnabled = currentScreen == Screen.Private || currentScreen == Screen.Forum || currentScreen == Screen.News || currentScreen == Screen.Gallery || currentScreen == Screen.Downs
         onBackPressedDispatcher?.addCallback(backCallback)
     }
 
@@ -451,32 +458,6 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
-                        label = { Text(text = "НОВОСТИ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
-                        selected = currentScreen == Screen.News,
-                        shape = RectangleShape,
-                        modifier = Modifier.fillMaxWidth().height(itemHeight),
-                        onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.News
-                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
-                        },
-                        colors = itemColors
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    NavigationDrawerItem(
-                        label = { Text(text = "ГАЛЕРЕЯ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
-                        selected = currentScreen == Screen.Gallery,
-                        shape = RectangleShape,
-                        modifier = Modifier.fillMaxWidth().height(itemHeight),
-                        onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Gallery
-                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
-                        },
-                        colors = itemColors
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    NavigationDrawerItem(
                         label = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -513,6 +494,32 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
+                        label = { Text(text = "НОВОСТИ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.News,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.News
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
+                        label = { Text(text = "ГАЛЕРЕЯ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Gallery,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Gallery
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
                         label = { Text(text = "ФОРУМ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
                         selected = currentScreen == Screen.Forum,
                         shape = RectangleShape,
@@ -520,6 +527,19 @@ fun MainNavigation(
                         onClick = {
                             resetSubScreens()
                             currentScreen = Screen.Forum
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
+                        label = { Text(text = "ЗАГРУЗКИ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Downs,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Downs
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -584,6 +604,13 @@ fun MainNavigation(
                                     Screen.Profile -> "Профиль"
                                     Screen.News -> if (showNewsDetailScreen) (selectedNews?.title ?: "Новость") else "Новости"
                                     Screen.Gallery -> if (showGalleryDetailScreen) (selectedPhoto?.title ?: "Медиа") else "Галерея"
+                                    Screen.Downs -> {
+                                        when (downsViewModel.navigationLevel) {
+                                            DownsNavigationLevel.DETAIL -> downsViewModel.currentDown?.title ?: "Загрузка"
+                                            DownsNavigationLevel.DOWNS_LIST -> downsViewModel.currentCategory?.name ?: "Все новые загрузки"
+                                            DownsNavigationLevel.CATEGORIES -> "Загрузки"
+                                        }
+                                    }
                                     Screen.Private -> {
                                         if (showMessagesScreen && dialoguesViewModel.selectedDialogue != null) {
                                             val dialogue = dialoguesViewModel.selectedDialogue!!
@@ -647,6 +674,16 @@ fun MainNavigation(
                                 }
                                 if (currentScreen == Screen.Gallery && !showGalleryDetailScreen) {
                                     IconButton(onClick = { galleryViewModel.loadPhotosList(context.applicationContext, refresh = true) }) {
+                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
+                                    }
+                                }
+                                if (currentScreen == Screen.Downs && downsViewModel.navigationLevel == DownsNavigationLevel.CATEGORIES) {
+                                    IconButton(onClick = { downsViewModel.loadCategories(context.applicationContext, refresh = true) }) {
+                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
+                                    }
+                                }
+                                if (currentScreen == Screen.Downs && downsViewModel.navigationLevel == DownsNavigationLevel.DOWNS_LIST) {
+                                    IconButton(onClick = { downsViewModel.loadDownsForCurrentCategory(context.applicationContext, refresh = true) }) {
                                         Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
                                     }
                                 }
@@ -780,6 +817,64 @@ fun MainNavigation(
                                                 userProfileLoading = true
                                                 userProfileError = null
                                                 galleryViewModel.loadUserProfile(
+                                                    context = context.applicationContext,
+                                                    login = login,
+                                                    onSuccess = { user ->
+                                                        userProfileData = user
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    },
+                                                    onError = { error ->
+                                                        userProfileError = error
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    }
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                                Screen.Downs -> {
+                                    if (downsViewModel.navigationLevel == DownsNavigationLevel.DETAIL && downsViewModel.currentDown != null) {
+                                        DownsDetailScreen(
+                                            viewModel = downsViewModel,
+                                            down = downsViewModel.currentDown!!,
+                                            currentLogin = viewModel.currentUser?.login,
+                                            onBackClick = { downsViewModel.navigateBack(context.applicationContext) },
+                                            onUserClick = { login ->
+                                                userProfileLoading = true
+                                                userProfileError = null
+                                                downsViewModel.loadUserProfile(
+                                                    context = context.applicationContext,
+                                                    login = login,
+                                                    onSuccess = { user ->
+                                                        userProfileData = user
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    },
+                                                    onError = { error ->
+                                                        userProfileError = error
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    }
+                                                )
+                                            },
+                                            onTopicClick = { topicId, page, postId ->
+                                                resetSubScreens()
+                                                currentScreen = Screen.Forum
+                                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
+                                            }
+                                        )
+                                    } else {
+                                        DownsScreen(
+                                            viewModel = downsViewModel,
+                                            onDownClick = { downItem ->
+                                                downsViewModel.openDownDetail(downItem, context.applicationContext)
+                                            },
+                                            onUserClick = { login ->
+                                                userProfileLoading = true
+                                                userProfileError = null
+                                                downsViewModel.loadUserProfile(
                                                     context = context.applicationContext,
                                                     login = login,
                                                     onSuccess = { user ->

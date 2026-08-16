@@ -539,6 +539,98 @@ data class PhotoDetailResponse(
     @SerializedName("comments") val comments: NewsCommentsWrapper? = null
 )
 
+data class CategoryItem(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("parent_id") val parentId: Int? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("closed") val closed: Boolean? = false,
+    @SerializedName("downs_count") val downsCount: Int? = 0,
+    @SerializedName("children") val children: List<CategoryItem>? = null,
+    @SerializedName("parent") val parent: CategoryItem? = null
+) {
+    val subcategories: List<CategoryItem>
+        get() = children ?: emptyList()
+
+    val totalDownsCount: Int
+        get() = downsCount ?: 0
+
+    val isClosed: Boolean
+        get() = closed ?: false
+}
+
+data class DownFileItem(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("size") val size: Long = 0,
+    @SerializedName("extension") val extension: String? = null,
+    @SerializedName("mime_type") val mimeType: String? = null,
+    @SerializedName("download_url") val downloadUrl: String? = null,
+    @SerializedName("archive_url") val archiveUrl: String? = null
+)
+
+data class DownExternalLink(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("download_url") val downloadUrl: String? = null
+)
+
+data class DownItem(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("rating") val rating: Int = 0,
+    @SerializedName("vote") val vote: NewsVote? = null,
+    @SerializedName("category_id") val categoryId: Int = 0,
+    @SerializedName("category") val category: CategoryItem? = null,
+    @SerializedName("active") val active: Boolean = true,
+    @SerializedName("downloads") val downloads: Int = 0,
+    @SerializedName("comments_count") val commentsCount: Int = 0,
+    @SerializedName("user") val user: NewsAuthor? = null,
+    @SerializedName("can_download") val canDownload: Boolean = true,
+    @SerializedName("media") val media: List<FileData>? = null,
+    @SerializedName("files") val files: List<DownFileItem>? = null,
+    @SerializedName("links") val links: List<DownExternalLink>? = null,
+    @SerializedName("created_at") val createdAtRaw: String? = null,
+    @SerializedName("updated_at") val updatedAtRaw: String? = null
+) {
+    val createdAt: Long?
+        get() = createdAtRaw?.let { parseIsoDateTime(it) }
+
+    val updatedAt: Long?
+        get() = updatedAtRaw?.let { parseIsoDateTime(it) }
+
+    val safeMedia: List<FileData>
+        get() = media ?: emptyList()
+
+    val safeFiles: List<DownFileItem>
+        get() = files ?: emptyList()
+
+    val safeLinks: List<DownExternalLink>
+        get() = links ?: emptyList()
+
+    val primaryMedia: FileData?
+        get() = safeMedia.firstOrNull()
+
+    val isVideo: Boolean
+        get() = safeMedia.any { it.isVideo || it.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp") }
+}
+
+data class LoadsCategoriesResponse(
+    @SerializedName("data") val data: List<CategoryItem>? = null
+)
+
+data class DownsListResponse(
+    @SerializedName("data") val data: List<DownItem>? = null,
+    @SerializedName("meta") val meta: PaginationMeta? = null,
+    @SerializedName("links") val links: DialogueLinks? = null
+)
+
+data class DownDetailResponse(
+    @SerializedName("data") val data: DownItem? = null,
+    @SerializedName("comments") val comments: NewsCommentsWrapper? = null
+)
+
 /**
  * API сервис Visavi.net
  * RotorCMS OpenAPI v1.0.0
@@ -696,6 +788,26 @@ interface VisaviApiService {
         @Query("per_page") perPage: Int = 20,
         @Query("order") order: String = "asc"
     ): Response<PhotoDetailResponse>
+
+    @GET("api/loads")
+    suspend fun getLoadCategories(): Response<LoadsCategoriesResponse>
+
+    @GET("api/downs")
+    suspend fun getDownsList(
+        @Query("category_id") categoryId: Int? = null,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20,
+        @Query("order") order: String = "desc",
+        @Query("sort") sort: String? = null
+    ): Response<DownsListResponse>
+
+    @GET("api/downs/{id}")
+    suspend fun getDownDetail(
+        @Path("id") id: Int,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20,
+        @Query("order") order: String = "asc"
+    ): Response<DownDetailResponse>
 }
 
 object VisaviApi {
