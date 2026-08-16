@@ -497,6 +497,48 @@ data class CommentCreateResponse(
     @SerializedName("comment") val comment: NewsCommentItem? = null
 )
 
+data class PhotoItem(
+    @SerializedName("id") val id: Int,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("rating") val rating: Int = 0,
+    @SerializedName("vote") val vote: NewsVote? = null,
+    @SerializedName("closed") val closed: Boolean = false,
+    @SerializedName("comments_count") val commentsCount: Int = 0,
+    @SerializedName("user") val user: NewsAuthor? = null,
+    @SerializedName("media") val media: List<FileData> = emptyList(),
+    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("created_at") val createdAtRaw: String? = null,
+    @SerializedName("updated_at") val updatedAtRaw: String? = null
+) {
+    val createdAt: Long?
+        get() = createdAtRaw?.let { parseIsoDateTime(it) }
+
+    val updatedAt: Long?
+        get() = updatedAtRaw?.let { parseIsoDateTime(it) }
+
+    val allMedia: List<FileData>
+        get() = (media + files).distinctBy { it.id }
+
+    val primaryMedia: FileData?
+        get() = allMedia.firstOrNull()
+
+    val isVideo: Boolean
+        get() = allMedia.any { it.isVideo || it.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp") }
+}
+
+data class PhotosListResponse(
+    @SerializedName("data") val data: List<PhotoItem>? = null,
+    @SerializedName("meta") val meta: PaginationMeta? = null,
+    @SerializedName("links") val links: DialogueLinks? = null
+)
+
+data class PhotoDetailResponse(
+    @SerializedName("data") val data: PhotoItem? = null,
+    @SerializedName("comments") val comments: NewsCommentsWrapper? = null
+)
+
 /**
  * API сервис Visavi.net
  * RotorCMS OpenAPI v1.0.0
@@ -638,6 +680,22 @@ interface VisaviApiService {
         @Field("text") text: String,
         @Field("parent_id") parentId: Int? = null
     ): Response<CommentCreateResponse>
+
+    @GET("api/photos")
+    suspend fun getPhotosList(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20,
+        @Query("order") order: String = "desc",
+        @Query("sort") sort: String? = null
+    ): Response<PhotosListResponse>
+
+    @GET("api/photos/{id}")
+    suspend fun getPhotoDetail(
+        @Path("id") id: Int,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20,
+        @Query("order") order: String = "asc"
+    ): Response<PhotoDetailResponse>
 }
 
 object VisaviApi {

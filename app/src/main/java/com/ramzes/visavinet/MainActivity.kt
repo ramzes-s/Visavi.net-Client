@@ -97,7 +97,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Screen { Profile, News, Private, Forum, Settings }
+enum class Screen { Profile, News, Gallery, Private, Forum, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,6 +110,7 @@ fun MainNavigation(
     val dialoguesViewModel: DialoguesViewModel = viewModel()
     val forumViewModel: ForumViewModel = viewModel()
     val newsViewModel: NewsViewModel = viewModel()
+    val galleryViewModel: GalleryViewModel = viewModel()
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -121,6 +122,8 @@ fun MainNavigation(
     var selectedForumTopic by remember { mutableStateOf<ForumTopic?>(null) }
     var showNewsDetailScreen by remember { mutableStateOf(false) }
     var selectedNews by remember { mutableStateOf<com.ramzes.visavinet.network.NewsItem?>(null) }
+    var showGalleryDetailScreen by remember { mutableStateOf(false) }
+    var selectedPhoto by remember { mutableStateOf<com.ramzes.visavinet.network.PhotoItem?>(null) }
 
     var showUserProfile by remember { mutableStateOf(false) }
     var userProfileLoading by remember { mutableStateOf(false) }
@@ -138,6 +141,8 @@ fun MainNavigation(
         selectedForumTopic = null
         showNewsDetailScreen = false
         selectedNews = null
+        showGalleryDetailScreen = false
+        selectedPhoto = null
         dialoguesViewModel.backToDialogues()
     }
 
@@ -219,6 +224,13 @@ fun MainNavigation(
                     currentScreen == Screen.News && !showNewsDetailScreen -> {
                         currentScreen = Screen.Profile
                     }
+                    currentScreen == Screen.Gallery && showGalleryDetailScreen -> {
+                        showGalleryDetailScreen = false
+                        selectedPhoto = null
+                    }
+                    currentScreen == Screen.Gallery && !showGalleryDetailScreen -> {
+                        currentScreen = Screen.Profile
+                    }
                     currentScreen == Screen.Private && !showMessagesScreen -> {
                         currentScreen = Screen.Profile
                     }
@@ -227,8 +239,8 @@ fun MainNavigation(
         }
     }
 
-    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, currentScreen, forumViewModel.navigationState.level) {
-        backCallback.isEnabled = currentScreen == Screen.Private || currentScreen == Screen.Forum || currentScreen == Screen.News
+    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level) {
+        backCallback.isEnabled = currentScreen == Screen.Private || currentScreen == Screen.Forum || currentScreen == Screen.News || currentScreen == Screen.Gallery
         onBackPressedDispatcher?.addCallback(backCallback)
     }
 
@@ -452,6 +464,19 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
+                        label = { Text(text = "ГАЛЕРЕЯ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Gallery,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Gallery
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
                         label = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -558,6 +583,7 @@ fun MainNavigation(
                                 val titleText = when (currentScreen) {
                                     Screen.Profile -> "Профиль"
                                     Screen.News -> if (showNewsDetailScreen) (selectedNews?.title ?: "Новость") else "Новости"
+                                    Screen.Gallery -> if (showGalleryDetailScreen) (selectedPhoto?.title ?: "Медиа") else "Галерея"
                                     Screen.Private -> {
                                         if (showMessagesScreen && dialoguesViewModel.selectedDialogue != null) {
                                             val dialogue = dialoguesViewModel.selectedDialogue!!
@@ -616,6 +642,11 @@ fun MainNavigation(
                             actions = {
                                 if (currentScreen == Screen.News && !showNewsDetailScreen) {
                                     IconButton(onClick = { newsViewModel.loadNewsList(context.applicationContext, refresh = true) }) {
+                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
+                                    }
+                                }
+                                if (currentScreen == Screen.Gallery && !showGalleryDetailScreen) {
+                                    IconButton(onClick = { galleryViewModel.loadPhotosList(context.applicationContext, refresh = true) }) {
                                         Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
                                     }
                                 }
@@ -687,6 +718,68 @@ fun MainNavigation(
                                                 userProfileLoading = true
                                                 userProfileError = null
                                                 newsViewModel.loadUserProfile(
+                                                    context = context.applicationContext,
+                                                    login = login,
+                                                    onSuccess = { user ->
+                                                        userProfileData = user
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    },
+                                                    onError = { error ->
+                                                        userProfileError = error
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    }
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                                Screen.Gallery -> {
+                                    if (showGalleryDetailScreen && selectedPhoto != null) {
+                                        GalleryDetailScreen(
+                                            viewModel = galleryViewModel,
+                                            photo = selectedPhoto!!,
+                                            currentLogin = viewModel.currentUser?.login,
+                                            onBackClick = {
+                                                showGalleryDetailScreen = false
+                                                selectedPhoto = null
+                                            },
+                                            onUserClick = { login ->
+                                                userProfileLoading = true
+                                                userProfileError = null
+                                                galleryViewModel.loadUserProfile(
+                                                    context = context.applicationContext,
+                                                    login = login,
+                                                    onSuccess = { user ->
+                                                        userProfileData = user
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    },
+                                                    onError = { error ->
+                                                        userProfileError = error
+                                                        userProfileLoading = false
+                                                        showUserProfile = true
+                                                    }
+                                                )
+                                            },
+                                            onTopicClick = { topicId, page, postId ->
+                                                resetSubScreens()
+                                                currentScreen = Screen.Forum
+                                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
+                                            }
+                                        )
+                                    } else {
+                                        GalleryScreen(
+                                            viewModel = galleryViewModel,
+                                            onPhotoClick = { photoItem ->
+                                                selectedPhoto = photoItem
+                                                showGalleryDetailScreen = true
+                                            },
+                                            onUserClick = { login ->
+                                                userProfileLoading = true
+                                                userProfileError = null
+                                                galleryViewModel.loadUserProfile(
                                                     context = context.applicationContext,
                                                     login = login,
                                                     onSuccess = { user ->
