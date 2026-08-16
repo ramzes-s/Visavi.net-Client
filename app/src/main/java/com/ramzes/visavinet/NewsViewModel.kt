@@ -35,6 +35,9 @@ class NewsViewModel : ViewModel() {
     var newsLastPage by mutableIntStateOf(1)
         private set
 
+    var scrollItemIndex by mutableIntStateOf(0)
+    var scrollOffset by mutableIntStateOf(0)
+
     // --- Детальный просмотр новости ---
     var currentNews by mutableStateOf<NewsItem?>(null)
         private set

@@ -71,6 +71,12 @@ class ForumViewModel : ViewModel() {
     var postsLastPage by mutableStateOf(1)
         private set
 
+    var sectionsScrollIndex by mutableStateOf(0)
+    var sectionsScrollOffset by mutableStateOf(0)
+
+    var sectionTopicsScrollIndex by mutableStateOf(0)
+    var sectionTopicsScrollOffset by mutableStateOf(0)
+
     private val backStack = mutableListOf<ForumNavigationState>()
 
     fun loadRootSections(context: Context) {
@@ -367,6 +373,8 @@ class ForumViewModel : ViewModel() {
             sectionId = section.id,
             sectionTitle = section.title
         )
+        sectionTopicsScrollIndex = 0
+        sectionTopicsScrollOffset = 0
         sectionCurrentPage = 1
         sectionLastPage = 1
         subsections = section.children ?: emptyList()

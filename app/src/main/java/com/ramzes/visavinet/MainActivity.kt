@@ -957,6 +957,12 @@ fun MainNavigation(
                                             isLoadingMore = dialoguesViewModel.isLoadingMore,
                                             errorMessage = dialoguesViewModel.errorMessage,
                                             readDialogues = dialoguesViewModel.readDialogues,
+                                            initialScrollIndex = dialoguesViewModel.dialoguesScrollIndex,
+                                            initialScrollOffset = dialoguesViewModel.dialoguesScrollOffset,
+                                            onScrollChanged = { index, offset ->
+                                                dialoguesViewModel.dialoguesScrollIndex = index
+                                                dialoguesViewModel.dialoguesScrollOffset = offset
+                                            },
                                             onDialogueClick = { dialogue ->
                                                 val currentLogin = viewModel.currentUser?.login
                                                 val dialogueLogin = dialogue.login ?: dialogue.name

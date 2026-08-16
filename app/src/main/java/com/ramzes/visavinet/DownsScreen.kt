@@ -103,7 +103,19 @@ fun DownsCategoriesView(
     onAllNewClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = viewModel.categoriesScrollIndex,
+        initialFirstVisibleItemScrollOffset = viewModel.categoriesScrollOffset
+    )
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingCategories)
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                viewModel.categoriesScrollIndex = index
+                viewModel.categoriesScrollOffset = offset
+            }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -173,6 +185,7 @@ fun DownsCategoriesView(
                     }
                     else -> {
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -366,8 +379,19 @@ fun DownsListView(
     onSubcategoryClick: (CategoryItem) -> Unit
 ) {
     val context = LocalContext.current
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = viewModel.downsListScrollIndex,
+        initialFirstVisibleItemScrollOffset = viewModel.downsListScrollOffset
+    )
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingDowns)
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                viewModel.downsListScrollIndex = index
+                viewModel.downsListScrollOffset = offset
+            }
+    }
 
     val backTitle = remember(viewModel.categoryStack, viewModel.currentCategory) {
         if (viewModel.categoryStack.isNotEmpty()) {

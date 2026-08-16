@@ -35,6 +35,9 @@ class GalleryViewModel : ViewModel() {
     var photosLastPage by mutableIntStateOf(1)
         private set
 
+    var scrollItemIndex by mutableIntStateOf(0)
+    var scrollOffset by mutableIntStateOf(0)
+
     // --- Детальный просмотр элемента галереи ---
     var currentPhoto by mutableStateOf<PhotoItem?>(null)
         private set

@@ -39,17 +39,30 @@ fun DialoguesScreen(
     isLoadingMore: Boolean,
     errorMessage: String?,
     readDialogues: Set<Int> = emptySet(),
+    initialScrollIndex: Int = 0,
+    initialScrollOffset: Int = 0,
+    onScrollChanged: ((Int, Int) -> Unit)? = null,
     onDialogueClick: (DialogueData) -> Unit,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit
 ) {
     val isDark = isDarkTheme()
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialScrollIndex,
+        initialFirstVisibleItemScrollOffset = initialScrollOffset
+    )
     val accentColor = if (isDark) NeonCyan else LightAccent
 
     val swipeRefreshState = rememberSwipeRefreshState(
         isRefreshing = isLoading
     )
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                onScrollChanged?.invoke(index, offset)
+            }
+    }
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }

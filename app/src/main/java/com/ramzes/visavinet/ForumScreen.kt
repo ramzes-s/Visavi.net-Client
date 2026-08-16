@@ -101,6 +101,7 @@ fun ForumScreen(
                 when (viewModel.navigationState.level) {
                     ForumNavigationLevel.SECTIONS -> {
                         ForumSectionsList(
+                            viewModel = viewModel,
                             sections = viewModel.rootSections,
                             isLoading = viewModel.isLoadingSections,
                             errorMessage = viewModel.errorMessage,
@@ -113,6 +114,7 @@ fun ForumScreen(
                     }
                     ForumNavigationLevel.SECTION -> {
                         ForumSectionContent(
+                            viewModel = viewModel,
                             sectionInfo = viewModel.currentSection,
                             subsections = viewModel.subsections,
                             topics = viewModel.topics,
@@ -253,6 +255,7 @@ fun ForumTopBar(
 
 @Composable
 fun ForumSectionContent(
+    viewModel: ForumViewModel,
     sectionInfo: ForumInfo?,
     subsections: List<ForumSection>,
     topics: List<ForumTopic>,
@@ -266,8 +269,19 @@ fun ForumSectionContent(
     onLoadMore: () -> Unit,
     isDark: Boolean
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = viewModel.sectionTopicsScrollIndex,
+        initialFirstVisibleItemScrollOffset = viewModel.sectionTopicsScrollOffset
+    )
     val subsectionsCount = subsections.size
+    
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                viewModel.sectionTopicsScrollIndex = index
+                viewModel.sectionTopicsScrollOffset = offset
+            }
+    }
     
     LaunchedEffect(topics.size, isLoadingMore) {
         if (topics.isEmpty() || isLoadingMore) return@LaunchedEffect
@@ -344,6 +358,7 @@ fun ForumSectionContent(
 
 @Composable
 fun ForumSectionsList(
+    viewModel: ForumViewModel,
     sections: List<ForumSection>,
     isLoading: Boolean,
     errorMessage: String?,
@@ -352,6 +367,18 @@ fun ForumSectionsList(
     isDark: Boolean
 ) {
     val errorColor = Color(0xFFCF6679)
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = viewModel.sectionsScrollIndex,
+        initialFirstVisibleItemScrollOffset = viewModel.sectionsScrollOffset
+    )
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                viewModel.sectionsScrollIndex = index
+                viewModel.sectionsScrollOffset = offset
+            }
+    }
 
     when {
         isLoading && sections.isEmpty() -> {
@@ -382,6 +409,7 @@ fun ForumSectionsList(
         }
         else -> {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

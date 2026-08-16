@@ -64,6 +64,12 @@ class DownsViewModel : ViewModel() {
     var downsLastPage by mutableIntStateOf(1)
         private set
 
+    var categoriesScrollIndex by mutableIntStateOf(0)
+    var categoriesScrollOffset by mutableIntStateOf(0)
+
+    var downsListScrollIndex by mutableIntStateOf(0)
+    var downsListScrollOffset by mutableIntStateOf(0)
+
     // --- Детальный просмотр загрузки ---
     var currentDown by mutableStateOf<DownItem?>(null)
         private set
@@ -129,6 +135,8 @@ class DownsViewModel : ViewModel() {
             categoryStack = categoryStack + prev
         }
         currentCategory = category
+        downsListScrollIndex = 0
+        downsListScrollOffset = 0
         navigationLevel = DownsNavigationLevel.DOWNS_LIST
         loadDownsForCurrentCategory(context, refresh = true)
     }
@@ -139,6 +147,8 @@ class DownsViewModel : ViewModel() {
     fun openAllNewDowns(context: Context) {
         categoryStack = emptyList()
         currentCategory = null
+        downsListScrollIndex = 0
+        downsListScrollOffset = 0
         navigationLevel = DownsNavigationLevel.DOWNS_LIST
         loadDownsForCurrentCategory(context, refresh = true)
     }

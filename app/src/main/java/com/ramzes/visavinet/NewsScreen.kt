@@ -46,8 +46,19 @@ fun NewsScreen(
     val isDark = isDarkTheme()
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = viewModel.scrollItemIndex,
+        initialFirstVisibleItemScrollOffset = viewModel.scrollOffset
+    )
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingNews)
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                viewModel.scrollItemIndex = index
+                viewModel.scrollOffset = offset
+            }
+    }
 
     LaunchedEffect(Unit) {
         if (viewModel.newsList.isEmpty()) {

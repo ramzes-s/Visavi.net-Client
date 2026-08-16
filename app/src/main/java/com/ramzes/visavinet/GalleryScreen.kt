@@ -49,8 +49,19 @@ fun GalleryScreen(
     val isDark = isDarkTheme()
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
-    val gridState = rememberLazyGridState()
+    val gridState = rememberLazyGridState(
+        initialFirstVisibleItemIndex = viewModel.scrollItemIndex,
+        initialFirstVisibleItemScrollOffset = viewModel.scrollOffset
+    )
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingPhotos)
+
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                viewModel.scrollItemIndex = index
+                viewModel.scrollOffset = offset
+            }
+    }
 
     LaunchedEffect(Unit) {
         if (viewModel.photosList.isEmpty()) {

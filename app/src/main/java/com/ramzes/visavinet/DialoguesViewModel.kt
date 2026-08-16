@@ -51,6 +51,9 @@ class DialoguesViewModel : ViewModel() {
     var isLoadingMore by mutableStateOf(false)
         private set
 
+    var dialoguesScrollIndex by mutableStateOf(0)
+    var dialoguesScrollOffset by mutableStateOf(0)
+
     private var itemsPerPage: Int = 10
     private val dialoguesMap = mutableMapOf<String, DialogueData>()
 
