@@ -412,6 +412,91 @@ data class ForumPostsData(
     @SerializedName("forum") val forum: ForumInfo? = null
 )
 
+data class NewsAuthor(
+    @SerializedName("login") val login: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("level") val level: String? = null,
+    @SerializedName("color") val color: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("status") val status: String? = null
+)
+
+data class NewsVote(
+    @SerializedName("type") val type: String? = null,
+    @SerializedName("id") val id: Int? = null,
+    @SerializedName("value") val value: String? = null,
+    @SerializedName("own") val own: Boolean = false
+)
+
+data class NewsItem(
+    @SerializedName("id") val id: Int,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("rating") val rating: Int = 0,
+    @SerializedName("vote") val vote: NewsVote? = null,
+    @SerializedName("closed") val closed: Boolean = false,
+    @SerializedName("top") val top: Boolean = false,
+    @SerializedName("comments_count") val commentsCount: Int = 0,
+    @SerializedName("user") val user: NewsAuthor? = null,
+    @SerializedName("media") val media: List<FileData> = emptyList(),
+    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("created_at") val createdAtRaw: String? = null,
+    @SerializedName("updated_at") val updatedAtRaw: String? = null
+) {
+    val createdAt: Long?
+        get() = createdAtRaw?.let { parseIsoDateTime(it) }
+
+    val updatedAt: Long?
+        get() = updatedAtRaw?.let { parseIsoDateTime(it) }
+}
+
+data class NewsCommentParent(
+    @SerializedName("id") val id: Int,
+    @SerializedName("login") val login: String? = null,
+    @SerializedName("excerpt") val excerpt: String? = null
+)
+
+data class NewsCommentItem(
+    @SerializedName("id") val id: Int,
+    @SerializedName("parent_id") val parentId: Int? = null,
+    @SerializedName("depth") val depth: Int = 0,
+    @SerializedName("parent") val parent: NewsCommentParent? = null,
+    @SerializedName("deleted") val deleted: Boolean = false,
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("rating") val rating: Int = 0,
+    @SerializedName("vote") val vote: NewsVote? = null,
+    @SerializedName("user") val user: NewsAuthor? = null,
+    @SerializedName("media") val media: List<FileData> = emptyList(),
+    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("created_at") val createdAtRaw: String? = null
+) {
+    val createdAt: Long?
+        get() = createdAtRaw?.let { parseIsoDateTime(it) }
+}
+
+data class NewsCommentsWrapper(
+    @SerializedName("data") val data: List<NewsCommentItem>? = null,
+    @SerializedName("meta") val meta: PaginationMeta? = null,
+    @SerializedName("links") val links: DialogueLinks? = null
+)
+
+data class NewsListResponse(
+    @SerializedName("data") val data: List<NewsItem>? = null,
+    @SerializedName("meta") val meta: PaginationMeta? = null,
+    @SerializedName("links") val links: DialogueLinks? = null
+)
+
+data class NewsDetailResponse(
+    @SerializedName("data") val data: NewsItem? = null,
+    @SerializedName("comments") val comments: NewsCommentsWrapper? = null
+)
+
+data class CommentCreateResponse(
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("comment") val comment: NewsCommentItem? = null
+)
+
 /**
  * API сервис Visavi.net
  * RotorCMS OpenAPI v1.0.0
@@ -519,6 +604,40 @@ interface VisaviApiService {
         @Path("id") topicId: Int,
         @Field("text") text: String
     ): Response<PostCreateResponse>
+
+    @GET("api/news")
+    suspend fun getNewsList(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20,
+        @Query("order") order: String = "desc"
+    ): Response<NewsListResponse>
+
+    @GET("api/news/{id}")
+    suspend fun getNewsDetail(
+        @Path("id") id: Int,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20,
+        @Query("order") order: String = "asc"
+    ): Response<NewsDetailResponse>
+
+    @Multipart
+    @POST("api/comments")
+    suspend fun createCommentMultipart(
+        @Part("type") type: okhttp3.RequestBody,
+        @Part("id") id: okhttp3.RequestBody,
+        @Part("text") text: okhttp3.RequestBody,
+        @Part("parent_id") parentId: okhttp3.RequestBody? = null,
+        @Part files: List<MultipartBody.Part>? = null
+    ): Response<CommentCreateResponse>
+
+    @FormUrlEncoded
+    @POST("api/comments")
+    suspend fun createCommentForm(
+        @Field("type") type: String,
+        @Field("id") id: Int,
+        @Field("text") text: String,
+        @Field("parent_id") parentId: Int? = null
+    ): Response<CommentCreateResponse>
 }
 
 object VisaviApi {
