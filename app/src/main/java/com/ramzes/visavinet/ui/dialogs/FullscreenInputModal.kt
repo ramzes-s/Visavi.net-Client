@@ -13,7 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -38,12 +41,21 @@ import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.HtmlVisualTransformation
 import com.ramzes.visavinet.util.ensureParagraphTags
 
+data class QuoteInfo(
+    val author: String,
+    val text: String
+)
+
 @Composable
 fun FullscreenInputModal(
     text: String,
     onTextChanged: (String) -> Unit,
     selectedFiles: List<Uri> = emptyList(),
     onFilesChanged: (List<Uri>) -> Unit = {},
+    replyToUser: String? = null,
+    onRemoveReplyToUser: (() -> Unit)? = null,
+    quoteInfo: QuoteInfo? = null,
+    onRemoveQuote: (() -> Unit)? = null,
     textMin: Int = 5,
     textMax: Int = 1000,
     onSend: () -> Unit,
@@ -58,10 +70,21 @@ fun FullscreenInputModal(
 
     val htmlTransformation = remember(primaryAccent) { HtmlVisualTransformation() }
 
-    var textFieldValue by remember(text) {
+    var textFieldValue by remember {
         mutableStateOf(TextFieldValue(text, selection = TextRange(text.length)))
     }
     val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(text) {
+        if (text != textFieldValue.text) {
+            val newSelection = if (textFieldValue.selection.end <= text.length) {
+                textFieldValue.selection
+            } else {
+                TextRange(text.length)
+            }
+            textFieldValue = TextFieldValue(text, selection = newSelection)
+        }
+    }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -160,6 +183,117 @@ fun FullscreenInputModal(
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
+
+                        // Блок бейджей обращения и цитирования
+                        if (!replyToUser.isNullOrBlank() || quoteInfo != null) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                // Бейдж обращения к пользователю
+                                if (!replyToUser.isNullOrBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (isDark) Color(0x3300E5FF) else Color(0x2200E5FF),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            width = 1.dp,
+                                            color = primaryAccent.copy(alpha = 0.4f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.AlternateEmail,
+                                                contentDescription = null,
+                                                tint = primaryAccent,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = replyToUser,
+                                                color = primaryAccent,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            if (onRemoveReplyToUser != null) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Удалить обращение",
+                                                    tint = primaryAccent.copy(alpha = 0.8f),
+                                                    modifier = Modifier
+                                                        .size(14.dp)
+                                                        .clickable { onRemoveReplyToUser() }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Бейдж цитаты
+                                if (quoteInfo != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = if (isDark) Color(0x20FFFFFF) else Color(0x15000000),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            width = 1.dp,
+                                            color = if (isDark) Color(0x30FFFFFF) else Color(0x25000000)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.FormatQuote,
+                                                contentDescription = null,
+                                                tint = primaryAccent,
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .padding(top = 1.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = quoteInfo.author,
+                                                    color = primaryAccent,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = quoteInfo.text,
+                                                    color = if (isDark) TextLightGray else LightTextSecondary,
+                                                    fontSize = 11.sp,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            if (onRemoveQuote != null) {
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                IconButton(
+                                                    onClick = onRemoveQuote,
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Удалить цитату",
+                                                        tint = if (isDark) TextLightGray else LightTextSecondary,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         // Поле ввода: теги скрыты VisualTransformation, сохраняется курсор и фокус
                         GlassTextField(

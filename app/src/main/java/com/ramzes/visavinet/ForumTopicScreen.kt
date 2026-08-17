@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.AttachFile
@@ -41,15 +42,36 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import com.ramzes.visavinet.network.ForumTopic
 import com.ramzes.visavinet.network.TopicInfo
+import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
+import com.ramzes.visavinet.ui.dialogs.QuoteInfo
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.ensureParagraphTags
 import com.ramzes.visavinet.util.formatFileSize
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.parseHtmlToBlocks
+import com.ramzes.visavinet.util.sanitizeHtml
 import com.ramzes.visavinet.util.RenderContentBlocks
+
+fun buildFinalForumPostText(rawText: String, replyToUser: String?, quoteInfo: QuoteInfo?): String {
+    val parts = mutableListOf<String>()
+    if (quoteInfo != null && quoteInfo.text.isNotBlank()) {
+        parts.add("<blockquote class=\"post-quote\"><b>${quoteInfo.author}</b>: ${quoteInfo.text}</blockquote>")
+    }
+    val textWithUser = if (!replyToUser.isNullOrBlank()) {
+        val userLink = "<a class=\"user\" href=\"/users/$replyToUser\">@$replyToUser</a> "
+        if (rawText.startsWith(userLink)) rawText else "$userLink$rawText"
+    } else {
+        rawText
+    }
+    if (textWithUser.isNotBlank()) {
+        parts.add(textWithUser)
+    }
+    return ensureParagraphTags(parts.joinToString("\n"))
+}
 
 @Composable
 fun ForumTopicScreen(
@@ -72,6 +94,8 @@ fun ForumTopicScreen(
     var hasScrolledToBottom by remember { mutableStateOf(false) }
 
     var replyText by remember { mutableStateOf("") }
+    var replyToUser by remember { mutableStateOf<String?>(null) }
+    var quoteInfo by remember { mutableStateOf<QuoteInfo?>(null) }
     var selectedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isSendingReply by remember { mutableStateOf(false) }
     var replyError by remember { mutableStateOf<String?>(null) }
@@ -239,14 +263,13 @@ fun ForumTopicScreen(
                                     onTopicClick = { topicId, page, postId ->
                                         viewModel.navigateToTopicId(context, topicId, page, postId)
                                     },
-                                    onQuoteClick = { textToInsert ->
-                                        replyText = if (replyText.isBlank()) {
-                                            textToInsert
-                                        } else if (textToInsert.startsWith("<a class=\"user\"")) {
-                                            "$replyText $textToInsert"
-                                        } else {
-                                            "$replyText\n$textToInsert"
-                                        }
+                                    onUserReplyClick = { userLogin ->
+                                        replyToUser = userLogin
+                                        showFullscreenInput = true
+                                    },
+                                    onQuoteClick = { author, rawText ->
+                                        val cleanText = sanitizeHtml(rawText).replace(Regex("\\s+"), " ").trim()
+                                        quoteInfo = QuoteInfo(author = author, text = cleanText)
                                         showFullscreenInput = true
                                     },
                                     onImageClick = { url -> selectedImageForLightbox = url },
@@ -300,115 +323,31 @@ fun ForumTopicScreen(
             }
 
             if (!topic.closed) {
-                Column(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    color = Color.Transparent
                 ) {
-                    if (selectedFiles.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 6.dp)
-                        ) {
-                            items(selectedFiles) { uri ->
-                                AssistChip(
-                                    onClick = { selectedFiles = selectedFiles - uri },
-                                    label = { Text("Файл", fontSize = 11.sp) },
-                                    trailingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Удалить",
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Row(
+                    GlassButton(
+                        onClick = { showFullscreenInput = true },
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        isDark = isDark,
+                        accentColor = primaryAccent
                     ) {
-                        IconButton(
-                            onClick = { filePickerLauncher.launch("*/*") },
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AttachFile,
-                                contentDescription = "Прикрепить файл",
-                                tint = primaryAccent
-                            )
-                        }
-
-                        val isReplyValid = replyText.trim().length in textMin..textMax
-
-                        GlassTextField(
-                            value = replyText,
-                            onValueChange = {
-                                if (it.length <= textMax) {
-                                    replyText = it
-                                }
-                            },
-                            placeholderText = "Ответить в тему...",
-                            isDark = isDark,
-                            modifier = Modifier.weight(1f),
-                            trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Fullscreen,
-                                    contentDescription = "Развернуть",
-                                    tint = primaryAccent,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clickable { showFullscreenInput = true }
-                                )
-                            }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Reply,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
                         )
-
-                        IconButton(
-                            onClick = {
-                                if (isReplyValid && !isSendingReply) {
-                                    isSendingReply = true
-                                    val formattedReply = com.ramzes.visavinet.util.ensureParagraphTags(replyText)
-                                    viewModel.createPost(
-                                        context = context.applicationContext,
-                                        topicId = topic.id,
-                                        text = formattedReply,
-                                        fileUris = selectedFiles,
-                                        userRating = userRating,
-                                        onSuccess = {
-                                            replyText = ""
-                                            selectedFiles = emptyList()
-                                            isSendingReply = false
-                                            hideKeyboard()
-                                        },
-                                        onError = { err ->
-                                            replyError = err
-                                            isSendingReply = false
-                                        }
-                                    )
-                                }
-                            },
-                            enabled = isReplyValid && !isSendingReply,
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            if (isSendingReply) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = primaryAccent,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = "Отправить",
-                                    tint = if (isReplyValid && !isSendingReply) primaryAccent else primaryAccent.copy(alpha = 0.35f)
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Ответить в тему",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -417,24 +356,36 @@ fun ForumTopicScreen(
 
     if (showFullscreenInput) {
         val topicTitle = topic.title ?: ""
-        val isReplyValid = replyText.trim().length in textMin..textMax
         FullscreenInputModal(
             text = replyText,
             onTextChanged = { replyText = it },
             selectedFiles = selectedFiles,
             onFilesChanged = { selectedFiles = it },
+            replyToUser = replyToUser,
+            onRemoveReplyToUser = { replyToUser = null },
+            quoteInfo = quoteInfo,
+            onRemoveQuote = { quoteInfo = null },
             textMin = textMin,
             textMax = textMax,
             onSend = {
+                val isReplyValid = replyText.trim().length in textMin..textMax || (quoteInfo != null && replyText.isNotBlank())
                 if (isReplyValid && !isSendingReply) {
                     isSendingReply = true
+                    val formatted = buildFinalForumPostText(
+                        rawText = replyText,
+                        replyToUser = replyToUser,
+                        quoteInfo = quoteInfo
+                    )
                     viewModel.createPost(
                         context = context.applicationContext,
                         topicId = topic.id,
-                        text = replyText,
+                        text = formatted,
                         fileUris = selectedFiles,
+                        userRating = userRating,
                         onSuccess = {
                             replyText = ""
+                            replyToUser = null
+                            quoteInfo = null
                             selectedFiles = emptyList()
                             isSendingReply = false
                             showFullscreenInput = false
@@ -601,7 +552,8 @@ fun ForumPostItem(
     currentLogin: String?,
     onUserClick: (String) -> Unit,
     onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
-    onQuoteClick: (String) -> Unit,
+    onUserReplyClick: (String) -> Unit,
+    onQuoteClick: (author: String, text: String) -> Unit,
     onImageClick: (String) -> Unit,
     isDark: Boolean
 ) {
@@ -660,8 +612,7 @@ fun ForumPostItem(
                             IconButton(
                                 onClick = {
                                     val userLogin = post.authorLogin ?: post.authorName ?: "user"
-                                    val userLink = "<a class=\"user\" href=\"/users/$userLogin\">@$userLogin</a> "
-                                    onQuoteClick(userLink)
+                                    onUserReplyClick(userLogin)
                                 },
                                 modifier = Modifier.size(22.dp)
                             ) {
@@ -677,7 +628,7 @@ fun ForumPostItem(
                                 onClick = {
                                     val author = post.authorName ?: post.authorLogin ?: "Аноним"
                                     val textContent = post.text ?: ""
-                                    onQuoteClick("<blockquote class=\"post-quote\"><b>$author</b>: $textContent</blockquote>\n")
+                                    onQuoteClick(author, textContent)
                                 },
                                 modifier = Modifier.size(22.dp)
                             ) {
