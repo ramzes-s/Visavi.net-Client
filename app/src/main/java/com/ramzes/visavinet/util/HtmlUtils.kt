@@ -46,6 +46,9 @@ import java.util.*
 sealed class VisaviUrlTarget {
     data class Topic(val topicId: Int, val page: Int? = null, val postId: Int? = null) : VisaviUrlTarget()
     data class User(val login: String) : VisaviUrlTarget()
+    data class Down(val downId: Int) : VisaviUrlTarget()
+    data class News(val newsId: Int) : VisaviUrlTarget()
+    data class Photo(val photoId: Int) : VisaviUrlTarget()
     object Other : VisaviUrlTarget()
 }
 
@@ -75,6 +78,27 @@ fun parseVisaviUrl(url: String): VisaviUrlTarget {
         }
     }
 
+    // 3. Загрузки: /downs/1976 или /down/1976
+    val downRegex = Regex("(?:https?://$hostPattern)?/(?:downs|down)/(\\d+)", RegexOption.IGNORE_CASE)
+    downRegex.find(clean)?.let { match ->
+        val downId = match.groupValues[1].toIntOrNull()
+        if (downId != null) return VisaviUrlTarget.Down(downId)
+    }
+
+    // 4. Новости: /news/329
+    val newsRegex = Regex("(?:https?://$hostPattern)?/(?:news)/(\\d+)", RegexOption.IGNORE_CASE)
+    newsRegex.find(clean)?.let { match ->
+        val newsId = match.groupValues[1].toIntOrNull()
+        if (newsId != null) return VisaviUrlTarget.News(newsId)
+    }
+
+    // 5. Галерея / Фото: /photos/3303 или /photo/3303 или /gallery/3303
+    val photoRegex = Regex("(?:https?://$hostPattern)?/(?:photos|photo|gallery)/(\\d+)", RegexOption.IGNORE_CASE)
+    photoRegex.find(clean)?.let { match ->
+        val photoId = match.groupValues[1].toIntOrNull()
+        if (photoId != null) return VisaviUrlTarget.Photo(photoId)
+    }
+
     return VisaviUrlTarget.Other
 }
 
@@ -82,7 +106,10 @@ fun handleVisaviUrlClick(
     context: android.content.Context,
     url: String,
     onUserClick: ((String) -> Unit)? = null,
-    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null
 ) {
     when (val target = parseVisaviUrl(url)) {
         is VisaviUrlTarget.User -> {
@@ -95,6 +122,27 @@ fun handleVisaviUrlClick(
         is VisaviUrlTarget.Topic -> {
             if (onTopicClick != null) {
                 onTopicClick(target.topicId, target.page, target.postId)
+            } else {
+                openExternalUrl(context, url)
+            }
+        }
+        is VisaviUrlTarget.News -> {
+            if (onNewsClick != null) {
+                onNewsClick(target.newsId)
+            } else {
+                openExternalUrl(context, url)
+            }
+        }
+        is VisaviUrlTarget.Down -> {
+            if (onDownClick != null) {
+                onDownClick(target.downId)
+            } else {
+                openExternalUrl(context, url)
+            }
+        }
+        is VisaviUrlTarget.Photo -> {
+            if (onPhotoClick != null) {
+                onPhotoClick(target.photoId)
             } else {
                 openExternalUrl(context, url)
             }
@@ -121,7 +169,7 @@ fun openExternalUrl(context: android.content.Context, url: String) {
 
 /**
  * Компонент с поддержкой выделения текста долгим тапом для копирования,
- * переходом по клику на ссылки (внутренние темы/профили и внешние) и поддержкой inline-смайлов
+ * переходом по клику на ссылки (внутренние темы/профили/новости/загрузки/галерею и внешние) и поддержкой inline-смайлов
  */
 @Composable
 fun ClickableAndSelectableText(
@@ -134,7 +182,10 @@ fun ClickableAndSelectableText(
     color: Color = if (isDark) Color.White else Color.Black,
     inlineContent: Map<String, InlineTextContent> = emptyMap(),
     onUserClick: ((String) -> Unit)? = null,
-    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -164,7 +215,15 @@ fun ClickableAndSelectableText(
                         .firstOrNull()?.let { annotation ->
                             val url = annotation.item
                             if (url.isNotBlank()) {
-                                handleVisaviUrlClick(context, url, onUserClick, onTopicClick)
+                                handleVisaviUrlClick(
+                                    context = context,
+                                    url = url,
+                                    onUserClick = onUserClick,
+                                    onTopicClick = onTopicClick,
+                                    onNewsClick = onNewsClick,
+                                    onDownClick = onDownClick,
+                                    onPhotoClick = onPhotoClick
+                                )
                             }
                         }
                 }
@@ -337,19 +396,42 @@ fun RenderContentBlocks(
     blocks: List<ContentBlock>,
     isDark: Boolean = true,
     onUserClick: ((String) -> Unit)? = null,
-    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         blocks.forEach { block ->
             when (block) {
                 is ContentBlock.TextBlock -> {
-                    TextBlock(block.text, isDark, block.html, onUserClick, onTopicClick)
+                    TextBlock(
+                        text = block.text,
+                        isDark = isDark,
+                        html = block.html,
+                        onUserClick = onUserClick,
+                        onTopicClick = onTopicClick,
+                        onNewsClick = onNewsClick,
+                        onDownClick = onDownClick,
+                        onPhotoClick = onPhotoClick
+                    )
                 }
                 is ContentBlock.CodeBlock -> {
                     CodeBlock(block.code, isDark)
                 }
                 is ContentBlock.QuoteBlock -> {
-                    QuoteBlock(block.quoteText, block.footerText, isDark, block.quoteHtml, block.footerHtml, onUserClick, onTopicClick)
+                    QuoteBlock(
+                        quoteText = block.quoteText,
+                        footerText = block.footerText,
+                        isDark = isDark,
+                        quoteHtml = block.quoteHtml,
+                        footerHtml = block.footerHtml,
+                        onUserClick = onUserClick,
+                        onTopicClick = onTopicClick,
+                        onNewsClick = onNewsClick,
+                        onDownClick = onDownClick,
+                        onPhotoClick = onPhotoClick
+                    )
                 }
             }
         }
@@ -391,7 +473,10 @@ private fun TextBlock(
     isDark: Boolean,
     html: String? = null,
     onUserClick: ((String) -> Unit)? = null,
-    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null
 ) {
     val sourceText = html ?: text
     val (annotatedText, inlineMap) = parseInlineHtmlTags(sourceText, isDark)
@@ -403,6 +488,9 @@ private fun TextBlock(
         inlineContent = inlineMap,
         onUserClick = onUserClick,
         onTopicClick = onTopicClick,
+        onNewsClick = onNewsClick,
+        onDownClick = onDownClick,
+        onPhotoClick = onPhotoClick,
         modifier = Modifier.padding(vertical = 4.dp)
     )
 }
@@ -698,7 +786,10 @@ private fun QuoteBlock(
     quoteHtml: String? = null,
     footerHtml: String? = null,
     onUserClick: ((String) -> Unit)? = null,
-    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null
+    onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null
 ) {
     val backgroundColor = Color(0x17D67904)
     val textColor = if (isDark) Color.White else LightText
@@ -728,7 +819,10 @@ private fun QuoteBlock(
                 color = textColor,
                 inlineContent = inlineMapQuote,
                 onUserClick = onUserClick,
-                onTopicClick = onTopicClick
+                onTopicClick = onTopicClick,
+                onNewsClick = onNewsClick,
+                onDownClick = onDownClick,
+                onPhotoClick = onPhotoClick
             )
         }
 
@@ -756,6 +850,9 @@ private fun QuoteBlock(
                     inlineContent = inlineMapAuthor,
                     onUserClick = onUserClick,
                     onTopicClick = onTopicClick,
+                    onNewsClick = onNewsClick,
+                    onDownClick = onDownClick,
+                    onPhotoClick = onPhotoClick,
                     modifier = Modifier.weight(1f, fill = false)
                 )
 

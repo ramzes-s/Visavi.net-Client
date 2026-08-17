@@ -74,4 +74,35 @@ class FormatAndUtilityTest {
         assertNull(parseColorString("not-a-color"))
         assertNull(parseColorString("#ZZZZZZ"))
     }
+
+    @Test
+    fun testParseVisaviUrlLinks() {
+        val downUrl = "https://visavi.net/downs/1976"
+        val downTarget = com.ramzes.visavinet.util.parseVisaviUrl(downUrl)
+        assertTrue(downTarget is com.ramzes.visavinet.util.VisaviUrlTarget.Down)
+        assertEquals(1976, (downTarget as com.ramzes.visavinet.util.VisaviUrlTarget.Down).downId)
+
+        val newsUrl = "https://visavi.net/news/329"
+        val newsTarget = com.ramzes.visavinet.util.parseVisaviUrl(newsUrl)
+        assertTrue(newsTarget is com.ramzes.visavinet.util.VisaviUrlTarget.News)
+        assertEquals(329, (newsTarget as com.ramzes.visavinet.util.VisaviUrlTarget.News).newsId)
+
+        val photoUrl = "https://visavi.net/photos/3303"
+        val photoTarget = com.ramzes.visavinet.util.parseVisaviUrl(photoUrl)
+        assertTrue(photoTarget is com.ramzes.visavinet.util.VisaviUrlTarget.Photo)
+        assertEquals(3303, (photoTarget as com.ramzes.visavinet.util.VisaviUrlTarget.Photo).photoId)
+
+        val userUrl = "/users/ramzes"
+        val userTarget = com.ramzes.visavinet.util.parseVisaviUrl(userUrl)
+        assertTrue(userTarget is com.ramzes.visavinet.util.VisaviUrlTarget.User)
+        assertEquals("ramzes", (userTarget as com.ramzes.visavinet.util.VisaviUrlTarget.User).login)
+
+        val topicUrl = "https://visavi.net/topics/44999?page=2#post_717088"
+        val topicTarget = com.ramzes.visavinet.util.parseVisaviUrl(topicUrl)
+        assertTrue(topicTarget is com.ramzes.visavinet.util.VisaviUrlTarget.Topic)
+        val topic = topicTarget as com.ramzes.visavinet.util.VisaviUrlTarget.Topic
+        assertEquals(44999, topic.topicId)
+        assertEquals(2, topic.page)
+        assertEquals(717088, topic.postId)
+    }
 }

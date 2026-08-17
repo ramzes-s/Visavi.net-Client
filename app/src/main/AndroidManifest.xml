@@ -38,6 +38,12 @@
                 <data android:pathPrefix="/topics" />
                 <data android:pathPrefix="/forum/topic" />
                 <data android:pathPrefix="/users" />
+                <data android:pathPrefix="/downs" />
+                <data android:pathPrefix="/down" />
+                <data android:pathPrefix="/news" />
+                <data android:pathPrefix="/photos" />
+                <data android:pathPrefix="/photo" />
+                <data android:pathPrefix="/gallery" />
             </intent-filter>
         </activity>
 

@@ -285,6 +285,24 @@ fun MainNavigation(
                     currentScreen = Screen.Forum
                     forumViewModel.navigateToTopicId(context.applicationContext, target.topicId, target.page, target.postId)
                 }
+                is com.ramzes.visavinet.util.VisaviUrlTarget.News -> {
+                    resetSubScreens()
+                    currentScreen = Screen.News
+                    selectedNews = com.ramzes.visavinet.network.NewsItem(id = target.newsId)
+                    showNewsDetailScreen = true
+                }
+                is com.ramzes.visavinet.util.VisaviUrlTarget.Down -> {
+                    resetSubScreens()
+                    currentScreen = Screen.Downs
+                    val dummyDown = com.ramzes.visavinet.network.DownItem(id = target.downId)
+                    downsViewModel.openDownDetail(dummyDown, context.applicationContext)
+                }
+                is com.ramzes.visavinet.util.VisaviUrlTarget.Photo -> {
+                    resetSubScreens()
+                    currentScreen = Screen.Gallery
+                    selectedPhoto = com.ramzes.visavinet.network.PhotoItem(id = target.photoId)
+                    showGalleryDetailScreen = true
+                }
                 else -> {}
             }
         }
@@ -710,6 +728,30 @@ fun MainNavigation(
                     },
                     content = { padding ->
                         Box(Modifier.padding(padding)) {
+                            val onOpenTopic: (Int, Int?, Int?) -> Unit = { topicId, page, postId ->
+                                resetSubScreens()
+                                currentScreen = Screen.Forum
+                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
+                            }
+                            val onOpenNews: (Int) -> Unit = { newsId ->
+                                resetSubScreens()
+                                currentScreen = Screen.News
+                                selectedNews = com.ramzes.visavinet.network.NewsItem(id = newsId)
+                                showNewsDetailScreen = true
+                            }
+                            val onOpenDown: (Int) -> Unit = { downId ->
+                                resetSubScreens()
+                                currentScreen = Screen.Downs
+                                val dummyDown = com.ramzes.visavinet.network.DownItem(id = downId)
+                                downsViewModel.openDownDetail(dummyDown, context.applicationContext)
+                            }
+                            val onOpenPhoto: (Int) -> Unit = { photoId ->
+                                resetSubScreens()
+                                currentScreen = Screen.Gallery
+                                selectedPhoto = com.ramzes.visavinet.network.PhotoItem(id = photoId)
+                                showGalleryDetailScreen = true
+                            }
+
                             when (currentScreen) {
                                 Screen.Profile -> ProfileScreen(viewModel.currentUser!!, viewModel.statusMessage)
                                 Screen.News -> {
@@ -740,11 +782,10 @@ fun MainNavigation(
                                                     }
                                                 )
                                             },
-                                            onTopicClick = { topicId, page, postId ->
-                                                resetSubScreens()
-                                                currentScreen = Screen.Forum
-                                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
-                                            }
+                                            onTopicClick = onOpenTopic,
+                                            onNewsClick = onOpenNews,
+                                            onDownClick = onOpenDown,
+                                            onPhotoClick = onOpenPhoto
                                         )
                                     } else {
                                         NewsScreen(
@@ -802,11 +843,10 @@ fun MainNavigation(
                                                     }
                                                 )
                                             },
-                                            onTopicClick = { topicId, page, postId ->
-                                                resetSubScreens()
-                                                currentScreen = Screen.Forum
-                                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
-                                            }
+                                            onTopicClick = onOpenTopic,
+                                            onNewsClick = onOpenNews,
+                                            onDownClick = onOpenDown,
+                                            onPhotoClick = onOpenPhoto
                                         )
                                     } else {
                                         GalleryScreen(
@@ -861,11 +901,10 @@ fun MainNavigation(
                                                     }
                                                 )
                                             },
-                                            onTopicClick = { topicId, page, postId ->
-                                                resetSubScreens()
-                                                currentScreen = Screen.Forum
-                                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
-                                            }
+                                            onTopicClick = onOpenTopic,
+                                            onNewsClick = onOpenNews,
+                                            onDownClick = onOpenDown,
+                                            onPhotoClick = onOpenPhoto
                                         )
                                     } else {
                                         DownsScreen(
@@ -923,11 +962,10 @@ fun MainNavigation(
                                                     }
                                                 )
                                             },
-                                            onTopicClick = { topicId, page, postId ->
-                                                resetSubScreens()
-                                                currentScreen = Screen.Forum
-                                                forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
-                                            },
+                                            onTopicClick = onOpenTopic,
+                                            onNewsClick = onOpenNews,
+                                            onDownClick = onOpenDown,
+                                            onPhotoClick = onOpenPhoto,
                                             onSendMessage = { text, files ->
                                                 dialoguesViewModel.sendMessage(
                                                     context = context.applicationContext,
@@ -987,7 +1025,7 @@ fun MainNavigation(
                                 Screen.Forum -> {
                                     if (forumViewModel.navigationState.level == ForumNavigationLevel.TOPIC) {
                                         val topicObj = forumViewModel.currentTopic?.let {
-                                            ForumTopic(
+                                             ForumTopic(
                                                 id = it.id,
                                                 title = it.title,
                                                 authorLogin = it.authorLogin,
@@ -1040,6 +1078,10 @@ fun MainNavigation(
                                                     }
                                                 )
                                             },
+                                            onTopicClick = onOpenTopic,
+                                            onNewsClick = onOpenNews,
+                                            onDownClick = onOpenDown,
+                                            onPhotoClick = onOpenPhoto,
                                             textMin = viewModel.siteConfig?.forum?.textMin ?: 5,
                                             textMax = viewModel.siteConfig?.forum?.textMax ?: 5000
                                         )

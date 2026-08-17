@@ -82,6 +82,10 @@ fun ForumTopicScreen(
     isTabletLayout: Boolean = false,
     onBackClick: () -> Unit,
     onUserClick: (String) -> Unit = {},
+    onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit = { _, _, _ -> },
+    onNewsClick: (newsId: Int) -> Unit = {},
+    onDownClick: (downId: Int) -> Unit = {},
+    onPhotoClick: (photoId: Int) -> Unit = {},
     textMin: Int = 5,
     textMax: Int = 5000
 ) {
@@ -260,9 +264,10 @@ fun ForumTopicScreen(
                                     post = post,
                                     currentLogin = currentLogin,
                                     onUserClick = onUserClick,
-                                    onTopicClick = { topicId, page, postId ->
-                                        viewModel.navigateToTopicId(context, topicId, page, postId)
-                                    },
+                                    onTopicClick = onTopicClick,
+                                    onNewsClick = onNewsClick,
+                                    onDownClick = onDownClick,
+                                    onPhotoClick = onPhotoClick,
                                     onUserReplyClick = { userLogin ->
                                         replyToUser = userLogin
                                         showFullscreenInput = true
@@ -552,6 +557,9 @@ fun ForumPostItem(
     currentLogin: String?,
     onUserClick: (String) -> Unit,
     onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null,
     onUserReplyClick: (String) -> Unit,
     onQuoteClick: (author: String, text: String) -> Unit,
     onImageClick: (String) -> Unit,
@@ -670,7 +678,10 @@ fun ForumPostItem(
                     blocks = blocks,
                     isDark = isDark,
                     onUserClick = onUserClick,
-                    onTopicClick = onTopicClick
+                    onTopicClick = onTopicClick,
+                    onNewsClick = onNewsClick,
+                    onDownClick = onDownClick,
+                    onPhotoClick = onPhotoClick
                 )
             }
 

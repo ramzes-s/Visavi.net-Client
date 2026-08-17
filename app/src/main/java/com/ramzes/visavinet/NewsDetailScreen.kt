@@ -67,7 +67,10 @@ fun NewsDetailScreen(
     currentLogin: String? = null,
     onBackClick: () -> Unit,
     onUserClick: (String) -> Unit = {},
-    onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit = { _, _, _ -> }
+    onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit = { _, _, _ -> },
+    onNewsClick: (newsId: Int) -> Unit = {},
+    onDownClick: (downId: Int) -> Unit = {},
+    onPhotoClick: (photoId: Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     val isDark = isDarkTheme()
@@ -167,6 +170,9 @@ fun NewsDetailScreen(
                             isDark = isDark,
                             onUserClick = onUserClick,
                             onTopicClick = onTopicClick,
+                            onNewsClick = onNewsClick,
+                            onDownClick = onDownClick,
+                            onPhotoClick = onPhotoClick,
                             onImageClick = { url -> zoomImageUrl = url }
                         )
                     }
@@ -193,8 +199,8 @@ fun NewsDetailScreen(
                         item {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
+                                .fillMaxWidth()
+                                .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
@@ -227,6 +233,9 @@ fun NewsDetailScreen(
                                 isHighlighted = highlightedCommentId == comment.id,
                                 onUserClick = onUserClick,
                                 onTopicClick = onTopicClick,
+                                onNewsClick = onNewsClick,
+                                onDownClick = onDownClick,
+                                onPhotoClick = onPhotoClick,
                                 onParentCommentClick = { parentId ->
                                     val targetIndex = viewModel.comments.indexOfFirst { it.id == parentId }
                                     if (targetIndex != -1) {
@@ -383,6 +392,9 @@ fun NewsMainContentCard(
     isDark: Boolean,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
+    onNewsClick: (newsId: Int) -> Unit = {},
+    onDownClick: (downId: Int) -> Unit = {},
+    onPhotoClick: (photoId: Int) -> Unit = {},
     onImageClick: (String) -> Unit
 ) {
     val textColor = if (isDark) Color.White else LightText
@@ -485,7 +497,10 @@ fun NewsMainContentCard(
                     blocks = blocks,
                     isDark = isDark,
                     onUserClick = onUserClick,
-                    onTopicClick = onTopicClick
+                    onTopicClick = onTopicClick,
+                    onNewsClick = onNewsClick,
+                    onDownClick = onDownClick,
+                    onPhotoClick = onPhotoClick
                 )
             }
 
@@ -512,6 +527,9 @@ fun NewsCommentCard(
     isHighlighted: Boolean = false,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
+    onNewsClick: (newsId: Int) -> Unit = {},
+    onDownClick: (downId: Int) -> Unit = {},
+    onPhotoClick: (photoId: Int) -> Unit = {},
     onParentCommentClick: ((parentId: Int) -> Unit)? = null,
     onReplyClick: () -> Unit,
     onImageClick: (String) -> Unit
@@ -652,7 +670,10 @@ fun NewsCommentCard(
                         blocks = blocks,
                         isDark = isDark,
                         onUserClick = onUserClick,
-                        onTopicClick = onTopicClick
+                        onTopicClick = onTopicClick,
+                        onNewsClick = onNewsClick,
+                        onDownClick = onDownClick,
+                        onPhotoClick = onPhotoClick
                     )
                 }
 

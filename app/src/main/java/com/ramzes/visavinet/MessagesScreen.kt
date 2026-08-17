@@ -65,6 +65,9 @@ fun MessagesScreen(
     scrollToBottom: Boolean = false,
     onScrollComplete: () -> Unit = {},
     onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null,
     textMin: Int = 5,
     textMax: Int = 1000
 ) {
@@ -177,6 +180,9 @@ fun MessagesScreen(
                             message = message,
                             onUserClick = onUserClick,
                             onTopicClick = onTopicClick,
+                            onNewsClick = onNewsClick,
+                            onDownClick = onDownClick,
+                            onPhotoClick = onPhotoClick,
                             onImageClick = { url -> selectedImageForLightbox = url },
                             isDark = isDark
                         )
@@ -356,6 +362,9 @@ fun GlassMessageItem(
     message: MessageData,
     onUserClick: (String) -> Unit = {},
     onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
+    onNewsClick: ((newsId: Int) -> Unit)? = null,
+    onDownClick: ((downId: Int) -> Unit)? = null,
+    onPhotoClick: ((photoId: Int) -> Unit)? = null,
     onImageClick: (String) -> Unit = {},
     isDark: Boolean = true
 ) {
@@ -433,7 +442,10 @@ fun GlassMessageItem(
                     blocks = blocks,
                     isDark = isDark,
                     onUserClick = onUserClick,
-                    onTopicClick = onTopicClick
+                    onTopicClick = onTopicClick,
+                    onNewsClick = onNewsClick,
+                    onDownClick = onDownClick,
+                    onPhotoClick = onPhotoClick
                 )
             }
 

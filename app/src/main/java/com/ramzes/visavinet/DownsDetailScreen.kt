@@ -72,7 +72,10 @@ fun DownsDetailScreen(
     currentLogin: String? = null,
     onBackClick: () -> Unit,
     onUserClick: (String) -> Unit = {},
-    onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit = { _, _, _ -> }
+    onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit = { _, _, _ -> },
+    onNewsClick: (newsId: Int) -> Unit = {},
+    onDownClick: (downId: Int) -> Unit = {},
+    onPhotoClick: (photoId: Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     val isDark = isDarkTheme()
@@ -171,6 +174,9 @@ fun DownsDetailScreen(
                             isDark = isDark,
                             onUserClick = onUserClick,
                             onTopicClick = onTopicClick,
+                            onNewsClick = onNewsClick,
+                            onDownClick = onDownClick,
+                            onPhotoClick = onPhotoClick,
                             onImageClick = { url -> zoomImageUrl = url },
                             onFullscreenVideo = { url -> fullscreenVideoUrl = url }
                         )
@@ -225,6 +231,9 @@ fun DownsDetailScreen(
                                 isHighlighted = highlightedCommentId == comment.id,
                                 onUserClick = onUserClick,
                                 onTopicClick = onTopicClick,
+                                onNewsClick = onNewsClick,
+                                onDownClick = onDownClick,
+                                onPhotoClick = onPhotoClick,
                                 onParentCommentClick = { parentId ->
                                     val targetIndex = viewModel.comments.indexOfFirst { it.id == parentId }
                                     if (targetIndex != -1) {
@@ -371,6 +380,9 @@ fun DownsMainContentCard(
     isDark: Boolean,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
+    onNewsClick: (newsId: Int) -> Unit = {},
+    onDownClick: (downId: Int) -> Unit = {},
+    onPhotoClick: (photoId: Int) -> Unit = {},
     onImageClick: (String) -> Unit,
     onFullscreenVideo: (String) -> Unit
 ) {
@@ -603,7 +615,10 @@ fun DownsMainContentCard(
                         blocks = blocks,
                         isDark = isDark,
                         onUserClick = onUserClick,
-                        onTopicClick = onTopicClick
+                        onTopicClick = onTopicClick,
+                        onNewsClick = onNewsClick,
+                        onDownClick = onDownClick,
+                        onPhotoClick = onPhotoClick
                     )
                 }
             }
@@ -693,6 +708,9 @@ fun DownCommentCard(
     isHighlighted: Boolean = false,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
+    onNewsClick: (newsId: Int) -> Unit = {},
+    onDownClick: (downId: Int) -> Unit = {},
+    onPhotoClick: (photoId: Int) -> Unit = {},
     onParentCommentClick: ((parentId: Int) -> Unit)? = null,
     onReplyClick: () -> Unit,
     onImageClick: (String) -> Unit
@@ -840,7 +858,10 @@ fun DownCommentCard(
                         blocks = blocks,
                         isDark = isDark,
                         onUserClick = onUserClick,
-                        onTopicClick = onTopicClick
+                        onTopicClick = onTopicClick,
+                        onNewsClick = onNewsClick,
+                        onDownClick = onDownClick,
+                        onPhotoClick = onPhotoClick
                     )
                 }
 
