@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,6 +42,7 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.DownFileItem
 import com.ramzes.visavinet.network.DownItem
 import com.ramzes.visavinet.network.NewsCommentItem
+import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassFileCard
 import com.ramzes.visavinet.ui.components.GlassTextField
@@ -51,6 +53,17 @@ import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.*
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
+
+fun buildFinalDownCommentText(rawText: String, replyToUser: String?): String {
+    val textWithUser = if (!replyToUser.isNullOrBlank()) {
+        val userLink = "<a class=\"user\" href=\"/users/$replyToUser\">@$replyToUser</a> "
+        if (rawText.startsWith(userLink)) rawText else "$userLink$rawText"
+    } else {
+        rawText
+    }
+    return ensureParagraphTags(textWithUser)
+}
 
 @Composable
 fun DownsDetailScreen(
@@ -67,10 +80,12 @@ fun DownsDetailScreen(
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
     val listState = rememberLazyListState()
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingDetail)
+    val coroutineScope = rememberCoroutineScope()
 
     var commentText by remember { mutableStateOf("") }
     var replyingToCommentId by remember { mutableStateOf<Int?>(null) }
     var replyingToLogin by remember { mutableStateOf<String?>(null) }
+    var highlightedCommentId by remember { mutableStateOf<Int?>(null) }
     var attachedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
@@ -207,12 +222,26 @@ fun DownsDetailScreen(
                             DownCommentCard(
                                 comment = comment,
                                 isDark = isDark,
+                                isHighlighted = highlightedCommentId == comment.id,
                                 onUserClick = onUserClick,
                                 onTopicClick = onTopicClick,
+                                onParentCommentClick = { parentId ->
+                                    val targetIndex = viewModel.comments.indexOfFirst { it.id == parentId }
+                                    if (targetIndex != -1) {
+                                        coroutineScope.launch {
+                                            highlightedCommentId = parentId
+                                            listState.animateScrollToItem(index = 2 + targetIndex)
+                                            kotlinx.coroutines.delay(2000)
+                                            if (highlightedCommentId == parentId) {
+                                                highlightedCommentId = null
+                                            }
+                                        }
+                                    }
+                                },
                                 onReplyClick = {
                                     replyingToCommentId = comment.id
                                     replyingToLogin = comment.user?.login
-                                    commentText = "@${comment.user?.login ?: "пользователь"}, "
+                                    isFullscreenModalOpen = true
                                 },
                                 onImageClick = { url -> zoomImageUrl = url }
                             )
@@ -240,162 +269,30 @@ fun DownsDetailScreen(
 
             // Нижняя панель комментирования
             Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = if (isDark) Color(0x33000000) else Color(0x1A000000)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                color = Color.Transparent
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                GlassButton(
+                    onClick = { isFullscreenModalOpen = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    isDark = isDark,
+                    accentColor = getPrimaryAccentColor()
                 ) {
-                    // Индикатор ответа
-                    if (replyingToLogin != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Ответ для @$replyingToLogin",
-                                color = getPrimaryAccentColor(),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            IconButton(
-                                onClick = {
-                                    replyingToCommentId = null
-                                    replyingToLogin = null
-                                },
-                                modifier = Modifier.size(20.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Отмена",
-                                    tint = secondaryTextColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Прикрепленные файлы к комментарию
-                    if (attachedFiles.isNotEmpty()) {
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            items(attachedFiles) { uri ->
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (isDark) Color(0x33000000) else Color(0x1A000000),
-                                    modifier = Modifier.height(28.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            Icons.Default.AttachFile,
-                                            contentDescription = null,
-                                            tint = getPrimaryAccentColor(),
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = "Файл",
-                                            color = textColor,
-                                            fontSize = 11.sp
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Удалить",
-                                            tint = secondaryTextColor,
-                                            modifier = Modifier
-                                                .size(14.dp)
-                                                .clickable {
-                                                    attachedFiles = attachedFiles.filter { it != uri }
-                                                }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                            Icon(
-                                Icons.Default.AttachFile,
-                                contentDescription = "Прикрепить файл",
-                                tint = if (attachedFiles.isNotEmpty()) getPrimaryAccentColor() else secondaryTextColor
-                            )
-                        }
-
-                        IconButton(onClick = { isFullscreenModalOpen = true }) {
-                            Icon(
-                                Icons.Default.Fullscreen,
-                                contentDescription = "Полноэкранный ввод",
-                                tint = secondaryTextColor
-                            )
-                        }
-
-                        GlassTextField(
-                            value = commentText,
-                            onValueChange = { commentText = it },
-                            placeholderText = "Ваш комментарий...",
-                            isDark = isDark,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        Spacer(modifier = Modifier.width(6.dp))
-
-                        IconButton(
-                            onClick = {
-                                if (commentText.isNotBlank()) {
-                                    viewModel.createComment(
-                                        context = context,
-                                        downId = down.id,
-                                        text = commentText.trim(),
-                                        parentId = replyingToCommentId,
-                                        fileUris = attachedFiles,
-                                        onSuccess = { msg ->
-                                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                            commentText = ""
-                                            replyingToCommentId = null
-                                            replyingToLogin = null
-                                            attachedFiles = emptyList()
-                                        },
-                                        onError = { err ->
-                                            Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                                        }
-                                    )
-                                }
-                            },
-                            enabled = commentText.isNotBlank() && !viewModel.isSubmittingComment
-                        ) {
-                            if (viewModel.isSubmittingComment) {
-                                CircularProgressIndicator(
-                                    color = getPrimaryAccentColor(),
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = "Отправить",
-                                    tint = if (commentText.isNotBlank()) getPrimaryAccentColor() else secondaryTextColor.copy(alpha = 0.4f)
-                                )
-                            }
-                        }
-                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Reply,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Написать комментарий",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -408,16 +305,25 @@ fun DownsDetailScreen(
                 onTextChanged = { commentText = it },
                 selectedFiles = attachedFiles,
                 onFilesChanged = { attachedFiles = it },
+                replyToUser = replyingToLogin,
+                onRemoveReplyToUser = {
+                    replyingToLogin = null
+                    replyingToCommentId = null
+                },
                 textMin = 1,
                 textMax = 5000,
                 isSending = viewModel.isSubmittingComment,
-                title = "Комментарий",
+                title = if (replyingToLogin != null) "Ответ для @$replyingToLogin" else "Комментарий",
                 onSend = {
                     if (isCommentValid && !viewModel.isSubmittingComment) {
+                        val formatted = buildFinalDownCommentText(
+                            rawText = commentText.trim(),
+                            replyToUser = replyingToLogin
+                        )
                         viewModel.createComment(
                             context = context,
                             downId = down.id,
-                            text = commentText.trim(),
+                            text = formatted,
                             parentId = replyingToCommentId,
                             fileUris = attachedFiles,
                             onSuccess = { msg ->
@@ -471,9 +377,7 @@ fun DownsMainContentCard(
     val context = LocalContext.current
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
-    val authorColor = remember(down.user?.color) {
-        down.user?.color?.let { parseColorString(it) } ?: textColor
-    }
+    val authorColor = getPrimaryAccentColor()
 
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -786,26 +690,36 @@ fun DownDistributionFileCard(
 fun DownCommentCard(
     comment: NewsCommentItem,
     isDark: Boolean,
+    isHighlighted: Boolean = false,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
+    onParentCommentClick: ((parentId: Int) -> Unit)? = null,
     onReplyClick: () -> Unit,
     onImageClick: (String) -> Unit
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
-    val authorColor = remember(comment.user?.color) {
-        comment.user?.color?.let { parseColorString(it) } ?: textColor
-    }
+    val authorColor = getPrimaryAccentColor()
 
     val allFiles = remember(comment.media, comment.files) {
         (comment.safeMedia + comment.safeFiles).distinctBy { it.id }
     }
 
+    val parentId = comment.parent?.id?.takeIf { it > 0 } ?: comment.parentId
+
     GlassCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isHighlighted) {
+                    Modifier.border(1.5.dp, getPrimaryAccentColor(), RoundedCornerShape(6.dp))
+                } else {
+                    Modifier
+                }
+            ),
         isDark = isDark,
         shape = RoundedCornerShape(6.dp),
-        glowColor = Color.Transparent
+        glowColor = if (isHighlighted) getPrimaryAccentColor().copy(alpha = 0.25f) else Color.Transparent
     ) {
         Column(
             modifier = Modifier
@@ -820,15 +734,36 @@ fun DownCommentCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 6.dp)
+                        .then(
+                            if (parentId != null && onParentCommentClick != null) {
+                                Modifier.clickable { onParentCommentClick(parentId) }
+                            } else {
+                                Modifier
+                            }
+                        )
                 ) {
-                    Text(
-                        text = "В ответ @${comment.parent.login}: ${comment.parent.excerpt ?: ""}",
-                        color = getSecondaryAccentColor(),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Reply,
+                            contentDescription = null,
+                            tint = getSecondaryAccentColor(),
+                            modifier = Modifier
+                                .size(12.dp)
+                                .padding(end = 2.dp)
+                        )
+                        Text(
+                            text = "В ответ @${comment.parent.login}: ${comment.parent.excerpt ?: ""}",
+                            color = getSecondaryAccentColor(),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 

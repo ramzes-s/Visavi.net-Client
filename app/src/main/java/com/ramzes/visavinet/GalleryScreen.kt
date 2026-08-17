@@ -38,7 +38,6 @@ import com.ramzes.visavinet.network.PhotoItem
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
-import com.ramzes.visavinet.util.parseColorString
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
@@ -212,9 +211,7 @@ fun GalleryGridItem(
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
-    val authorColor = remember(photo.user?.color) {
-        photo.user?.color?.let { parseColorString(it) } ?: textColor
-    }
+    val authorColor = getPrimaryAccentColor()
 
     val primaryFile = photo.primaryMedia
     val isVideo = photo.isVideo || primaryFile?.isVideo == true

@@ -34,7 +34,6 @@ import com.ramzes.visavinet.network.NewsItem
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
-import com.ramzes.visavinet.util.parseColorString
 import com.ramzes.visavinet.util.sanitizeHtml
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -210,9 +209,7 @@ fun NewsItemCard(
     val previewText = remember(news.text) {
         sanitizeHtml(news.text).replace(Regex("\\s+"), " ").trim()
     }
-    val authorColor = remember(news.user?.color) {
-        news.user?.color?.let { parseColorString(it) } ?: textColor
-    }
+    val authorColor = getPrimaryAccentColor()
 
     GlassCard(
         modifier = Modifier

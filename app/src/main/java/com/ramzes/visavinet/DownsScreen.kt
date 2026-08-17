@@ -36,7 +36,6 @@ import com.ramzes.visavinet.network.DownItem
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
-import com.ramzes.visavinet.util.parseColorString
 import com.ramzes.visavinet.util.sanitizeHtml
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -612,9 +611,7 @@ fun DownItemCard(
     onClick: () -> Unit,
     onUserClick: (String) -> Unit
 ) {
-    val authorColor = remember(down.user?.color) {
-        down.user?.color?.let { parseColorString(it) } ?: textColor
-    }
+    val authorColor = getPrimaryAccentColor()
 
     val previewText = remember(down.text) {
         down.text?.let { sanitizeHtml(it).replace(Regex("\\s+"), " ").trim() } ?: ""
