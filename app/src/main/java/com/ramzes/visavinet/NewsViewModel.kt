@@ -70,6 +70,10 @@ class NewsViewModel : ViewModel() {
     var isSubmittingComment by mutableStateOf(false)
         private set
 
+    // Набор id новостей, за которые в данный момент отправляется голос
+    var votingNewsIds by mutableStateOf<Set<Int>>(emptySet())
+        private set
+
     /**
      * Загрузка первой страницы списка новостей
      */
@@ -281,6 +285,65 @@ class NewsViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 onError("Ошибка сети: ${e.localizedMessage ?: "не удалось загрузить профиль"}")
+            }
+        }
+    }
+
+    /**
+     * Положительное голосование за новость
+     */
+    fun voteNews(
+        newsId: Int,
+        context: Context,
+        onSuccess: ((newRating: Int) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (newsId in votingNewsIds) return
+
+        viewModelScope.launch {
+            votingNewsIds = votingNewsIds + newsId
+            try {
+                val targetNews = currentNews?.takeIf { it.id == newsId } ?: newsList.find { it.id == newsId }
+                val actualType = targetNews?.vote?.type?.ifBlank { null } ?: "news"
+                val actualId = targetNews?.vote?.id ?: newsId
+                val response = VisaviApi.vote(
+                    type = actualType,
+                    id = actualId,
+                    vote = "+"
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val newRating = body?.rating ?: ((targetNews?.rating ?: 0) + 1)
+
+                    // Обновляем текущую выбранную новость
+                    if (currentNews?.id == newsId) {
+                        currentNews = currentNews?.copy(
+                            rating = newRating,
+                            vote = currentNews?.vote?.copy(value = "+") ?: VoteData(type = actualType, id = newsId, value = "+")
+                        )
+                    }
+
+                    // Обновляем в списке новостей
+                    newsList = newsList.map { item ->
+                        if (item.id == newsId) {
+                            item.copy(
+                                rating = newRating,
+                                vote = item.vote?.copy(value = "+") ?: VoteData(type = actualType, id = newsId, value = "+")
+                            )
+                        } else {
+                            item
+                        }
+                    }
+
+                    onSuccess?.invoke(newRating)
+                } else {
+                    val errorMsg = response.extractErrorMessage("Не удалось проголосовать")
+                    onError?.invoke(errorMsg)
+                }
+            } catch (e: Exception) {
+                onError?.invoke("Ошибка сети: ${e.localizedMessage ?: "не удалось отправить голос"}")
+            } finally {
+                votingNewsIds = votingNewsIds - newsId
             }
         }
     }

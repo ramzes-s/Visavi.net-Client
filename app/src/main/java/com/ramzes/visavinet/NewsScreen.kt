@@ -32,6 +32,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.NewsItem
 import com.ramzes.visavinet.ui.components.GlassCard
+import com.ramzes.visavinet.ui.components.VoteButton
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.sanitizeHtml
@@ -169,7 +170,17 @@ fun NewsScreen(
                                     news = news,
                                     isDark = isDark,
                                     onClick = { onNewsClick(news) },
-                                    onUserClick = onUserClick
+                                    onUserClick = onUserClick,
+                                    onVoteUp = {
+                                        viewModel.voteNews(
+                                            newsId = news.id,
+                                            context = context,
+                                            onError = { error ->
+                                                android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    },
+                                    isVoting = news.id in viewModel.votingNewsIds
                                 )
                             }
 
@@ -202,7 +213,9 @@ fun NewsItemCard(
     news: NewsItem,
     isDark: Boolean,
     onClick: () -> Unit,
-    onUserClick: (String) -> Unit
+    onUserClick: (String) -> Unit,
+    onVoteUp: (() -> Unit)? = null,
+    isVoting: Boolean = false
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
@@ -303,7 +316,7 @@ fun NewsItemCard(
                         text = news.user?.name ?: authorLogin ?: "Администратор",
                         color = authorColor,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.clickable(enabled = authorLogin != null) {
@@ -321,29 +334,20 @@ fun NewsItemCard(
                     }
                 }
 
-                // Индикаторы: комментарии и рейтинг
+                // Индикаторы: рейтинг/голосование и комментарии
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Рейтинг
-                    if (news.rating != 0) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Star,
-                                contentDescription = "Рейтинг",
-                                tint = AmberGold,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = "${if (news.rating > 0) "+" else ""}${news.rating}",
-                                color = if (news.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                    // Голосование / рейтинг
+                    VoteButton(
+                        vote = news.vote,
+                        rating = news.rating,
+                        onVoteUp = { onVoteUp?.invoke() },
+                        isLoading = isVoting,
+                        isDark = isDark,
+                        isCompact = true
+                    )
 
                     // Комментарии
                     Row(verticalAlignment = Alignment.CenterVertically) {

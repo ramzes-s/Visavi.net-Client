@@ -70,6 +70,10 @@ class GalleryViewModel : ViewModel() {
     var isSubmittingComment by mutableStateOf(false)
         private set
 
+    // Набор id фото, за которые в данный момент отправляется голос
+    var votingPhotoIds by mutableStateOf<Set<Int>>(emptySet())
+        private set
+
     /**
      * Загрузка первой страницы галереи
      */
@@ -281,6 +285,68 @@ class GalleryViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 onError("Ошибка сети: ${e.localizedMessage ?: "не удалось загрузить профиль"}")
+            }
+        }
+    }
+
+    /**
+     * Голосование за фотографию (положительное "+" или отрицательное "-") с возможностью смены голоса
+     */
+    fun votePhoto(
+        photoId: Int,
+        vote: String,
+        context: Context,
+        type: String = "photos",
+        onSuccess: ((newRating: Int) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (photoId in votingPhotoIds) return
+
+        viewModelScope.launch {
+            votingPhotoIds = votingPhotoIds + photoId
+            try {
+                val actualType = currentPhoto?.vote?.type?.ifBlank { null } ?: type
+                val actualId = currentPhoto?.vote?.id ?: photoId
+                val response = VisaviApi.vote(
+                    type = actualType,
+                    id = actualId,
+                    vote = vote
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val newRating = body?.rating ?: 0
+                    val isCancelled = body?.cancel == true
+                    val newValue = if (isCancelled) null else vote
+
+                    // Обновляем текущее выбранное фото
+                    if (currentPhoto?.id == photoId) {
+                        currentPhoto = currentPhoto?.copy(
+                            rating = newRating,
+                            vote = currentPhoto?.vote?.copy(value = newValue) ?: VoteData(type = actualType, id = photoId, value = newValue)
+                        )
+                    }
+
+                    // Обновляем в списке photosList
+                    photosList = photosList.map { item ->
+                        if (item.id == photoId) {
+                            item.copy(
+                                rating = newRating,
+                                vote = item.vote?.copy(value = newValue) ?: VoteData(type = actualType, id = photoId, value = newValue)
+                            )
+                        } else {
+                            item
+                        }
+                    }
+
+                    onSuccess?.invoke(newRating)
+                } else {
+                    val errorMsg = response.extractErrorMessage("Не удалось проголосовать")
+                    onError?.invoke(errorMsg)
+                }
+            } catch (e: Exception) {
+                onError?.invoke("Ошибка сети: ${e.localizedMessage ?: "не удалось отправить голос"}")
+            } finally {
+                votingPhotoIds = votingPhotoIds - photoId
             }
         }
     }

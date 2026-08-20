@@ -221,25 +221,19 @@ fun GalleryGridItem(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         isDark = isDark,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         glowColor = Color.Transparent
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Медиа превью
+            // Превью фото / видео
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
-                    .background(Color(0xFF1E293B))
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                    .background(Color(0xFF0F172A))
             ) {
-                if (isVideo) {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(id = R.drawable.video_placeholder),
-                        contentDescription = "Видео",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else if (primaryFile?.path != null) {
+                if (primaryFile?.path != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(primaryFile.path)
@@ -251,46 +245,40 @@ fun GalleryGridItem(
                     )
                 }
 
-                // Верхний бейдж видео
+                // Видео значок
                 if (isVideo) {
-                    Surface(
-                        shape = RoundedCornerShape(bottomEnd = 8.dp),
-                        color = Color(0xCC000000),
-                        modifier = Modifier.align(Alignment.TopStart)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Videocam,
-                                contentDescription = null,
-                                tint = getPrimaryAccentColor(),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "Видео",
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.PlayCircle,
+                            contentDescription = "Видео",
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(36.dp)
+                        )
                     }
                 }
             }
 
-            // Инфо-блок под превью
+            // Информация под фото
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
             ) {
+                // Название
                 Text(
-                    text = photo.title ?: "Медиа",
+                    text = photo.title ?: "Без названия",
                     color = textColor,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -298,22 +286,42 @@ fun GalleryGridItem(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Автор
-                val authorLogin = photo.user?.login
-                Text(
-                    text = photo.user?.name ?: authorLogin ?: "Пользователь",
-                    color = authorColor,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable(enabled = authorLogin != null) {
-                        authorLogin?.let { onUserClick(it) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (!photo.user?.avatar.isNullOrBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(photo.user.avatar)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                     }
-                )
+
+                    val authorLogin = photo.user?.login
+                    Text(
+                        text = photo.user?.name ?: authorLogin ?: "Пользователь",
+                        color = authorColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable(enabled = authorLogin != null) {
+                            authorLogin?.let { onUserClick(it) }
+                        }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Нижняя строка: рейтинг и комментарии
+                // Дата, рейтинг и комментарии
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,

@@ -44,6 +44,7 @@ import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassFileCard
 import com.ramzes.visavinet.ui.components.GlassTextField
+import com.ramzes.visavinet.ui.components.VoteButton
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.theme.*
@@ -173,6 +174,16 @@ fun NewsDetailScreen(
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
                             onPhotoClick = onPhotoClick,
+                            onVoteUp = {
+                                viewModel.voteNews(
+                                    newsId = displayNews.id,
+                                    context = context,
+                                    onError = { error ->
+                                        Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            },
+                            isVoting = displayNews.id in viewModel.votingNewsIds,
                             onImageClick = { url -> zoomImageUrl = url }
                         )
                     }
@@ -395,6 +406,8 @@ fun NewsMainContentCard(
     onNewsClick: (newsId: Int) -> Unit = {},
     onDownClick: (downId: Int) -> Unit = {},
     onPhotoClick: (photoId: Int) -> Unit = {},
+    onVoteUp: (() -> Unit)? = null,
+    isVoting: Boolean = false,
     onImageClick: (String) -> Unit
 ) {
     val textColor = if (isDark) Color.White else LightText
@@ -515,6 +528,24 @@ fun NewsMainContentCard(
                         GlassFileCard(file = file, isDark = isDark)
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Блок рейтинга и голосования
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
+            ) {
+                VoteButton(
+                    vote = news.vote,
+                    rating = news.rating,
+                    onVoteUp = { onVoteUp?.invoke() },
+                    isLoading = isVoting,
+                    isDark = isDark,
+                    isCompact = false
+                )
             }
         }
     }

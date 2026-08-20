@@ -105,4 +105,28 @@ class FormatAndUtilityTest {
         assertEquals(2, topic.page)
         assertEquals(717088, topic.postId)
     }
+
+    @Test
+    fun testVoteDataLogic() {
+        val voteNull = com.ramzes.visavinet.network.VoteData(type = "news", id = 1, value = null, own = false)
+        assertTrue(voteNull.canVote)
+        assertFalse(voteNull.hasVoted)
+        assertFalse(voteNull.isVotedUp)
+
+        val voteUp = com.ramzes.visavinet.network.VoteData(type = "news", id = 1, value = "+", own = false)
+        assertFalse(voteUp.canVote)
+        assertTrue(voteUp.hasVoted)
+        assertTrue(voteUp.isVotedUp)
+        assertFalse(voteUp.isVotedDown)
+
+        val voteDown = com.ramzes.visavinet.network.VoteData(type = "news", id = 1, value = "-", own = false)
+        assertFalse(voteDown.canVote)
+        assertTrue(voteDown.hasVoted)
+        assertFalse(voteDown.isVotedUp)
+        assertTrue(voteDown.isVotedDown)
+
+        val voteOwn = com.ramzes.visavinet.network.VoteData(type = "news", id = 1, value = null, own = true)
+        assertFalse(voteOwn.canVote)
+        assertFalse(voteOwn.hasVoted)
+    }
 }

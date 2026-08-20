@@ -462,11 +462,37 @@ data class NewsAuthor(
     @SerializedName("status") val status: String? = null
 )
 
-data class NewsVote(
+data class VoteData(
     @SerializedName("type") val type: String? = null,
     @SerializedName("id") val id: Int? = null,
     @SerializedName("value") val value: String? = null,
     @SerializedName("own") val own: Boolean = false
+) {
+    val hasVoted: Boolean
+        get() = !value.isNullOrBlank()
+
+    val isVotedUp: Boolean
+        get() = value == "+"
+
+    val isVotedDown: Boolean
+        get() = value == "-"
+
+    val canVote: Boolean
+        get() = !own && value == null
+}
+
+typealias NewsVote = VoteData
+
+data class VoteRequest(
+    @SerializedName("type") val type: String,
+    @SerializedName("id") val id: Int,
+    @SerializedName("vote") val vote: String = "+"
+)
+
+data class VoteResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("cancel") val cancel: Boolean = false,
+    @SerializedName("rating") val rating: Int = 0
 )
 
 data class NewsItem(
@@ -870,6 +896,11 @@ interface VisaviApiService {
         @Query("per_page") perPage: Int = 20,
         @Query("order") order: String = "asc"
     ): Response<DownDetailResponse>
+
+    @POST("api/rating")
+    suspend fun vote(
+        @Body request: VoteRequest
+    ): Response<VoteResponse>
 }
 
 object VisaviApi {
@@ -920,5 +951,13 @@ object VisaviApi {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(VisaviApiService::class.java)
+    }
+
+    suspend fun vote(
+        type: String,
+        id: Int,
+        vote: String = "+"
+    ): Response<VoteResponse> {
+        return instance.vote(VoteRequest(type = type, id = id, vote = vote))
     }
 }
