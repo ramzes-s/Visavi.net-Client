@@ -23,18 +23,21 @@ val PrimaryBlue = Color(0xFF2563EB)        // Королевский синий
 val DarkNavyBlue = Color(0xFF1E3A8A)       // Глубокий тёмно-синий
 val BlueGlow = Color(0xFF3B82F6)           // Синее свечение
 
-// 10 Вариантов пользовательского акцентного цвета (Primary Accent)
-val NeonPink = Color(0xFFFF2A85)           // 1. Неоново-розовый
-val NeonViolet = Color(0xFF9D4EDD)         // 2. Фиолетовый
-val RoyalBlue = Color(0xFF2563EB)          // 3. Королевский синий
-val SkyCyan = Color(0xFF00E5FF)            // 4. Ледяной голубой
-val EmeraldGreen = Color(0xFF10B981)       // 5. Изумрудный
-val AmberGold = Color(0xFFF59E0B)          // 6. Янтарный
-val FieryRed = Color(0xFFEF4444)           // 7. Огненно-красный
-val LavenderPurple = Color(0xFFA855F7)     // 8. Лавандовый
-val IndigoAccent = Color(0xFF6366F1)       // 9. Сочный индиго
-val LimeNeon = Color(0xFF84CC16)           // 10. Салатовый
-val VibrantOrange = Color(0xFFFF5C00)      // Насыщенный оранжевый
+// 14 Вариантов пользовательского акцентного цвета (Primary Accent)
+val FieryRed = Color(0xFFEF4444)           // 1. Огненно-красный
+val RubyCrimson = Color(0xFFE11D48)        // 2. Малиновый
+val NeonPink = Color(0xFFFF2A85)           // 3. Неоново-розовый
+val FuchsiaPink = Color(0xFFD946EF)        // 4. Фуксия
+val LavenderPurple = Color(0xFFA855F7)     // 5. Лавандовый
+val IndigoAccent = Color(0xFF6366F1)       // 6. Сочный индиго
+val RoyalBlue = Color(0xFF2563EB)          // 7. Королевский синий
+val DeepAqua = Color(0xFF0284C7)           // 8. Морская волна (#0284c7)
+val SkyCyan = Color(0xFF18CDE7)            // 9. Лазурно-голубой (#18cde7)
+val EmeraldGreen = Color(0xFF10B981)       // 10. Изумрудный
+val LimeNeon = Color(0xFF84CC16)           // 11. Салатовый
+val SunYellow = Color(0xFFFACC15)          // 12. Солнечно-желтый
+val AmberGold = Color(0xFFF59E0B)          // 13. Янтарный
+val VibrantOrange = Color(0xFFFF5C00)      // 14. Насыщенный оранжевый
 
 data class AccentThemeColor(
     val id: Int,
@@ -44,15 +47,19 @@ data class AccentThemeColor(
 
 val AvailableAccentColors = listOf(
     AccentThemeColor(0, "Красный", FieryRed),
-    AccentThemeColor(1, "Розовый", NeonPink),
-    AccentThemeColor(2, "Оранжевый", VibrantOrange),
-    AccentThemeColor(3, "Синий", RoyalBlue),
-    AccentThemeColor(4, "Голубой", SkyCyan),
-    AccentThemeColor(5, "Изумрудный", EmeraldGreen),
-    AccentThemeColor(6, "Янтарный", AmberGold),
-    AccentThemeColor(7, "Лавандовый", LavenderPurple),
-    AccentThemeColor(8, "Индиго", IndigoAccent),
-    AccentThemeColor(9, "Салатовый", LimeNeon)
+    AccentThemeColor(1, "Малиновый", RubyCrimson),
+    AccentThemeColor(2, "Розовый", NeonPink),
+    AccentThemeColor(3, "Фуксия", FuchsiaPink),
+    AccentThemeColor(4, "Лавандовый", LavenderPurple),
+    AccentThemeColor(5, "Индиго", IndigoAccent),
+    AccentThemeColor(6, "Синий", RoyalBlue),
+    AccentThemeColor(7, "Морская волна", DeepAqua),
+    AccentThemeColor(8, "Голубой", SkyCyan),
+    AccentThemeColor(9, "Изумрудный", EmeraldGreen),
+    AccentThemeColor(10, "Салатовый", LimeNeon),
+    AccentThemeColor(11, "Желтый", SunYellow),
+    AccentThemeColor(12, "Янтарный", AmberGold),
+    AccentThemeColor(13, "Оранжевый", VibrantOrange)
 )
 
 // Стеклянные подложки (Строгие без лишних цветных пятен)
@@ -84,4 +91,6 @@ val GlassBorderLight = Brush.linearGradient(
 val LogoColor = RoyalBlue
 val NeonCyan = SkyCyan
 val NeonGreen = DarkNavyBlue
+val NeonViolet = Color(0xFF9D4EDD)
+val CoralPink = Color(0xFFFF6B6B)
 val NeonAmber = AmberGold

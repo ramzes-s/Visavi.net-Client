@@ -129,21 +129,21 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Ряд 1 (варианты 0-4)
+                // Ряд 1 (варианты 0-6)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AvailableAccentColors.take(5).forEach { accentTheme ->
+                    AvailableAccentColors.take(7).forEach { accentTheme ->
                         val isSelected = accentTheme.color == currentAccent
                         Box(
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
                                 .background(accentTheme.color)
                                 .border(
-                                    width = if (isSelected) 3.dp else 0.dp,
+                                    width = if (isSelected) 2.5.dp else 0.dp,
                                     color = if (isSelected) Color.White else Color.Transparent,
                                     shape = CircleShape
                                 )
@@ -156,23 +156,23 @@ fun SettingsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Ряд 2 (варианты 5-9)
+                // Ряд 2 (варианты 7-13)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AvailableAccentColors.drop(5).forEach { accentTheme ->
+                    AvailableAccentColors.drop(7).forEach { accentTheme ->
                         val isSelected = accentTheme.color == currentAccent
                         Box(
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(28.dp)
                                 .clip(CircleShape)
                                 .background(accentTheme.color)
                                 .border(
-                                    width = if (isSelected) 3.dp else 0.dp,
+                                    width = if (isSelected) 2.5.dp else 0.dp,
                                     color = if (isSelected) Color.White else Color.Transparent,
                                     shape = CircleShape
                                 )
