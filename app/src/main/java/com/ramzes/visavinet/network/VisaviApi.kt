@@ -913,6 +913,8 @@ object VisaviApi {
         apiToken = token
     }
 
+    fun getToken(): String? = apiToken
+
     fun clearToken() {
         apiToken = null
     }

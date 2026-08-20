@@ -91,6 +91,28 @@ fun ImageLightboxDialog(
                         IconButton(
                             onClick = {
                                 if (imageUrl.isNotBlank()) {
+                                    com.ramzes.visavinet.util.DownloaderHelper.downloadFile(
+                                        context = context,
+                                        url = imageUrl,
+                                        fileName = title
+                                    )
+                                }
+                            },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(Color(0x33FFFFFF))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Скачать",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                if (imageUrl.isNotBlank()) {
                                     try {
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(imageUrl))
                                         context.startActivity(intent)

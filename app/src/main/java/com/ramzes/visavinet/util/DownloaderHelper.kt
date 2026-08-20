@@ -42,6 +42,10 @@ object DownloaderHelper {
                 setDescription("Загрузка с Visavi.net")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, effectiveFileName)
+                addRequestHeader("User-Agent", "VisaviClient")
+                com.ramzes.visavinet.network.VisaviApi.getToken()?.let { token ->
+                    addRequestHeader("Authorization", "Bearer $token")
+                }
                 if (!mimeType.isNullOrBlank()) {
                     setMimeType(mimeType)
                 }
