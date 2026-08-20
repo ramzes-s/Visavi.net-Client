@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FolderZip
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -628,6 +629,106 @@ fun GlassFileCard(
                     .size(20.dp)
                     .padding(end = 2.dp)
             )
+        }
+    }
+}
+
+/**
+ * Стилизованная карточка/превью для видеофайлов.
+ * Имеет прозрачный/полупрозрачный фон со стеклянным эффектом и акцентной динамической подсветкой,
+ * органично сочетающейся с любой темой и выбранным цветом оформления.
+ */
+@Composable
+fun VideoPlaceholder(
+    modifier: Modifier = Modifier,
+    isDark: Boolean = isDarkTheme(),
+    accentColor: Color = getPrimaryAccentColor(),
+    iconSize: Dp = 32.dp,
+    showLabel: Boolean = false
+) {
+    val baseGlassColor = if (isDark) Color(0x331E293B) else Color(0x1F64748B)
+    val accentSoft = accentColor.copy(alpha = if (isDark) 0.18f else 0.14f)
+    val circleBg = if (isDark) Color(0x660F172A) else Color(0x88FFFFFF)
+
+    Box(
+        modifier = modifier
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(baseGlassColor, accentSoft, baseGlassColor),
+                    start = Offset(0f, 0f),
+                    end = Offset(400f, 400f)
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        // Декоративные перфорации кинопленки по краям
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val step = 14.dp.toPx()
+            val holeWidth = 3.5.dp.toPx()
+            val holeHeight = 6.dp.toPx()
+            val holeColor = Color.White.copy(alpha = if (isDark) 0.08f else 0.18f)
+
+            var y = step / 2
+            while (y < size.height - step / 2) {
+                // Слева
+                drawRoundRect(
+                    color = holeColor,
+                    topLeft = Offset(4.dp.toPx(), y),
+                    size = androidx.compose.ui.geometry.Size(holeWidth, holeHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx())
+                )
+                // Справа
+                drawRoundRect(
+                    color = holeColor,
+                    topLeft = Offset(size.width - 4.dp.toPx() - holeWidth, y),
+                    size = androidx.compose.ui.geometry.Size(holeWidth, holeHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx())
+                )
+                y += step
+            }
+        }
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Центральный стеклянный диск с кнопкой Play
+            Box(
+                modifier = Modifier
+                    .size(iconSize * 1.5f)
+                    .clip(CircleShape)
+                    .background(circleBg)
+                    .border(
+                        width = 1.5.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                accentColor.copy(alpha = 0.85f),
+                                Color.White.copy(alpha = 0.5f),
+                                accentColor.copy(alpha = 0.3f)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Видео",
+                    tint = accentColor,
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+
+            if (showLabel) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "ВИДЕО",
+                    color = if (isDark) Color.White.copy(alpha = 0.75f) else LightText.copy(alpha = 0.75f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            }
         }
     }
 }

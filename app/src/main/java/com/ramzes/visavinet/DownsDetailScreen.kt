@@ -47,6 +47,7 @@ import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassFileCard
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VideoFullscreenDialog
+import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.components.VideoPlayerView
 import com.ramzes.visavinet.ui.components.VoteDualButton
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
@@ -603,19 +604,10 @@ fun DownsMainContentCard(
                                 }
                         ) {
                             if (isVideo) {
-                                androidx.compose.foundation.Image(
-                                    painter = androidx.compose.ui.res.painterResource(id = R.drawable.video_placeholder),
-                                    contentDescription = "Видео",
+                                VideoPlaceholder(
                                     modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                                Icon(
-                                    Icons.Default.PlayCircle,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .align(Alignment.Center)
+                                    isDark = isDark,
+                                    iconSize = 22.dp
                                 )
                             } else if (mediaItem.path != null) {
                                 AsyncImage(

@@ -1,0 +1,37 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    
+    <!-- Полупрозрачная стеклянная подложка -->
+    <path
+        android:fillColor="#26FFFFFF"
+        android:pathData="M16,0 L184,0 A16,16 0 0,1 200,16 L200,184 A16,16 0 0,1 184,200 L16,200 A16,16 0 0,1 0,184 L0,16 A16,16 0 0,1 16,0 Z" />
+
+    <!-- Перфорация кинопленки слева -->
+    <path
+        android:fillColor="#33FFFFFF"
+        android:pathData="M8,16 h8 v12 h-8 z M8,44 h8 v12 h-8 z M8,72 h8 v12 h-8 z M8,100 h8 v12 h-8 z M8,128 h8 v12 h-8 z M8,156 h8 v12 h-8 z M8,184 h8 v12 h-8 z" />
+
+    <!-- Перфорация кинопленки справа -->
+    <path
+        android:fillColor="#33FFFFFF"
+        android:pathData="M184,16 h8 v12 h-8 z M184,44 h8 v12 h-8 z M184,72 h8 v12 h-8 z M184,100 h8 v12 h-8 z M184,128 h8 v12 h-8 z M184,156 h8 v12 h-8 z M184,184 h8 v12 h-8 z" />
+
+    <!-- Центральный круг -->
+    <path
+        android:fillColor="#4D000000"
+        android:pathData="M100,56 A44,44 0 1,0 100,144 A44,44 0 1,0 100,56 Z" />
+        
+    <!-- Окантовка круга -->
+    <path
+        android:strokeColor="#66FFFFFF"
+        android:strokeWidth="2.5"
+        android:pathData="M100,56 A44,44 0 1,0 100,144 A44,44 0 1,0 100,56 Z" />
+
+    <!-- Иконка Play -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M90,78 L122,100 L90,122 Z" />
+</vector>

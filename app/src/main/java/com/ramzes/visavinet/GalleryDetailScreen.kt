@@ -43,6 +43,7 @@ import com.ramzes.visavinet.network.PhotoItem
 import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassFileCard
+import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VideoFullscreenDialog
 import com.ramzes.visavinet.ui.components.VideoPlayerView
@@ -515,11 +516,10 @@ fun GalleryMainContentCard(
                                     .clickable { selectedMediaIndex = index }
                             ) {
                                 if (isFileVideo) {
-                                    androidx.compose.foundation.Image(
-                                        painter = androidx.compose.ui.res.painterResource(id = R.drawable.video_placeholder),
-                                        contentDescription = null,
+                                    VideoPlaceholder(
                                         modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                                        isDark = isDark,
+                                        iconSize = 16.dp
                                     )
                                 } else if (file.path != null) {
                                     AsyncImage(

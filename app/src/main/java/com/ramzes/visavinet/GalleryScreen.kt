@@ -36,6 +36,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.PhotoItem
 import com.ramzes.visavinet.ui.components.GlassCard
+import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -231,9 +232,17 @@ fun GalleryGridItem(
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                    .background(Color(0xFF0F172A))
+                    .background(if (isDark) Color(0x331E293B) else Color(0x1F64748B))
             ) {
-                if (primaryFile?.path != null) {
+                if (isVideo) {
+                    VideoPlaceholder(
+                        modifier = Modifier.fillMaxSize(),
+                        isDark = isDark,
+                        accentColor = authorColor,
+                        iconSize = 36.dp,
+                        showLabel = true
+                    )
+                } else if (primaryFile?.path != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(primaryFile.path)
@@ -243,27 +252,6 @@ fun GalleryGridItem(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                }
-
-                // Видео значок
-                if (isVideo) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayCircle,
-                            contentDescription = "Видео",
-                            tint = Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
                 }
             }
 
