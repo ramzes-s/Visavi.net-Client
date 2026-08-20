@@ -48,6 +48,7 @@ import com.ramzes.visavinet.ui.components.GlassFileCard
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VideoFullscreenDialog
 import com.ramzes.visavinet.ui.components.VideoPlayerView
+import com.ramzes.visavinet.ui.components.VoteDualButton
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.theme.*
@@ -177,6 +178,29 @@ fun DownsDetailScreen(
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
                             onPhotoClick = onPhotoClick,
+                            onVoteUp = {
+                                viewModel.voteDown(
+                                    downId = displayDown.id,
+                                    vote = "+",
+                                    context = context,
+                                    type = displayDown.vote?.type ?: "downs",
+                                    onError = { error ->
+                                        Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            },
+                            onVoteDown = {
+                                viewModel.voteDown(
+                                    downId = displayDown.id,
+                                    vote = "-",
+                                    context = context,
+                                    type = displayDown.vote?.type ?: "downs",
+                                    onError = { error ->
+                                        Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            },
+                            isVoting = displayDown.id in viewModel.votingDownIds,
                             onImageClick = { url -> zoomImageUrl = url },
                             onFullscreenVideo = { url -> fullscreenVideoUrl = url }
                         )
@@ -383,6 +407,9 @@ fun DownsMainContentCard(
     onNewsClick: (newsId: Int) -> Unit = {},
     onDownClick: (downId: Int) -> Unit = {},
     onPhotoClick: (photoId: Int) -> Unit = {},
+    onVoteUp: (() -> Unit)? = null,
+    onVoteDown: (() -> Unit)? = null,
+    isVoting: Boolean = false,
     onImageClick: (String) -> Unit,
     onFullscreenVideo: (String) -> Unit
 ) {
@@ -621,6 +648,25 @@ fun DownsMainContentCard(
                         onPhotoClick = onPhotoClick
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Блок рейтинга и голосования
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
+            ) {
+                VoteDualButton(
+                    vote = down.vote,
+                    rating = down.rating,
+                    onVoteUp = { onVoteUp?.invoke() },
+                    onVoteDown = { onVoteDown?.invoke() },
+                    isLoading = isVoting,
+                    isDark = isDark,
+                    isCompact = false
+                )
             }
         }
     }

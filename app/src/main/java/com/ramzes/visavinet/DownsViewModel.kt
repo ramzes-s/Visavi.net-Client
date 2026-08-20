@@ -102,6 +102,10 @@ class DownsViewModel : ViewModel() {
     var isSubmittingComment by mutableStateOf(false)
         private set
 
+    // Набор id файлов загрузок, за которые в данный момент отправляется голос
+    var votingDownIds by mutableStateOf<Set<Int>>(emptySet())
+        private set
+
     /**
      * Загрузка списка категорий
      */
@@ -413,6 +417,83 @@ class DownsViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 onError("Ошибка сети: ${e.localizedMessage ?: "не удалось загрузить профиль"}")
+            }
+        }
+    }
+
+    /**
+     * Голосование за файл загрузки (положительное "+" или отрицательное "-") с возможностью смены голоса
+     */
+    fun voteDown(
+        downId: Int,
+        vote: String,
+        context: Context,
+        type: String = "downs",
+        onSuccess: ((newRating: Int) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (downId in votingDownIds) return
+
+        viewModelScope.launch {
+            votingDownIds = votingDownIds + downId
+            try {
+                val targetDown = currentDown?.takeIf { it.id == downId }
+                    ?: selectedDown?.takeIf { it.id == downId }
+                    ?: downsList.find { it.id == downId }
+                val actualType = targetDown?.vote?.type?.ifBlank { null } ?: type
+                val actualId = targetDown?.vote?.id ?: downId
+
+                val response = VisaviApi.vote(
+                    type = actualType,
+                    id = actualId,
+                    vote = vote
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val newRating = body?.rating ?: 0
+                    val isCancelled = body?.cancel == true
+                    val newValue = if (isCancelled) null else vote
+
+                    // Обновляем currentDown
+                    if (currentDown?.id == downId) {
+                        currentDown = currentDown?.copy(
+                            rating = newRating,
+                            vote = currentDown?.vote?.copy(value = newValue)
+                                ?: VoteData(type = actualType, id = downId, value = newValue)
+                        )
+                    }
+
+                    // Обновляем selectedDown
+                    if (selectedDown?.id == downId) {
+                        selectedDown = selectedDown?.copy(
+                            rating = newRating,
+                            vote = selectedDown?.vote?.copy(value = newValue)
+                                ?: VoteData(type = actualType, id = downId, value = newValue)
+                        )
+                    }
+
+                    // Обновляем в списке downsList
+                    downsList = downsList.map { item ->
+                        if (item.id == downId) {
+                            item.copy(
+                                rating = newRating,
+                                vote = item.vote?.copy(value = newValue)
+                                    ?: VoteData(type = actualType, id = downId, value = newValue)
+                            )
+                        } else {
+                            item
+                        }
+                    }
+
+                    onSuccess?.invoke(newRating)
+                } else {
+                    val errorMsg = response.extractErrorMessage("Не удалось проголосовать")
+                    onError?.invoke(errorMsg)
+                }
+            } catch (e: Exception) {
+                onError?.invoke("Ошибка сети: ${e.localizedMessage ?: "не удалось отправить голос"}")
+            } finally {
+                votingDownIds = votingDownIds - downId
             }
         }
     }
