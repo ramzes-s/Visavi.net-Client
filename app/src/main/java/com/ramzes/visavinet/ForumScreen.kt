@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +41,8 @@ import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.dialogs.CreateTopicDialog
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
+import com.ramzes.visavinet.util.isDateRecent
+import com.ramzes.visavinet.util.isDateToday
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
@@ -437,6 +440,7 @@ fun ForumSectionItem(
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
     val primaryAccent = getPrimaryAccentColor()
+    val isUpdatedToday = section.lastPostAt?.let { isDateToday(it) } == true
 
     Box(
         modifier = Modifier
@@ -502,23 +506,34 @@ fun ForumSectionItem(
                                 modifier = Modifier.weight(1f, fill = false)
                             )
                             section.lastPostAt?.takeIf { it > 0 }?.let { time ->
+                                val isRecent = isDateRecent(time)
+                                val dateColor = if (isRecent) primaryAccent else secondaryTextColor
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = formatUnixTime(time),
                                     fontSize = 11.sp,
-                                    color = secondaryTextColor
+                                    color = dateColor
                                 )
                             }
                         }
                     }
                 }
 
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = primaryAccent,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (isUpdatedToday) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Обновлено сегодня",
+                        tint = primaryAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = primaryAccent,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
     }
@@ -533,6 +548,7 @@ fun ForumSubsectionItem(
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
     val primaryAccent = getPrimaryAccentColor()
+    val isUpdatedToday = subsection.lastPostAt?.let { isDateToday(it) } == true
 
     Box(
         modifier = Modifier
@@ -567,12 +583,21 @@ fun ForumSubsectionItem(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = primaryAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    if (isUpdatedToday) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Обновлено сегодня",
+                            tint = primaryAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = primaryAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -608,11 +633,13 @@ fun ForumSubsectionItem(
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         subsection.lastPostAt?.takeIf { it > 0 }?.let { time ->
+                            val isRecent = isDateRecent(time)
+                            val dateColor = if (isRecent) primaryAccent else secondaryTextColor
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = formatUnixTime(time),
                                 fontSize = 10.sp,
-                                color = secondaryTextColor
+                                color = dateColor
                             )
                         }
                     }
@@ -643,6 +670,9 @@ fun ForumTopicItem(
         else -> textColor
     }
 
+    val updateTime = topic.updatedAt ?: topic.createdAt
+    val isUpdatedToday = updateTime?.let { isDateToday(it) } == true
+
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         isDark = isDark,
@@ -671,12 +701,21 @@ fun ForumTopicItem(
                         maxLines = 2
                     )
                 }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = secondaryTextColor,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (isUpdatedToday) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Обновлено сегодня",
+                        tint = primaryAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = secondaryTextColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -700,11 +739,13 @@ fun ForumTopicItem(
                     Text(text = "👁 ${topic.visits}", fontSize = 11.sp, color = secondaryTextColor)
                 }
 
-                topic.updatedAt?.let { time ->
+                updateTime?.let { time ->
+                    val isRecent = isDateRecent(time)
+                    val dateColor = if (isRecent) primaryAccent else secondaryTextColor
                     Text(
                         text = formatUnixTime(time),
                         fontSize = 10.sp,
-                        color = secondaryTextColor
+                        color = dateColor
                     )
                 }
             }
