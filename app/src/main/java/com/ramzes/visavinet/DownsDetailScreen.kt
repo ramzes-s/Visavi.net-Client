@@ -207,15 +207,45 @@ fun DownsDetailScreen(
                         )
                     }
 
-                    // Заголовок комментариев
-                    item {
-                        Text(
-                            text = "Комментарии (${displayDown.commentsCount})",
-                            color = textColor,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                        )
+                    // Заголовок комментариев (отображается только если есть комментарии)
+                    val totalComments = maxOf(displayDown.commentsCount, viewModel.comments.size)
+                    if (totalComments > 0) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 10.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        width = 1.dp,
+                                        color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                                    )
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ChatBubbleOutline,
+                                            contentDescription = null,
+                                            tint = getPrimaryAccentColor(),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = formatCommentsCount(totalComments),
+                                            color = textColor,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     if (viewModel.isLoadingDetail && viewModel.comments.isEmpty()) {
@@ -235,17 +265,36 @@ fun DownsDetailScreen(
                         }
                     } else if (viewModel.comments.isEmpty()) {
                         item {
-                            Box(
+                            GlassCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(20.dp),
-                                contentAlignment = Alignment.Center
+                                    .padding(vertical = 8.dp),
+                                isDark = isDark,
+                                shape = RoundedCornerShape(12.dp),
+                                glowColor = Color.Transparent
                             ) {
-                                Text(
-                                    text = "Комментариев пока нет. Будьте первыми!",
-                                    color = secondaryTextColor,
-                                    fontSize = 13.sp
-                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 20.dp, horizontal = 16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ChatBubbleOutline,
+                                        contentDescription = null,
+                                        tint = getPrimaryAccentColor().copy(alpha = 0.7f),
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Комментариев пока нет. Будьте первыми!",
+                                        color = secondaryTextColor,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     } else {

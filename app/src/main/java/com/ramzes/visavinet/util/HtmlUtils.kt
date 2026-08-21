@@ -1041,3 +1041,19 @@ fun formatFileSize(size: Long): String {
         }
     }
 }
+
+/**
+ * Склонение слова "комментарий" в зависимости от количества
+ */
+fun formatCommentsCount(count: Int): String {
+    val absCount = Math.abs(count)
+    val rem100 = absCount % 100
+    val rem10 = absCount % 10
+    val word = when {
+        rem100 in 11..19 -> "комментариев"
+        rem10 == 1 -> "комментарий"
+        rem10 in 2..4 -> "комментария"
+        else -> "комментариев"
+    }
+    return "$count $word"
+}
