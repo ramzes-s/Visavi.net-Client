@@ -39,6 +39,7 @@ import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
+import com.ramzes.visavinet.util.isDateRecent
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
@@ -293,9 +294,9 @@ fun GalleryGridItem(
                         Spacer(modifier = Modifier.width(4.dp))
                     }
 
-                    val authorLogin = photo.user?.login
+                    val authorLogin = photo.user?.authorLogin
                     Text(
-                        text = photo.user?.name ?: authorLogin ?: "Пользователь",
+                        text = photo.user?.displayName ?: "Пользователь",
                         color = authorColor,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -309,56 +310,79 @@ fun GalleryGridItem(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Дата, рейтинг и комментарии
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                // Единый бейджик: рейтинг, комментарии, дата
+                Surface(
+                    shape = CircleShape,
+                    color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                    ),
+                    modifier = Modifier.wrapContentSize()
                 ) {
-                    photo.createdAt?.let { created ->
-                        Text(
-                            text = formatUnixTime(created),
-                            color = secondaryTextColor,
-                            fontSize = 10.sp,
-                            maxLines = 1
-                        )
-                    }
-
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        if (photo.rating != 0) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = AmberGold,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                                Spacer(modifier = Modifier.width(1.dp))
-                                Text(
-                                    text = "${if (photo.rating > 0) "+" else ""}${photo.rating}",
-                                    color = if (photo.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                        // Рейтинг
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(1.5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Рейтинг",
+                                tint = AmberGold,
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Text(
+                                text = if (photo.rating > 0) "+${photo.rating}" else "${photo.rating}",
+                                fontSize = 10.sp,
+                                color = authorColor,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "•",
+                            fontSize = 9.sp,
+                            color = secondaryTextColor.copy(alpha = 0.4f)
+                        )
+
+                        // Комментарии
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             Icon(
-                                Icons.Default.ChatBubbleOutline,
-                                contentDescription = null,
-                                tint = getSecondaryAccentColor(),
-                                modifier = Modifier.size(11.dp)
+                                imageVector = Icons.Default.ChatBubbleOutline,
+                                contentDescription = "Комментарии",
+                                tint = authorColor,
+                                modifier = Modifier.size(10.dp)
                             )
-                            Spacer(modifier = Modifier.width(2.dp))
                             Text(
                                 text = "${photo.commentsCount}",
-                                color = getSecondaryAccentColor(),
+                                color = authorColor,
                                 fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        photo.createdAt?.let { created ->
+                            Text(
+                                text = "•",
+                                fontSize = 9.sp,
+                                color = secondaryTextColor.copy(alpha = 0.4f)
+                            )
+                            val isRecent = isDateRecent(created)
+                            val dateColor = if (isRecent) authorColor else secondaryTextColor
+                            Text(
+                                text = formatUnixTime(created),
+                                fontSize = 9.5.sp,
+                                color = dateColor,
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 1
                             )
                         }
                     }

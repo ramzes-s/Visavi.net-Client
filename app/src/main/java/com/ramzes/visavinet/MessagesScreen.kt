@@ -389,18 +389,14 @@ fun GlassMessageItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (!isOutgoing) {
-                    val authorName = if (message.login == null && message.name == "Система") {
-                        "Система"
-                    } else {
-                        message.name?.ifBlank { null } ?: message.login ?: "Аноним"
-                    }
+                    val authorName = message.displayName
                     Text(
                         text = authorName,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = primaryAccent,
                         modifier = Modifier.clickable {
-                            val login = message.login ?: message.name ?: return@clickable
+                            val login = message.authorLogin ?: return@clickable
                             onUserClick(login)
                         }
                     )

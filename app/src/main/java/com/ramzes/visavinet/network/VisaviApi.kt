@@ -153,6 +153,12 @@ data class UserData(
     @SerializedName("conttime") val conttimeRaw: Int? = null,
     @SerializedName("allvisit") val allvisitRaw: Int? = null
 ) {
+    val userLogin: String?
+        get() = login?.ifBlank { null }
+
+    val displayName: String
+        get() = name?.ifBlank { null } ?: userLogin ?: "Пользователь"
+
     val visits: Int
         get() = visitsRaw ?: visitRaw ?: loginsRaw ?: conttimeRaw ?: allvisitRaw ?: 0
 
@@ -227,6 +233,12 @@ data class DialogueData(
     @SerializedName("can_reply") val canReply: Boolean? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null
 ) {
+    val authorLogin: String?
+        get() = login?.ifBlank { null } ?: name?.ifBlank { null }
+
+    val displayName: String
+        get() = name?.ifBlank { null } ?: authorLogin ?: "Пользователь"
+
     val createdAt: Long
         get() = createdAtRaw?.let { parseIsoDateTime(it) } ?: 0L
 }
@@ -272,6 +284,12 @@ data class MessageData(
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("files") val filesRaw: List<FileData>? = null
 ) {
+    val authorLogin: String?
+        get() = login?.ifBlank { null } ?: name?.ifBlank { null }
+
+    val displayName: String
+        get() = name?.ifBlank { null } ?: authorLogin ?: "Пользователь"
+
     val createdAt: Long
         get() = createdAtRaw?.let { parseIsoDateTime(it) } ?: 0L
 
@@ -460,7 +478,13 @@ data class NewsAuthor(
     @SerializedName("color") val color: String? = null,
     @SerializedName("avatar") val avatar: String? = null,
     @SerializedName("status") val status: String? = null
-)
+) {
+    val authorLogin: String?
+        get() = login?.ifBlank { null }
+
+    val displayName: String
+        get() = name?.ifBlank { null } ?: authorLogin ?: "Пользователь"
+}
 
 data class VoteData(
     @SerializedName("type") val type: String? = null,

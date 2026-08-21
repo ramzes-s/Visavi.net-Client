@@ -550,44 +550,58 @@ fun GalleryMainContentCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Автор и дата
+            // Автор и рейтинг в одной линии
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                if (!photo.user?.avatar.isNullOrBlank()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(photo.user.avatar)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Аватар автора",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-
-                val authorLogin = photo.user?.login
-                Text(
-                    text = photo.user?.name ?: authorLogin ?: "Пользователь",
-                    color = authorColor,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable(enabled = authorLogin != null) {
-                        authorLogin?.let { onUserClick(it) }
+                // Автор
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    if (!photo.user?.avatar.isNullOrBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(photo.user.avatar)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Аватар автора",
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
-                )
 
-                photo.createdAt?.let { created ->
+                    val authorLogin = photo.user?.authorLogin
                     Text(
-                        text = " • ${formatUnixTime(created)}",
-                        color = secondaryTextColor,
-                        fontSize = 11.sp
+                        text = photo.user?.displayName ?: "Пользователь",
+                        color = authorColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable(enabled = authorLogin != null) {
+                            authorLogin?.let { onUserClick(it) }
+                        }
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Блок рейтинга и голосования
+                VoteDualButton(
+                    vote = photo.vote,
+                    rating = photo.rating,
+                    onVoteUp = { onVoteUp?.invoke() },
+                    onVoteDown = { onVoteDown?.invoke() },
+                    isLoading = isVoting,
+                    isDark = isDark,
+                    isCompact = true
+                )
             }
 
             // Текст/описание записи
@@ -605,25 +619,6 @@ fun GalleryMainContentCard(
                         onPhotoClick = onPhotoClick
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Блок рейтинга и голосования
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End
-            ) {
-                VoteDualButton(
-                    vote = photo.vote,
-                    rating = photo.rating,
-                    onVoteUp = { onVoteUp?.invoke() },
-                    onVoteDown = { onVoteDown?.invoke() },
-                    isLoading = isVoting,
-                    isDark = isDark,
-                    isCompact = false
-                )
             }
         }
     }
@@ -721,14 +716,16 @@ fun GalleryCommentCard(
                     fontWeight = FontWeight.Medium
                 )
             } else {
+                // Шапка комментария: автор, аватар, и бейджик с временем и кнопкой ответа
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Автор
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
                         if (!comment.user?.avatar.isNullOrBlank()) {
                             AsyncImage(
@@ -745,36 +742,66 @@ fun GalleryCommentCard(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
 
-                        val authorLogin = comment.user?.login
+                        val authorLogin = comment.user?.authorLogin
                         Text(
-                            text = comment.user?.name ?: authorLogin ?: "Пользователь",
+                            text = comment.user?.displayName ?: "Пользователь",
                             color = authorColor,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.clickable(enabled = authorLogin != null) {
                                 authorLogin?.let { onUserClick(it) }
                             }
                         )
-
-                        comment.createdAt?.let { created ->
-                            Text(
-                                text = " • ${formatUnixTime(created)}",
-                                color = secondaryTextColor,
-                                fontSize = 10.sp
-                            )
-                        }
                     }
 
-                    IconButton(
-                        onClick = onReplyClick,
-                        modifier = Modifier.size(24.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Бейджик: кнопка ответа + время (в стиле новостей и форума)
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                        ),
+                        modifier = Modifier.wrapContentSize()
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Reply,
-                            contentDescription = "Ответить",
-                            tint = getSecondaryAccentColor(),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            // Кнопка ответа
+                            IconButton(
+                                onClick = onReplyClick,
+                                modifier = Modifier.size(22.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Reply,
+                                    contentDescription = "Ответить",
+                                    tint = authorColor,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+
+                            comment.createdAt?.let { created ->
+                                Text(
+                                    text = "•",
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
+
+                                Text(
+                                    text = formatUnixTime(created),
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
 

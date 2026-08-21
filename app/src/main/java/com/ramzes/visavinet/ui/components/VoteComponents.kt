@@ -197,18 +197,16 @@ fun VoteDualButton(
     val containerBgColor = when {
         hasVotedUp -> (if (isDark) positiveColor.copy(alpha = 0.15f) else positiveColor.copy(alpha = 0.12f))
         hasVotedDown -> (if (isDark) negativeColor.copy(alpha = 0.15f) else negativeColor.copy(alpha = 0.12f))
-        !isCompact -> (if (isDark) Color(0x22FFFFFF) else Color(0x11000000))
-        else -> (if (isDark) Color(0x18FFFFFF) else Color(0x0C000000))
+        else -> (if (isDark) Color(0x0DFFFFFF) else Color(0x06000000))
     }
 
     val containerBorderColor = when {
         hasVotedUp -> positiveColor.copy(alpha = 0.4f)
         hasVotedDown -> negativeColor.copy(alpha = 0.4f)
-        !isCompact -> (if (isDark) Color(0x33FFFFFF) else Color(0x1A000000))
-        else -> (if (isDark) Color(0x22FFFFFF) else Color(0x12000000))
+        else -> (if (isDark) Color(0x18FFFFFF) else Color(0x10000000))
     }
 
-    val shape = RoundedCornerShape(if (isCompact) 8.dp else 12.dp)
+    val shape = CircleShape
 
     Box(
         modifier = modifier
@@ -221,18 +219,18 @@ fun VoteDualButton(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    color = accentColor,
-                    strokeWidth = 2.dp
+                    modifier = Modifier.size(15.dp),
+                    color = neutralColor,
+                    strokeWidth = 1.5.dp
                 )
                 val ratingText = if (rating > 0) "+$rating" else rating.toString()
                 Text(
                     text = ratingText,
                     color = ratingColor,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -251,14 +249,19 @@ fun VoteDualButton(
                                 Modifier
                             }
                         )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(
+                            start = if (isCompact) 12.dp else 14.dp,
+                            end = if (isCompact) 8.dp else 10.dp,
+                            top = if (isCompact) 5.dp else 7.dp,
+                            bottom = if (isCompact) 5.dp else 7.dp
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (hasVotedUp) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                         contentDescription = "Голосовать за (+)",
                         tint = upIconColor,
-                        modifier = Modifier.size(if (isCompact) 16.dp else 20.dp)
+                        modifier = Modifier.size(if (isCompact) 14.dp else 17.dp)
                     )
                 }
 
@@ -267,7 +270,7 @@ fun VoteDualButton(
                 Text(
                     text = ratingText,
                     color = ratingColor,
-                    fontSize = if (isCompact) 13.sp else 15.sp,
+                    fontSize = if (isCompact) 12.sp else 13.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
@@ -282,14 +285,19 @@ fun VoteDualButton(
                                 Modifier
                             }
                         )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(
+                            start = if (isCompact) 8.dp else 10.dp,
+                            end = if (isCompact) 12.dp else 14.dp,
+                            top = if (isCompact) 5.dp else 7.dp,
+                            bottom = if (isCompact) 5.dp else 7.dp
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (hasVotedDown) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
                         contentDescription = "Голосовать против (-)",
                         tint = downIconColor,
-                        modifier = Modifier.size(if (isCompact) 16.dp else 20.dp)
+                        modifier = Modifier.size(if (isCompact) 14.dp else 17.dp)
                     )
                 }
             }

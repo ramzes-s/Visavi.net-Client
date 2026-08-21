@@ -717,9 +717,9 @@ fun DownItemCard(
                         Spacer(modifier = Modifier.width(3.dp))
                     }
 
-                    val authorLogin = down.user?.login
+                    val authorLogin = down.user?.authorLogin
                     Text(
-                        text = down.user?.name ?: authorLogin ?: "Автор",
+                        text = down.user?.displayName ?: "Автор",
                         color = authorColor,
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.SemiBold,

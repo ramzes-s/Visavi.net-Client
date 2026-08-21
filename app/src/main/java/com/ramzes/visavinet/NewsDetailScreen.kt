@@ -481,9 +481,9 @@ fun NewsMainContentCard(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
 
-                val authorLogin = news.user?.login
+                val authorLogin = news.user?.authorLogin
                 Text(
-                    text = news.user?.name ?: authorLogin ?: "Администратор",
+                    text = news.user?.displayName ?: "Администратор",
                     color = authorColor,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -659,9 +659,9 @@ fun NewsCommentCard(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
 
-                        val authorLogin = comment.user?.login
+                        val authorLogin = comment.user?.authorLogin
                         Text(
-                            text = comment.user?.name ?: authorLogin ?: "Пользователь",
+                            text = comment.user?.displayName ?: "Пользователь",
                             color = authorColor,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,

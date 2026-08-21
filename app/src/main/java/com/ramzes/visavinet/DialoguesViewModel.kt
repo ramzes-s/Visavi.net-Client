@@ -91,7 +91,7 @@ class DialoguesViewModel : ViewModel() {
                     }
 
                     newDialogues.forEach { dialogue ->
-                        val key = dialogue.login ?: dialogue.name ?: "dialogue_${dialogue.id}"
+                        val key = dialogue.authorLogin ?: "dialogue_${dialogue.id}"
                         val existing = dialoguesMap[key]
                         if (existing == null || dialogue.createdAt > existing.createdAt) {
                             dialoguesMap[key] = dialogue
@@ -128,7 +128,7 @@ class DialoguesViewModel : ViewModel() {
     fun selectDialogue(dialogue: DialogueData, context: Context) {
         selectedDialogue = dialogue
         markDialogueAsRead(dialogue.id)
-        val login = dialogue.login ?: dialogue.name ?: return
+        val login = dialogue.authorLogin ?: return
         loadMessages(context, login)
     }
 
@@ -186,7 +186,7 @@ class DialoguesViewModel : ViewModel() {
     fun loadMoreMessages(context: Context) {
         if (isLoadingMoreMessages || messagesCurrentPage >= messagesLastPage) return
         val dialogue = selectedDialogue ?: return
-        val login = dialogue.login ?: dialogue.name ?: return
+        val login = dialogue.authorLogin ?: return
         loadMessages(context, login, messagesCurrentPage + 1, append = true)
     }
 
@@ -197,7 +197,7 @@ class DialoguesViewModel : ViewModel() {
 
     fun refreshMessages(context: Context) {
         selectedDialogue?.let { dialogue ->
-            val login = dialogue.login ?: dialogue.name ?: return
+            val login = dialogue.authorLogin ?: return
             messagesCurrentPage = 1
             messagesLastPage = 1
             loadMessages(context, login, 1, append = false)
@@ -242,7 +242,7 @@ class DialoguesViewModel : ViewModel() {
         }
 
         // Логин собеседника из диалога
-        val login = dialogue.login ?: dialogue.name ?: run {
+        val login = dialogue.authorLogin ?: run {
             onError("Невозможно определить получателя")
             return
         }

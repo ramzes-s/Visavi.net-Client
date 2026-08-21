@@ -317,9 +317,9 @@ fun NewsItemCard(
                             Spacer(modifier = Modifier.width(6.dp))
                         }
 
-                        val authorLogin = news.user?.login
+                        val authorLogin = news.user?.authorLogin
                         Text(
-                            text = news.user?.name ?: authorLogin ?: "Администратор",
+                            text = news.user?.displayName ?: "Администратор",
                             color = authorColor,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
