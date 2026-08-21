@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbDown
@@ -47,27 +48,23 @@ fun VoteButton(
     val positiveColor = Color(0xFF10B981) // Зеленый
     val negativeColor = Color(0xFFEF4444) // Красный
     val neutralColor = if (isDark) TextLightGray.copy(alpha = 0.8f) else LightTextSecondary
-    val accentColor = getPrimaryAccentColor()
 
     val ratingColor = when {
         hasVotedUp -> positiveColor
-        rating > 0 -> positiveColor
+        rating > 0 && isCompact -> positiveColor
         rating < 0 -> negativeColor
         else -> neutralColor
     }
 
     val iconColor = when {
         hasVotedUp -> positiveColor
-        canVote -> accentColor
         else -> neutralColor
     }
 
     val backgroundColor by animateColorAsState(
         targetValue = when {
             hasVotedUp -> (if (isDark) positiveColor.copy(alpha = 0.15f) else positiveColor.copy(alpha = 0.12f))
-            canVote && !isCompact -> (if (isDark) accentColor.copy(alpha = 0.12f) else accentColor.copy(alpha = 0.08f))
-            !isCompact -> (if (isDark) Color(0x22FFFFFF) else Color(0x11000000))
-            else -> (if (isDark) Color(0x15FFFFFF) else Color(0x0A000000))
+            else -> (if (isDark) Color(0x0DFFFFFF) else Color(0x06000000))
         },
         label = "VoteBgColor"
     )
@@ -75,18 +72,16 @@ fun VoteButton(
     val borderColor by animateColorAsState(
         targetValue = when {
             hasVotedUp -> positiveColor.copy(alpha = 0.4f)
-            canVote && !isCompact -> accentColor.copy(alpha = 0.35f)
-            !isCompact -> (if (isDark) Color(0x33FFFFFF) else Color(0x1A000000))
-            else -> (if (isDark) Color(0x22FFFFFF) else Color(0x10000000))
+            else -> (if (isDark) Color(0x18FFFFFF) else Color(0x10000000))
         },
         label = "VoteBorderColor"
     )
 
-    val shape = RoundedCornerShape(if (isCompact) 6.dp else 10.dp)
+    val shape = if (isCompact) RoundedCornerShape(6.dp) else CircleShape
     val paddingValues = if (isCompact) {
         PaddingValues(horizontal = 6.dp, vertical = 3.dp)
     } else {
-        PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+        PaddingValues(horizontal = 14.dp, vertical = 6.dp)
     }
 
     Box(
@@ -111,7 +106,7 @@ fun VoteButton(
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(if (isCompact) 12.dp else 16.dp),
-                    color = accentColor,
+                    color = neutralColor,
                     strokeWidth = 1.5.dp
                 )
             } else {
@@ -134,9 +129,9 @@ fun VoteButton(
             if (!isCompact && canVote) {
                 Text(
                     text = "Нравится",
-                    color = accentColor,
+                    color = neutralColor,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(start = 2.dp)
                 )
             } else if (!isCompact && hasVotedUp) {
