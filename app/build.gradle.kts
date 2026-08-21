@@ -12,8 +12,8 @@ android {
         applicationId = "com.ramzes.visavinet"
         minSdk = 28
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.1.3"
+        versionCode = 8
+        versionName = "1.1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
