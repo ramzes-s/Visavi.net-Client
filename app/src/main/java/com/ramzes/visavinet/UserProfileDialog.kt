@@ -37,6 +37,7 @@ import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassProfileCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
+import com.ramzes.visavinet.util.isDateToday
 
 @Composable
 fun UserProfileDialog(
@@ -199,10 +200,12 @@ private fun UserProfileContent(
         }
 
         user.lastLogin?.let { lastTime ->
+            val isToday = isDateToday(lastTime)
+            val lastLoginColor = if (isToday) textColor else secondaryTextColor.copy(0.7f)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Вход: ${formatUnixTime(lastTime)}",
-                color = secondaryTextColor.copy(0.7f),
+                text = "Был: ${formatUnixTime(lastTime)}",
+                color = lastLoginColor,
                 fontSize = 11.sp
             )
         }
