@@ -37,6 +37,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import androidx.media3.exoplayer.ExoPlayer
 import com.ramzes.visavinet.network.FileData
 import com.ramzes.visavinet.network.NewsCommentItem
 import com.ramzes.visavinet.network.PhotoItem
@@ -92,7 +93,7 @@ fun GalleryDetailScreen(
     var attachedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
-    var fullscreenVideoUrl by remember { mutableStateOf<String?>(null) }
+    var activeFullscreenPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -139,41 +140,39 @@ fun GalleryDetailScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
-                            tint = getSecondaryAccentColor()
+                            tint = textColor
                         )
                     }
                     Text(
-                        text = "Галерея",
+                        text = displayPhoto.title ?: "Медиафайл",
                         color = textColor,
-                        fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { onBackClick() }
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
 
+            // Основной скроллируемый контент
             SwipeRefresh(
-                state = swipeRefreshState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
-                onRefresh = { viewModel.loadPhotoDetail(context, photo.id, refresh = true) }
+                state = rememberSwipeRefreshState(viewModel.isLoadingDetail),
+                onRefresh = { viewModel.loadPhotoDetail(context, photo.id) },
+                modifier = Modifier.weight(1f)
             ) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Главная карточка фото/видео
+                    // Карточка записи
                     item {
                         GalleryMainContentCard(
                             photo = displayPhoto,
                             isDark = isDark,
+                            isExternalFullscreenOpen = activeFullscreenPlayer != null,
                             onUserClick = onUserClick,
                             onTopicClick = onTopicClick,
                             onNewsClick = onNewsClick,
@@ -203,7 +202,9 @@ fun GalleryDetailScreen(
                             },
                             isVoting = displayPhoto.id in viewModel.votingPhotoIds,
                             onImageClick = { url -> zoomImageUrl = url },
-                            onFullscreenVideo = { url -> fullscreenVideoUrl = url }
+                            onFullscreenVideo = { player ->
+                                activeFullscreenPlayer = player
+                            }
                         )
                     }
 
@@ -457,10 +458,10 @@ fun GalleryDetailScreen(
         }
 
         // Полноэкранный видеоплеер
-        fullscreenVideoUrl?.let { url ->
+        activeFullscreenPlayer?.let { player ->
             VideoFullscreenDialog(
-                videoUrl = url,
-                onDismiss = { fullscreenVideoUrl = null }
+                player = player,
+                onDismiss = { activeFullscreenPlayer = null }
             )
         }
     }
@@ -470,6 +471,7 @@ fun GalleryDetailScreen(
 fun GalleryMainContentCard(
     photo: PhotoItem,
     isDark: Boolean,
+    isExternalFullscreenOpen: Boolean = false,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
     onNewsClick: (newsId: Int) -> Unit = {},
@@ -479,7 +481,7 @@ fun GalleryMainContentCard(
     onVoteDown: (() -> Unit)? = null,
     isVoting: Boolean = false,
     onImageClick: (String) -> Unit,
-    onFullscreenVideo: (String) -> Unit
+    onFullscreenVideo: (ExoPlayer) -> Unit
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
@@ -510,7 +512,8 @@ fun GalleryMainContentCard(
                             .fillMaxWidth()
                             .height(230.dp),
                         autoPlay = false,
-                        onFullscreenClick = { onFullscreenVideo(currentMedia.path) }
+                        isExternalFullscreenOpen = isExternalFullscreenOpen,
+                        onFullscreenClick = { player -> onFullscreenVideo(player) }
                     )
                 } else if (currentMedia.path != null) {
                     Box(
