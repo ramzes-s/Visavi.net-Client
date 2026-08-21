@@ -35,6 +35,9 @@ import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.VoteButton
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
+import com.ramzes.visavinet.util.isDateRecent
+import com.ramzes.visavinet.util.isDateToday
+import com.ramzes.visavinet.util.isDateYesterday
 import com.ramzes.visavinet.util.sanitizeHtml
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -223,149 +226,212 @@ fun NewsItemCard(
         sanitizeHtml(news.text).replace(Regex("\\s+"), " ").trim()
     }
     val authorColor = getPrimaryAccentColor()
+    val isToday = news.createdAt?.let { isDateToday(it) } == true
+    val isYesterday = news.createdAt?.let { isDateYesterday(it) } == true
 
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        isDark = isDark,
-        shape = RoundedCornerShape(8.dp),
-        glowColor = if (news.top) getPrimaryAccentColor().copy(alpha = 0.25f) else Color.Transparent
-    ) {
-        Column(
+    Box(modifier = Modifier.fillMaxWidth()) {
+        GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .clickable(onClick = onClick),
+            isDark = isDark,
+            shape = RoundedCornerShape(8.dp),
+            glowColor = if (news.top) getPrimaryAccentColor().copy(alpha = 0.25f) else Color.Transparent
         ) {
-            // Закрепленный статус
-            if (news.top) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                ) {
-                    Icon(
-                        Icons.Default.PushPin,
-                        contentDescription = "Закреплено",
-                        tint = getPrimaryAccentColor(),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Закреплено",
-                        color = getPrimaryAccentColor(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Заголовок новости
-            Text(
-                text = news.title ?: "Без названия",
-                color = textColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Текст превью
-            if (previewText.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = previewText,
-                    color = secondaryTextColor,
-                    fontSize = 13.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 18.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Нижняя строка: автор, дата и бейджи (комментарии, рейтинг)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
             ) {
-                // Автор и дата
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    // Аватар
-                    if (!news.user?.avatar.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(news.user.avatar)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Аватар",
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
-
-                    val authorLogin = news.user?.login
-                    Text(
-                        text = news.user?.name ?: authorLogin ?: "Администратор",
-                        color = authorColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable(enabled = authorLogin != null) {
-                            authorLogin?.let { onUserClick(it) }
-                        }
-                    )
-
-                    news.createdAt?.let { created ->
-                        Text(
-                            text = " • ${formatUnixTime(created)}",
-                            color = secondaryTextColor,
-                            fontSize = 11.sp,
-                            maxLines = 1
-                        )
-                    }
-                }
-
-                // Индикаторы: рейтинг/голосование и комментарии
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Голосование / рейтинг
-                    VoteButton(
-                        vote = news.vote,
-                        rating = news.rating,
-                        onVoteUp = { onVoteUp?.invoke() },
-                        isLoading = isVoting,
-                        isDark = isDark,
-                        isCompact = true
-                    )
-
-                    // Комментарии
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                // Закрепленный статус
+                if (news.top) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    ) {
                         Icon(
-                            Icons.Default.ChatBubbleOutline,
-                            contentDescription = "Комментарии",
-                            tint = getSecondaryAccentColor(),
-                            modifier = Modifier.size(13.dp)
+                            Icons.Default.PushPin,
+                            contentDescription = "Закреплено",
+                            tint = getPrimaryAccentColor(),
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(3.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${news.commentsCount}",
-                            color = getSecondaryAccentColor(),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
+                            text = "Закреплено",
+                            color = getPrimaryAccentColor(),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
+
+                // Заголовок новости
+                Text(
+                    text = news.title ?: "Без названия",
+                    color = textColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // Текст превью
+                if (previewText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = previewText,
+                        color = secondaryTextColor,
+                        fontSize = 13.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 18.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Нижняя строка: автор слева и единый общий бейджик справа
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Автор
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        // Аватар
+                        if (!news.user?.avatar.isNullOrBlank()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(news.user.avatar)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Аватар",
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+
+                        val authorLogin = news.user?.login
+                        Text(
+                            text = news.user?.name ?: authorLogin ?: "Администратор",
+                            color = authorColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable(enabled = authorLogin != null) {
+                                authorLogin?.let { onUserClick(it) }
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Единый общий бейджик: рейтинг, комментарии, дата
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                        ),
+                        modifier = Modifier.wrapContentSize()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            // Рейтинг (акцентный цвет текста)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Рейтинг",
+                                    tint = AmberGold,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = if (news.rating > 0) "+${news.rating}" else "${news.rating}",
+                                    fontSize = 11.sp,
+                                    color = authorColor,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Text(
+                                text = "•",
+                                fontSize = 10.sp,
+                                color = secondaryTextColor.copy(alpha = 0.4f)
+                            )
+
+                            // Комментарии (акцентный цвет иконки и текста)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ChatBubbleOutline,
+                                    contentDescription = "Комментарии",
+                                    tint = authorColor,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = "${news.commentsCount}",
+                                    color = authorColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            news.createdAt?.let { created ->
+                                val isRecent = isDateRecent(created)
+                                val dateColor = if (isRecent) authorColor else secondaryTextColor
+                                Text(
+                                    text = "•",
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor.copy(alpha = 0.4f)
+                                )
+                                Text(
+                                    text = formatUnixTime(created),
+                                    fontSize = 10.5.sp,
+                                    color = dateColor,
+                                    fontWeight = FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Плашка "Сегодня" / "Вчера" в правом верхнем углу (не влияет на размеры и layout карточки)
+        if (isToday || isYesterday) {
+            val badgeText = if (isToday) "Сегодня" else "Вчера"
+            Surface(
+                shape = RoundedCornerShape(topEnd = 8.dp, bottomStart = 8.dp),
+                color = if (isToday) getPrimaryAccentColor().copy(alpha = 0.85f) else (if (isDark) Color(0x66334155) else Color(0x6664748B)),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = if (isToday) getPrimaryAccentColor() else (if (isDark) Color(0x33FFFFFF) else Color(0x22000000))
+                ),
+                modifier = Modifier.align(Alignment.TopEnd)
+            ) {
+                Text(
+                    text = badgeText,
+                    color = Color.White,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
             }
         }
     }

@@ -990,6 +990,17 @@ fun isDateToday(timestamp: Long): Boolean {
 }
 
 /**
+ * Проверка, является ли переданный timestamp вчерашним днем
+ */
+fun isDateYesterday(timestamp: Long): Boolean {
+    if (timestamp <= 0) return false
+    val dateCal = Calendar.getInstance().apply { time = Date(timestamp) }
+    val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+    return yesterdayCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
+           yesterdayCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
+}
+
+/**
  * Проверка, является ли переданный timestamp сегодняшним или вчерашним днем
  */
 fun isDateRecent(timestamp: Long): Boolean {

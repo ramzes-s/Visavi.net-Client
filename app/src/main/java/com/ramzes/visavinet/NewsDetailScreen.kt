@@ -633,15 +633,16 @@ fun NewsCommentCard(
                     fontWeight = FontWeight.Medium
                 )
             } else {
-                // Шапка комментария: автор, аватар, дата, кнопка ответа
+                // Шапка комментария: автор, аватар, и бейджик с временем и кнопкой ответа
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Автор
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
                         if (!comment.user?.avatar.isNullOrBlank()) {
                             AsyncImage(
@@ -664,31 +665,60 @@ fun NewsCommentCard(
                             color = authorColor,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.clickable(enabled = authorLogin != null) {
                                 authorLogin?.let { onUserClick(it) }
                             }
                         )
-
-                        comment.createdAt?.let { created ->
-                            Text(
-                                text = " • ${formatUnixTime(created)}",
-                                color = secondaryTextColor,
-                                fontSize = 10.sp
-                            )
-                        }
                     }
 
-                    // Кнопка ответа
-                    IconButton(
-                        onClick = onReplyClick,
-                        modifier = Modifier.size(24.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Бейджик: кнопка ответа + время (в стиле форума)
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                        ),
+                        modifier = Modifier.wrapContentSize()
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Reply,
-                            contentDescription = "Ответить",
-                            tint = getSecondaryAccentColor(),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            // Кнопка ответа
+                            IconButton(
+                                onClick = onReplyClick,
+                                modifier = Modifier.size(22.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Reply,
+                                    contentDescription = "Ответить",
+                                    tint = authorColor,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+
+                            comment.createdAt?.let { created ->
+                                Text(
+                                    text = "•",
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
+
+                                Text(
+                                    text = formatUnixTime(created),
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
 
