@@ -744,6 +744,44 @@ data class DownDetailResponse(
 )
 
 /**
+ * Модели статистики сайта (GET /stats)
+ */
+data class StatsItem(
+    @SerializedName("total") val total: Long = 0,
+    @SerializedName("today") val today: Long = 0
+)
+
+data class StatsUsers(
+    @SerializedName("total") val total: Long = 0,
+    @SerializedName("today") val today: Long = 0,
+    @SerializedName("admins") val admins: Long = 0
+)
+
+data class StatsOnline(
+    @SerializedName("users") val users: Long = 0,
+    @SerializedName("guests") val guests: Long = 0,
+    @SerializedName("total") val total: Long = 0
+)
+
+data class StatsSections(
+    @SerializedName("articles") val articles: StatsItem? = null,
+    @SerializedName("photos") val photos: StatsItem? = null,
+    @SerializedName("guestbook") val guestbook: StatsItem? = null,
+    @SerializedName("downs") val downs: StatsItem? = null,
+    @SerializedName("news") val news: StatsItem? = null,
+    @SerializedName("items") val items: StatsItem? = null,
+    @SerializedName("offers") val offers: StatsItem? = null,
+    @SerializedName("topics") val topics: StatsItem? = null,
+    @SerializedName("posts") val posts: StatsItem? = null
+)
+
+data class StatsResponse(
+    @SerializedName("users") val users: StatsUsers? = null,
+    @SerializedName("online") val online: StatsOnline? = null,
+    @SerializedName("sections") val sections: StatsSections? = null
+)
+
+/**
  * API сервис Visavi.net
  * RotorCMS OpenAPI v1.0.0
  */
@@ -925,6 +963,9 @@ interface VisaviApiService {
     suspend fun vote(
         @Body request: VoteRequest
     ): Response<VoteResponse>
+
+    @GET("api/stats")
+    suspend fun getStats(): Response<StatsResponse>
 }
 
 object VisaviApi {

@@ -99,6 +99,35 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Composable
+private fun DrawerItemLabel(
+    title: String,
+    badgeCount: Long = 0L,
+    badgeColor: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        if (badgeCount > 0) {
+            Surface(
+                color = badgeColor,
+                shape = CircleShape
+            ) {
+                Text(
+                    text = "+$badgeCount",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                )
+            }
+        }
+    }
+}
+
 enum class Screen { Profile, News, Gallery, Downs, Private, Forum, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,6 +199,14 @@ fun MainNavigation(
     LaunchedEffect(Unit) {
         NewMessagesService.newMessagesCount.collect { count ->
             dialoguesViewModel.updateNewMessagesCount(count)
+        }
+    }
+
+    LaunchedEffect(viewModel.currentUser) {
+        if (viewModel.currentUser != null) {
+            viewModel.startStatsPolling()
+        } else {
+            viewModel.stopStatsPolling()
         }
     }
 
@@ -479,27 +516,11 @@ fun MainNavigation(
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
                         label = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "ДИАЛОГИ", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                if (dialoguesViewModel.newMessagesCount > 0) {
-                                    Surface(
-                                        color = primaryAccent,
-                                        shape = CircleShape
-                                    ) {
-                                        Text(
-                                            text = "+${dialoguesViewModel.newMessagesCount}",
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                                        )
-                                    }
-                                }
-                            }
+                            DrawerItemLabel(
+                                title = "ДИАЛОГИ",
+                                badgeCount = dialoguesViewModel.newMessagesCount.toLong(),
+                                badgeColor = primaryAccent
+                            )
                         },
                         selected = currentScreen == Screen.Private,
                         shape = RectangleShape,
@@ -514,7 +535,13 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
-                        label = { Text(text = "НОВОСТИ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        label = {
+                            DrawerItemLabel(
+                                title = "НОВОСТИ",
+                                badgeCount = viewModel.siteStats?.sections?.news?.today ?: 0L,
+                                badgeColor = primaryAccent
+                            )
+                        },
                         selected = currentScreen == Screen.News,
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
@@ -527,7 +554,13 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
-                        label = { Text(text = "ГАЛЕРЕЯ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        label = {
+                            DrawerItemLabel(
+                                title = "ГАЛЕРЕЯ",
+                                badgeCount = viewModel.siteStats?.sections?.photos?.today ?: 0L,
+                                badgeColor = primaryAccent
+                            )
+                        },
                         selected = currentScreen == Screen.Gallery,
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
@@ -540,7 +573,13 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
-                        label = { Text(text = "ФОРУМ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        label = {
+                            DrawerItemLabel(
+                                title = "ФОРУМ",
+                                badgeCount = viewModel.siteStats?.sections?.posts?.today ?: 0L,
+                                badgeColor = primaryAccent
+                            )
+                        },
                         selected = currentScreen == Screen.Forum,
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
@@ -553,7 +592,13 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
-                        label = { Text(text = "ЗАГРУЗКИ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        label = {
+                            DrawerItemLabel(
+                                title = "ЗАГРУЗКИ",
+                                badgeCount = viewModel.siteStats?.sections?.downs?.today ?: 0L,
+                                badgeColor = primaryAccent
+                            )
+                        },
                         selected = currentScreen == Screen.Downs,
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),

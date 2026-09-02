@@ -8,10 +8,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ramzes.visavinet.network.AuthRequest
 import com.ramzes.visavinet.network.ConfigData
+import com.ramzes.visavinet.network.StatsResponse
 import com.ramzes.visavinet.network.UserData
 import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.extractErrorMessage
 import com.ramzes.visavinet.service.NewMessagesService
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class MainViewModel : ViewModel() {
@@ -21,6 +25,11 @@ class MainViewModel : ViewModel() {
 
     var siteConfig by mutableStateOf<ConfigData?>(null)
         private set
+
+    var siteStats by mutableStateOf<StatsResponse?>(null)
+        private set
+
+    private var statsJob: Job? = null
 
     var isLoading by mutableStateOf(false)
     var isInitialChecking by mutableStateOf(true)
@@ -197,13 +206,48 @@ class MainViewModel : ViewModel() {
         prefs.edit().putString("api_token", token).apply()
     }
 
+    fun startStatsPolling() {
+        if (statsJob?.isActive == true) return
+        statsJob = viewModelScope.launch {
+            while (isActive) {
+                fetchStats()
+                delay(5 * 60 * 1000L) // Интервал 5 минут
+            }
+        }
+    }
+
+    fun stopStatsPolling() {
+        statsJob?.cancel()
+        statsJob = null
+    }
+
+    fun fetchStats() {
+        viewModelScope.launch {
+            try {
+                val response = VisaviApi.instance.getStats()
+                if (response.isSuccessful && response.body() != null) {
+                    siteStats = response.body()
+                }
+            } catch (e: Exception) {
+                // Игнорируем сетевые ошибки периодического опроса
+            }
+        }
+    }
+
     fun logout(context: Context) {
+        stopStatsPolling()
+        siteStats = null
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
         prefs.edit().remove("api_token").apply()
         VisaviApi.clearToken()
         currentUser = null
         siteConfig = null
         statusMessage = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopStatsPolling()
     }
 
     private fun String?.isNull_or_empty(): Boolean = this == null || this.trim().isEmpty()
