@@ -143,6 +143,7 @@ fun MainNavigation(
     val newsViewModel: NewsViewModel = viewModel()
     val galleryViewModel: GalleryViewModel = viewModel()
     val downsViewModel: DownsViewModel = viewModel()
+    val settingsViewModel: SettingsViewModel = viewModel()
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -1145,6 +1146,7 @@ fun MainNavigation(
                                     }
                                 }
                                 Screen.Settings -> SettingsScreen(
+                                    viewModel = settingsViewModel,
                                     onThemeChange = onThemeChange,
                                     onTabletModeChange = { isTablet ->
                                         isTabletMode = isTablet

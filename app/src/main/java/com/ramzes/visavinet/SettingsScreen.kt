@@ -1,6 +1,8 @@
 package com.ramzes.visavinet
 
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +12,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.AntifloodManager
@@ -28,6 +35,7 @@ import java.io.File
 
 @Composable
 fun SettingsScreen(
+    viewModel: SettingsViewModel = viewModel(),
     onThemeChange: (Boolean) -> Unit,
     onTabletModeChange: (Boolean) -> Unit,
     onForumSortByNewestChange: ((Boolean) -> Unit)? = null,
@@ -357,6 +365,155 @@ fun SettingsScreen(
                     fontSize = 12.sp,
                     color = secondaryTextColor
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Проверка новой версии на GitHub
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            isDark = isDark,
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Обновление приложения",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Текущая версия: v$versionName",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    if (viewModel.updateCheckState is UpdateCheckState.Checking) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp,
+                            color = currentAccent
+                        )
+                    } else {
+                        IconButton(
+                            onClick = {
+                                viewModel.checkForUpdates(context.applicationContext, versionName)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Проверить обновление",
+                                tint = currentAccent
+                            )
+                        }
+                    }
+                }
+
+                when (val state = viewModel.updateCheckState) {
+                    is UpdateCheckState.Idle -> {}
+                    is UpdateCheckState.Checking -> {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Проверка наличия обновлений на GitHub...",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+                    is UpdateCheckState.UpToDate -> {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "У вас установлена самая последняя версия",
+                            fontSize = 12.sp,
+                            color = Color(0xFF4CAF50),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    is UpdateCheckState.UpdateAvailable -> {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Доступна новая версия: ${state.newVersion}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = currentAccent
+                        )
+                        state.releaseName?.takeIf { it.isNotBlank() && it != state.newVersion }?.let {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = it,
+                                fontSize = 12.sp,
+                                color = textColor
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (!state.downloadUrl.isNullOrBlank()) {
+                                Button(
+                                    onClick = {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.downloadUrl))
+                                        context.startActivity(intent)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = currentAccent),
+                                    shape = RoundedCornerShape(6.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudDownload,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "Скачать APK", fontSize = 12.sp, color = Color.White)
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.releaseUrl))
+                                    context.startActivity(intent)
+                                },
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.OpenInBrowser,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = textColor
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "GitHub", fontSize = 12.sp, color = textColor)
+                            }
+                        }
+                    }
+                    is UpdateCheckState.Throttled -> {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = state.message,
+                            fontSize = 12.sp,
+                            color = Color(0xFFFF9800)
+                        )
+                    }
+                    is UpdateCheckState.Error -> {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = state.message,
+                            fontSize = 12.sp,
+                            color = Color(0xFFCF6679)
+                        )
+                    }
+                }
             }
         }
 

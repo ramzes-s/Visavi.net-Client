@@ -195,4 +195,56 @@ class TodayFeaturesAndStatsTest {
         assertEquals(10, sorted[0].id)
         assertEquals(20, sorted[1].id)
     }
+
+    @Test
+    fun testGitHubReleaseParsingAndApkUrl() {
+        val json = """
+            {
+              "tag_name": "v1.1.4",
+              "name": "Visavi.net Client v1.1.4",
+              "html_url": "https://github.com/ramzes-s/Visavi.net-Client/releases/tag/v1.1.4",
+              "body": "Описание релиза",
+              "assets": [
+                {
+                  "name": "Visavi.net.Client.v1.1.4.apk",
+                  "browser_download_url": "https://github.com/ramzes-s/Visavi.net-Client/releases/download/v1.1.4/Visavi.net.Client.v1.1.4.apk",
+                  "size": 6599124
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val release = gson.fromJson(json, com.ramzes.visavinet.network.GitHubRelease::class.java)
+
+        assertNotNull(release)
+        assertEquals("v1.1.4", release.tagName)
+        assertEquals("Visavi.net Client v1.1.4", release.name)
+        assertEquals("https://github.com/ramzes-s/Visavi.net-Client/releases/tag/v1.1.4", release.htmlUrl)
+        assertEquals("https://github.com/ramzes-s/Visavi.net-Client/releases/download/v1.1.4/Visavi.net.Client.v1.1.4.apk", release.apkDownloadUrl)
+    }
+
+    @Test
+    fun testSemanticVersionComparison() {
+        val isNewer = { cur: String, lat: String -> com.ramzes.visavinet.network.isNewerVersion(cur, lat) }
+
+        // Новее патч-версия
+        assertTrue(isNewer("1.1.4", "1.1.5"))
+        assertTrue(isNewer("1.1.4", "v1.1.5"))
+
+        // Новее минорная или мажорная версия
+        assertTrue(isNewer("1.1.4", "1.2.0"))
+        assertTrue(isNewer("1.1.4", "2.0.0"))
+        assertTrue(isNewer("v1.1.4", "v1.2.0"))
+
+        // Одинаковые версии
+        assertFalse(isNewer("1.1.4", "1.1.4"))
+        assertFalse(isNewer("1.1.4", "v1.1.4"))
+        assertFalse(isNewer("v1.1.4", "1.1.4"))
+
+        // Более старая версия
+        assertFalse(isNewer("1.1.4", "1.1.3"))
+        assertFalse(isNewer("1.1.4", "1.0.9"))
+        assertFalse(isNewer("1.1.4", "0.9.9"))
+        assertFalse(isNewer("2.0.0", "1.9.9"))
+    }
 }
