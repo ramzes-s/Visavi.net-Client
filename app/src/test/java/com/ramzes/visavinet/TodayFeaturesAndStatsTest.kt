@@ -247,4 +247,16 @@ class TodayFeaturesAndStatsTest {
         assertFalse(isNewer("1.1.4", "0.9.9"))
         assertFalse(isNewer("2.0.0", "1.9.9"))
     }
+
+    @Test
+    fun testUpdateCheckThrottleAndFormatting() {
+        // Проверка константы интервала: 6 часов в миллисекундах
+        assertEquals(6 * 60 * 60 * 1000L, SettingsViewModel.UPDATE_CHECK_INTERVAL_MS)
+
+        // Проверка человекопонятного форматирования оставшегося времени
+        assertEquals("5 ч. 42 мин.", SettingsViewModel.formatRemainingTime(5 * 3600 + 42 * 60 + 15))
+        assertEquals("2 ч.", SettingsViewModel.formatRemainingTime(2 * 3600))
+        assertEquals("45 мин.", SettingsViewModel.formatRemainingTime(45 * 60 + 10))
+        assertEquals("30 сек.", SettingsViewModel.formatRemainingTime(30))
+    }
 }

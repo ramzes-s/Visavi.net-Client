@@ -50,14 +50,15 @@ class SettingsViewModel : ViewModel() {
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
         val lastCheckTime = prefs.getLong("last_github_update_check_time", 0L)
         val now = System.currentTimeMillis()
-        val intervalMs = 5 * 60 * 1000L // 5 минут
+        val intervalMs = UPDATE_CHECK_INTERVAL_MS
         val elapsed = now - lastCheckTime
 
         if (lastCheckTime > 0 && elapsed < intervalMs) {
             val remainingSec = ((intervalMs - elapsed) / 1000).coerceAtLeast(1)
+            val formattedTime = formatRemainingTime(remainingSec)
             updateCheckState = UpdateCheckState.Throttled(
                 remainingSeconds = remainingSec,
-                message = "Проверка уже выполнялась. Повторите через $remainingSec сек."
+                message = "Проверка уже выполнялась. Повторите через $formattedTime"
             )
             return
         }
@@ -116,6 +117,22 @@ class SettingsViewModel : ViewModel() {
                 updateCheckState = UpdateCheckState.Error(
                     message = e.message ?: "Не удалось проверить обновления"
                 )
+            }
+        }
+    }
+
+    companion object {
+        const val UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L // 6 часов
+
+        fun formatRemainingTime(remainingSec: Long): String {
+            val hours = remainingSec / 3600
+            val minutes = (remainingSec % 3600) / 60
+            val seconds = remainingSec % 60
+            return when {
+                hours > 0 && minutes > 0 -> "$hours ч. $minutes мин."
+                hours > 0 -> "$hours ч."
+                minutes > 0 -> "$minutes мин."
+                else -> "$seconds сек."
             }
         }
     }
