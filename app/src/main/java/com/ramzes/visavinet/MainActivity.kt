@@ -368,8 +368,8 @@ fun MainNavigation(
         }
     }
 
-    LaunchedEffect(currentScreen, forumViewModel.rootSections.isEmpty()) {
-        if (currentScreen == Screen.Forum && forumViewModel.rootSections.isEmpty()) {
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == Screen.Forum && forumViewModel.navigationState.level == ForumNavigationLevel.SECTIONS) {
             forumViewModel.loadRootSections(context.applicationContext)
         }
     }
@@ -586,6 +586,7 @@ fun MainNavigation(
                         onClick = {
                             resetSubScreens()
                             currentScreen = Screen.Forum
+                            forumViewModel.resetToRootSections(context.applicationContext)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -1148,6 +1149,9 @@ fun MainNavigation(
                                     onTabletModeChange = { isTablet ->
                                         isTabletMode = isTablet
                                         prefs.edit().putBoolean("tablet_mode", isTablet).apply()
+                                    },
+                                    onForumSortByNewestChange = { sortByNewest ->
+                                        forumViewModel.sortByNewest = sortByNewest
                                     },
                                     isTabletMode = isTabletMode,
                                     userRating = viewModel.currentUser?.rating ?: 0

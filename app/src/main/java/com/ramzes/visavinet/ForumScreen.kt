@@ -69,8 +69,9 @@ fun ForumScreen(
         }
     )
 
-    LaunchedEffect(Unit) {
-        if (viewModel.rootSections.isEmpty() && viewModel.navigationState.level == ForumNavigationLevel.SECTIONS) {
+    LaunchedEffect(viewModel.navigationState.level) {
+        viewModel.loadSortPreference(context)
+        if (viewModel.navigationState.level == ForumNavigationLevel.SECTIONS) {
             viewModel.loadRootSections(context)
         }
     }
@@ -107,7 +108,7 @@ fun ForumScreen(
                     ForumNavigationLevel.SECTIONS -> {
                         ForumSectionsList(
                             viewModel = viewModel,
-                            sections = viewModel.rootSections,
+                            sections = viewModel.displayedRootSections,
                             isLoading = viewModel.isLoadingSections,
                             errorMessage = viewModel.errorMessage,
                             onSectionClick = { section ->

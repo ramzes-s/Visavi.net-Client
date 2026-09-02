@@ -30,6 +30,7 @@ import java.io.File
 fun SettingsScreen(
     onThemeChange: (Boolean) -> Unit,
     onTabletModeChange: (Boolean) -> Unit,
+    onForumSortByNewestChange: ((Boolean) -> Unit)? = null,
     isTabletMode: Boolean = false,
     userRating: Int = 0
 ) {
@@ -60,6 +61,7 @@ fun SettingsScreen(
     var inputError by remember { mutableStateOf<String?>(null) }
     
     var tabletMode by remember { mutableStateOf(isTabletMode) }
+    var forumSortByNewest by remember { mutableStateOf(prefs.getBoolean("forum_sort_by_newest", false)) }
 
     val scrollState = rememberScrollState()
 
@@ -220,6 +222,51 @@ fun SettingsScreen(
                     onCheckedChange = { newValue ->
                         tabletMode = newValue
                         onTabletModeChange(newValue)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = currentAccent,
+                        uncheckedThumbColor = LightTextSecondary,
+                        uncheckedTrackColor = LightGray.copy(0.5f)
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Сортировать форум по новизне
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            isDark = isDark,
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Сортировать форум по новизне",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (forumSortByNewest) "По времени последнего обновления" else "По порядку (по умолчанию)",
+                        fontSize = 12.sp,
+                        color = secondaryTextColor
+                    )
+                }
+
+                Switch(
+                    checked = forumSortByNewest,
+                    onCheckedChange = { newValue ->
+                        forumSortByNewest = newValue
+                        prefs.edit().putBoolean("forum_sort_by_newest", newValue).apply()
+                        onForumSortByNewestChange?.invoke(newValue)
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,

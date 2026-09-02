@@ -27,6 +27,24 @@ class ForumViewModel : ViewModel() {
     var rootSections by mutableStateOf<List<ForumSection>>(emptyList())
         private set
 
+    var sortByNewest by mutableStateOf(false)
+
+    fun loadSortPreference(context: Context) {
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        sortByNewest = prefs.getBoolean("forum_sort_by_newest", false)
+    }
+
+    val displayedRootSections: List<ForumSection>
+        get() = if (sortByNewest) {
+            rootSections.sortedWith(
+                compareByDescending<ForumSection> {
+                    maxOf(it.lastPostAt ?: 0L, it.children?.mapNotNull { c -> c.lastPostAt }?.maxOrNull() ?: 0L)
+                }.thenBy { it.sort }
+            )
+        } else {
+            rootSections
+        }
+
     var currentSection by mutableStateOf<ForumInfo?>(null)
         private set
 
@@ -80,6 +98,8 @@ class ForumViewModel : ViewModel() {
     private val backStack = mutableListOf<ForumNavigationState>()
 
     fun loadRootSections(context: Context) {
+        loadSortPreference(context)
+        if (isLoadingSections) return
         viewModelScope.launch {
             isLoadingSections = true
             errorMessage = null
@@ -87,8 +107,6 @@ class ForumViewModel : ViewModel() {
                 val response = VisaviApi.instance.getForumSections()
                 if (response.isSuccessful && response.body() != null) {
                     rootSections = response.body()?.data ?: emptyList()
-                    navigationState = ForumNavigationState(level = ForumNavigationLevel.SECTIONS)
-                    backStack.clear()
                 } else {
                     errorMessage = response.extractErrorMessage("Ошибка загрузки разделов форума")
                 }
@@ -98,6 +116,18 @@ class ForumViewModel : ViewModel() {
                 isLoadingSections = false
             }
         }
+    }
+
+    fun resetToRootSections(context: Context) {
+        loadSortPreference(context)
+        backStack.clear()
+        currentSection = null
+        subsections = emptyList()
+        topics = emptyList()
+        currentTopic = null
+        posts = emptyList()
+        navigationState = ForumNavigationState(level = ForumNavigationLevel.SECTIONS)
+        loadRootSections(context)
     }
 
     fun loadSection(context: Context, sectionId: Int, page: Int = 1, append: Boolean = false) {
@@ -419,7 +449,7 @@ class ForumViewModel : ViewModel() {
             if (context != null) {
                 when (prevState.level) {
                     ForumNavigationLevel.SECTIONS -> {
-                        if (rootSections.isEmpty()) loadRootSections(context)
+                        loadRootSections(context)
                     }
                     ForumNavigationLevel.SECTION -> {
                         prevState.sectionId?.let { loadSection(context, it) }
