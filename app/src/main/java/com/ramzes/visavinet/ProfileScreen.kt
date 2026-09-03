@@ -1,14 +1,18 @@
 package com.ramzes.visavinet
 
 import android.text.Html
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,9 +21,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -197,7 +203,59 @@ fun ProfileScreen(user: UserData, statusMessage: String?) {
                     }
                 }
             }
+
+            SwipeMenuHint(isDark = isDark)
         }
+    }
+}
+
+@Composable
+fun SwipeMenuHint(isDark: Boolean) {
+    val primaryAccent = getPrimaryAccentColor()
+    val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+
+    val infiniteTransition = rememberInfiniteTransition(label = "swipeHint")
+    val offsetX by infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "swipeOffset"
+    )
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "swipeAlpha"
+    )
+
+    Row(
+        modifier = Modifier
+            .padding(top = 16.dp, bottom = 8.dp)
+            .graphicsLayer { this.alpha = alpha },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_swipe_right),
+            contentDescription = null,
+            tint = primaryAccent,
+            modifier = Modifier
+                .size(26.dp)
+                .offset(x = offsetX.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = "Смахните вправо для вызова меню",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = secondaryTextColor
+        )
     }
 }
 
