@@ -132,7 +132,7 @@ class SettingsViewModel : ViewModel() {
     }
 
     companion object {
-        const val UPDATE_CHECK_INTERVAL_MS = 1 * 60 * 1000L // 1 минута (временно, для тестов)
+        const val UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L // 6 часов
 
         fun formatRemainingTime(remainingSec: Long): String {
             val hours = remainingSec / 3600
