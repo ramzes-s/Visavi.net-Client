@@ -205,7 +205,7 @@ fun MainNavigation(
 
     LaunchedEffect(viewModel.currentUser) {
         if (viewModel.currentUser != null) {
-            viewModel.startStatsPolling()
+            viewModel.startStatsPolling(context.applicationContext)
         } else {
             viewModel.stopStatsPolling()
         }

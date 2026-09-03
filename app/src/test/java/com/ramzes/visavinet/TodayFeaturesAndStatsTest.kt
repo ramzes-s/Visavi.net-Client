@@ -259,4 +259,43 @@ class TodayFeaturesAndStatsTest {
         assertEquals("45 мин.", SettingsViewModel.formatRemainingTime(45 * 60 + 10))
         assertEquals("30 сек.", SettingsViewModel.formatRemainingTime(30))
     }
+
+    @Test
+    fun testDetectTodayUpdates() {
+        // 1. Первый запуск (нет baseline) -> уведомления не отправляются
+        val snapshot1 = com.ramzes.visavinet.util.TodayStatsSnapshot(
+            postsToday = 10,
+            newsToday = 2,
+            photosToday = 5,
+            downsToday = 1
+        )
+        val initialUpdates = com.ramzes.visavinet.util.detectTodayUpdates(null, snapshot1)
+        assertTrue(initialUpdates.isEmpty())
+
+        // 2. Нет изменений -> список пуст
+        val noChangeUpdates = com.ramzes.visavinet.util.detectTodayUpdates(snapshot1, snapshot1)
+        assertTrue(noChangeUpdates.isEmpty())
+
+        // 3. Увеличение в разделах Форум (+3) и Новости (+1)
+        val snapshot2 = com.ramzes.visavinet.util.TodayStatsSnapshot(
+            postsToday = 13,
+            newsToday = 3,
+            photosToday = 5,
+            downsToday = 1
+        )
+        val updates = com.ramzes.visavinet.util.detectTodayUpdates(snapshot1, snapshot2)
+        assertEquals(2, updates.size)
+        assertTrue(updates.contains("Форум (+3)"))
+        assertTrue(updates.contains("Новости (+1)"))
+
+        // 4. Сброс суток (значения стали меньше) -> уведомления не отправляются
+        val resetSnapshot = com.ramzes.visavinet.util.TodayStatsSnapshot(
+            postsToday = 0,
+            newsToday = 0,
+            photosToday = 0,
+            downsToday = 0
+        )
+        val resetUpdates = com.ramzes.visavinet.util.detectTodayUpdates(snapshot2, resetSnapshot)
+        assertTrue(resetUpdates.isEmpty())
+    }
 }

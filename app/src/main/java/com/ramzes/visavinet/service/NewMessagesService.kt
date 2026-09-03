@@ -74,6 +74,7 @@ class NewMessagesService : Service() {
         serviceInstance = this
         createNotificationChannel()
         createPersistentNotificationChannel()
+        com.ramzes.visavinet.util.SiteUpdatesNotificationManager.createNotificationChannel(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -257,6 +258,7 @@ class NewMessagesService : Service() {
         isMonitoring = true
 
         serviceScope.launch {
+            var lastStatsCheckTime = 0L
             try {
                 while (isActive) {
                     try {
@@ -296,7 +298,24 @@ class NewMessagesService : Service() {
                             }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("NewMessagesService", "Ошибка проверки: ${e.message}")
+                        android.util.Log.e("NewMessagesService", "Ошибка проверки сообщений: ${e.message}")
+                    }
+
+                    // Фоновая проверка статистики сайта для уведомлений об обновлениях (раз в 5 минут)
+                    val now = System.currentTimeMillis()
+                    if (now - lastStatsCheckTime >= 5 * 60 * 1000L) {
+                        try {
+                            val statsResponse = VisaviApi.instance.getStats()
+                            if (statsResponse.isSuccessful && statsResponse.body() != null) {
+                                com.ramzes.visavinet.util.SiteUpdatesNotificationManager.checkAndNotify(
+                                    applicationContext,
+                                    statsResponse.body()!!
+                                )
+                                lastStatsCheckTime = now
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("NewMessagesService", "Ошибка проверки stats: ${e.message}")
+                        }
                     }
 
                     delay(CHECK_INTERVAL_MS)

@@ -70,6 +70,7 @@ fun SettingsScreen(
     
     var tabletMode by remember { mutableStateOf(isTabletMode) }
     var forumSortByNewest by remember { mutableStateOf(prefs.getBoolean("forum_sort_by_newest", false)) }
+    var notifySiteUpdates by remember { mutableStateOf(prefs.getBoolean("notify_site_updates", false)) }
 
     val scrollState = rememberScrollState()
 
@@ -275,6 +276,50 @@ fun SettingsScreen(
                         forumSortByNewest = newValue
                         prefs.edit().putBoolean("forum_sort_by_newest", newValue).apply()
                         onForumSortByNewestChange?.invoke(newValue)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = currentAccent,
+                        uncheckedThumbColor = LightTextSecondary,
+                        uncheckedTrackColor = LightGray.copy(0.5f)
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Уведомления об обновлениях
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            isDark = isDark,
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Уведомления об обновлениях",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (notifySiteUpdates) "Уведомлять о новых публикациях на сайте" else "Выключено",
+                        fontSize = 12.sp,
+                        color = secondaryTextColor
+                    )
+                }
+
+                Switch(
+                    checked = notifySiteUpdates,
+                    onCheckedChange = { newValue ->
+                        notifySiteUpdates = newValue
+                        prefs.edit().putBoolean("notify_site_updates", newValue).apply()
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,

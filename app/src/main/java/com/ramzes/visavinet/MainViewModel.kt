@@ -206,11 +206,11 @@ class MainViewModel : ViewModel() {
         prefs.edit().putString("api_token", token).apply()
     }
 
-    fun startStatsPolling() {
+    fun startStatsPolling(context: Context) {
         if (statsJob?.isActive == true) return
         statsJob = viewModelScope.launch {
             while (isActive) {
-                fetchStats()
+                fetchStats(context)
                 delay(5 * 60 * 1000L) // Интервал 5 минут
             }
         }
@@ -221,12 +221,14 @@ class MainViewModel : ViewModel() {
         statsJob = null
     }
 
-    fun fetchStats() {
+    fun fetchStats(context: Context) {
         viewModelScope.launch {
             try {
                 val response = VisaviApi.instance.getStats()
                 if (response.isSuccessful && response.body() != null) {
-                    siteStats = response.body()
+                    val stats = response.body()!!
+                    siteStats = stats
+                    com.ramzes.visavinet.util.SiteUpdatesNotificationManager.checkAndNotify(context, stats)
                 }
             } catch (e: Exception) {
                 // Игнорируем сетевые ошибки периодического опроса
