@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,6 +74,10 @@ fun SettingsScreen(
     var notifySiteUpdates by remember { mutableStateOf(prefs.getBoolean("notify_site_updates", false)) }
 
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(Unit) {
+        viewModel.checkAutoUpdateIfDayPassed(context.applicationContext, versionName)
+    }
 
     Column(
         modifier = Modifier
@@ -483,64 +488,19 @@ fun SettingsScreen(
                         )
                     }
                     is UpdateCheckState.UpdateAvailable -> {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Доступна новая версия: ${state.newVersion}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = currentAccent
-                        )
-                        state.releaseName?.takeIf { it.isNotBlank() && it != state.newVersion }?.let {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = it,
-                                fontSize = 12.sp,
-                                color = textColor
-                            )
-                        }
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (!state.downloadUrl.isNullOrBlank()) {
-                                Button(
-                                    onClick = {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.downloadUrl))
-                                        context.startActivity(intent)
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = currentAccent),
-                                    shape = RoundedCornerShape(6.dp),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CloudDownload,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = Color.White
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(text = "Скачать APK", fontSize = 12.sp, color = Color.White)
-                                }
+                        val targetUrl = state.downloadUrl ?: state.releaseUrl
+                        Text(
+                            text = "Скачать ${state.newVersion}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = currentAccent,
+                            textDecoration = TextDecoration.Underline,
+                            modifier = Modifier.clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                                context.startActivity(intent)
                             }
-                            OutlinedButton(
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.releaseUrl))
-                                    context.startActivity(intent)
-                                },
-                                shape = RoundedCornerShape(6.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.OpenInBrowser,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = textColor
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "GitHub", fontSize = 12.sp, color = textColor)
-                            }
-                        }
+                        )
                     }
                     is UpdateCheckState.Throttled -> {
                         Spacer(modifier = Modifier.height(8.dp))

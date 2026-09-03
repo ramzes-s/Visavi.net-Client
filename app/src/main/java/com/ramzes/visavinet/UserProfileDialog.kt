@@ -135,13 +135,13 @@ private fun UserProfileContent(
         // Аватар с неоновой тенью
         Box(
             modifier = Modifier
-                .size(104.dp)
+                .size(135.dp)
                 .drawBehind {
                     drawIntoCanvas { canvas ->
                         val paint = Paint()
                         val fp = paint.asFrameworkPaint()
                         fp.color = primaryAccent.copy(alpha = 0.45f).toArgb()
-                        fp.setShadowLayer(22f, 0f, 4f, primaryAccent.copy(alpha = 0.45f).toArgb())
+                        fp.setShadowLayer(26f, 0f, 4f, primaryAccent.copy(alpha = 0.45f).toArgb())
                         canvas.drawCircle(
                             Offset(size.width / 2f, size.height / 2f),
                             size.width / 2f,

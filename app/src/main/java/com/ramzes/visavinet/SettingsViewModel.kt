@@ -44,6 +44,16 @@ class SettingsViewModel : ViewModel() {
         apiToken = prefs.getString("api_key", null)
     }
 
+    fun checkAutoUpdateIfDayPassed(context: Context, currentVersion: String) {
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val lastCheckTime = prefs.getLong("last_github_update_check_time", 0L)
+        val now = System.currentTimeMillis()
+        val dayInMs = 24 * 60 * 60 * 1000L
+        if (now - lastCheckTime >= dayInMs) {
+            checkForUpdates(context, currentVersion)
+        }
+    }
+
     fun checkForUpdates(context: Context, currentVersion: String) {
         if (updateCheckState is UpdateCheckState.Checking) return
 
@@ -122,7 +132,7 @@ class SettingsViewModel : ViewModel() {
     }
 
     companion object {
-        const val UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L // 6 часов
+        const val UPDATE_CHECK_INTERVAL_MS = 1 * 60 * 1000L // 1 минута (временно, для тестов)
 
         fun formatRemainingTime(remainingSec: Long): String {
             val hours = remainingSec / 3600
