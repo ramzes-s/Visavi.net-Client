@@ -650,129 +650,15 @@ fun MainNavigation(
             }
 
             @Composable
-            fun AppMainScaffold(showMenuIcon: Boolean) {
-                val textColor = if (isDark) Color.White else LightText
-                val iconTint = primaryAccent
-
+            fun AppMainScaffold() {
                 var contentModifier: Modifier = Modifier
                 if (!showPermanentDrawer && drawerState.isOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     contentModifier = contentModifier.blur(20.dp)
                 }
 
-                val isForumTopic = currentScreen == Screen.Forum && forumViewModel.navigationState.level == ForumNavigationLevel.TOPIC
-
                 Scaffold(
                     modifier = contentModifier,
                     containerColor = Color.Transparent,
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                val titleText = when (currentScreen) {
-                                    Screen.Profile -> "Профиль"
-                                    Screen.News -> if (showNewsDetailScreen) (selectedNews?.title ?: "Новость") else "Новости"
-                                    Screen.Gallery -> if (showGalleryDetailScreen) (selectedPhoto?.title ?: "Медиа") else "Галерея"
-                                    Screen.Downs -> {
-                                        when (downsViewModel.navigationLevel) {
-                                            DownsNavigationLevel.DETAIL -> downsViewModel.currentDown?.title ?: "Загрузка"
-                                            DownsNavigationLevel.DOWNS_LIST -> downsViewModel.currentCategory?.name ?: "Все новые загрузки"
-                                            DownsNavigationLevel.CATEGORIES -> "Загрузки"
-                                        }
-                                    }
-                                    Screen.Private -> {
-                                        if (showMessagesScreen && dialoguesViewModel.selectedDialogue != null) {
-                                            val dialogue = dialoguesViewModel.selectedDialogue!!
-                                            dialogue.name?.ifBlank { null } ?: dialogue.login ?: "Неизвестно"
-                                        } else {
-                                            "Диалоги"
-                                        }
-                                    }
-                                    Screen.Forum -> {
-                                        if (isForumTopic) {
-                                            val sectionTitle = forumViewModel.navigationState.sectionTitle
-                                                ?: forumViewModel.currentSection?.title
-                                                ?: "Раздел"
-                                            val topicTitle = forumViewModel.currentTopic?.title ?: selectedForumTopic?.title ?: "Тема"
-                                            if (showPermanentDrawer) {
-                                                "$sectionTitle / $topicTitle"
-                                            } else {
-                                                topicTitle
-                                            }
-                                        } else {
-                                            "Форум"
-                                        }
-                                    }
-                                    Screen.Settings -> "Настройки"
-                                }
-                                Text(
-                                    text = titleText,
-                                    color = textColor,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = if (isForumTopic && showPermanentDrawer) 17.sp else 20.sp,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = if (currentScreen == Screen.Private && showMessagesScreen) Modifier.clickable {
-                                        dialoguesViewModel.backToDialogues()
-                                        showMessagesScreen = false
-                                    } else Modifier
-                                )
-                            },
-                            navigationIcon = {
-                                if (isForumTopic && showPermanentDrawer) {
-                                    IconButton(onClick = {
-                                        forumViewModel.navigateBack(context.applicationContext)
-                                        if (forumViewModel.navigationState.level != ForumNavigationLevel.TOPIC) {
-                                            showForumTopicScreen = false
-                                            selectedForumTopic = null
-                                        }
-                                    }) {
-                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = iconTint)
-                                    }
-                                } else if (showMenuIcon) {
-                                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                        Icon(Icons.Default.Menu, contentDescription = null, tint = iconTint)
-                                    }
-                                }
-                            },
-                            actions = {
-                                if (currentScreen == Screen.News && !showNewsDetailScreen) {
-                                    IconButton(onClick = { newsViewModel.loadNewsList(context.applicationContext, refresh = true) }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
-                                    }
-                                }
-                                if (currentScreen == Screen.Gallery && !showGalleryDetailScreen) {
-                                    IconButton(onClick = { galleryViewModel.loadPhotosList(context.applicationContext, refresh = true) }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
-                                    }
-                                }
-                                if (currentScreen == Screen.Downs && downsViewModel.navigationLevel == DownsNavigationLevel.CATEGORIES) {
-                                    IconButton(onClick = { downsViewModel.loadCategories(context.applicationContext, refresh = true) }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
-                                    }
-                                }
-                                if (currentScreen == Screen.Downs && downsViewModel.navigationLevel == DownsNavigationLevel.DOWNS_LIST) {
-                                    IconButton(onClick = { downsViewModel.loadDownsForCurrentCategory(context.applicationContext, refresh = true) }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
-                                    }
-                                }
-                                if (currentScreen == Screen.Private && !showMessagesScreen) {
-                                    IconButton(onClick = { dialoguesViewModel.loadDialogues(context.applicationContext) }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
-                                    }
-                                }
-                                if (currentScreen == Screen.Private && showMessagesScreen && dialoguesViewModel.selectedDialogue != null) {
-                                    IconButton(onClick = { dialoguesViewModel.refreshMessages(context.applicationContext) }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
-                                    }
-                                }
-                                if (currentScreen == Screen.Forum && !showForumTopicScreen) {
-                                    IconButton(onClick = { forumViewModel.refresh(context.applicationContext) }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "Обновить", tint = iconTint)
-                                    }
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-                        )
-                    },
                     content = { padding ->
                         Box(Modifier.padding(padding)) {
                             val onOpenTopic: (Int, Int?, Int?) -> Unit = { topicId, page, postId ->
@@ -991,6 +877,10 @@ fun MainNavigation(
                                             errorMessage = dialoguesViewModel.errorMessage,
                                             onRefresh = { dialoguesViewModel.refreshMessages(context.applicationContext) },
                                             onLoadMore = { dialoguesViewModel.loadMoreMessages(context.applicationContext) },
+                                            onBackClick = {
+                                                dialoguesViewModel.backToDialogues()
+                                                showMessagesScreen = false
+                                            },
                                             onUserClick = { login ->
                                                 userProfileLoading = true
                                                 userProfileError = null
@@ -1176,7 +1066,7 @@ fun MainNavigation(
                         }
                     }
                 ) {
-                    AppMainScaffold(showMenuIcon = false)
+                    AppMainScaffold()
                 }
             } else {
                 ModalNavigationDrawer(
@@ -1193,7 +1083,7 @@ fun MainNavigation(
                         }
                     }
                 ) {
-                    AppMainScaffold(showMenuIcon = true)
+                    AppMainScaffold()
                 }
             }
 

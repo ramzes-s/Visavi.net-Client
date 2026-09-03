@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Check
@@ -57,6 +58,7 @@ fun MessagesScreen(
     errorMessage: String?,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit,
+    onBackClick: () -> Unit = {},
     onUserClick: (String) -> Unit = {},
     onSendMessage: (text: String, files: List<Uri>) -> Unit = { _, _ -> },
     isSendingMessage: Boolean = false,
@@ -115,6 +117,40 @@ fun MessagesScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
+        // Верхняя навигация (стрелка назад и ник собеседника)
+        val opponentName = dialogue.name?.ifBlank { null } ?: dialogue.login ?: "Диалог"
+        val textColor = if (isDark) Color.White else LightText
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.Transparent
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = primaryAccent
+                    )
+                }
+
+                Text(
+                    text = opponentName,
+                    color = textColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
         when {
             isLoading && messages.isEmpty() -> {
                 Box(

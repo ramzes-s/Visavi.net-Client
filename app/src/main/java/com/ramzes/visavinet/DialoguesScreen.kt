@@ -81,69 +81,97 @@ fun DialoguesScreen(
         }
     }
 
-    when {
-        isLoading && dialogues.isEmpty() -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+    val textColor = if (isDark) Color.White else LightText
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Заголовок "Диалоги" (как на главной форума)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.Transparent
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                CircularProgressIndicator(color = accentColor)
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Диалоги",
+                    color = textColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
-        errorMessage != null -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = errorMessage,
-                        color = Color(0xFFCF6679),
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onRefresh) {
-                        Text("Повторить")
+        when {
+            isLoading && dialogues.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = accentColor)
+                }
+            }
+
+            errorMessage != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = errorMessage,
+                            color = Color(0xFFCF6679),
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = onRefresh) {
+                            Text("Повторить")
+                        }
                     }
                 }
             }
-        }
 
-        else -> {
-            SwipeRefresh(
-                state = swipeRefreshState,
-                modifier = Modifier.fillMaxSize(),
-                onRefresh = onRefresh
-            ) {
-                LazyColumn(
+            else -> {
+                SwipeRefresh(
+                    state = swipeRefreshState,
                     modifier = Modifier.fillMaxSize(),
-                    state = listState,
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    onRefresh = onRefresh
                 ) {
-                    items(dialogues, key = { it.id }) { dialogue ->
-                        DialogueItem(
-                            dialogue = dialogue,
-                            isRead = readDialogues.contains(dialogue.id),
-                            onClick = { onDialogueClick(dialogue) },
-                            isDark = isDark
-                        )
-                    }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        state = listState,
+                        contentPadding = PaddingValues(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(dialogues, key = { it.id }) { dialogue ->
+                            DialogueItem(
+                                dialogue = dialogue,
+                                isRead = readDialogues.contains(dialogue.id),
+                                onClick = { onDialogueClick(dialogue) },
+                                isDark = isDark
+                            )
+                        }
 
-                    if (isLoadingMore) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = accentColor,
-                                    strokeWidth = 2.dp
-                                )
+                        if (isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = accentColor,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
                             }
                         }
                     }
