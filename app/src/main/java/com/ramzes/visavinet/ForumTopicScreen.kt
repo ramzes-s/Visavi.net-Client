@@ -38,6 +38,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.FileData
 import com.ramzes.visavinet.network.ForumPost
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import com.ramzes.visavinet.network.ForumTopic
@@ -151,14 +152,25 @@ fun ForumTopicScreen(
             }
     }
 
-    LaunchedEffect(viewModel.posts.size) {
-        if (viewModel.posts.isNotEmpty() && !hasScrolledToBottom) {
-            listState.scrollToItem(viewModel.posts.size - 1)
+    LaunchedEffect(viewModel.posts.size, viewModel.isLoadingPosts) {
+        if (viewModel.posts.isNotEmpty() && !viewModel.isLoadingPosts && !hasScrolledToBottom) {
+            val getTargetIndex = {
+                val total = listState.layoutInfo.totalItemsCount
+                if (total > 0) total - 1 else viewModel.posts.size + 1
+            }
+            // 1. Мгновенная прокрутка к последнему элементу списка
+            listState.scrollToItem(getTargetIndex(), 10000)
+            // 2. Повторная прокрутка после первого такта компоновки LazyColumn
+            delay(60)
+            listState.scrollToItem(getTargetIndex(), 10000)
+            // 3. Финальная докрутка после рендеринга и замера высоты форматированного контента/изображений
+            delay(180)
+            listState.scrollToItem(getTargetIndex(), 10000)
             hasScrolledToBottom = true
         }
     }
 
-    LaunchedEffect(topic) {
+    LaunchedEffect(topic.id) {
         hasScrolledToBottom = false
         viewModel.navigateToTopic(topic, context)
     }
