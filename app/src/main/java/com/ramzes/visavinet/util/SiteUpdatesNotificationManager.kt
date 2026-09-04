@@ -12,27 +12,27 @@ import com.ramzes.visavinet.MainActivity
 import com.ramzes.visavinet.R
 import com.ramzes.visavinet.network.StatsResponse
 
-data class TodayStatsSnapshot(
-    val postsToday: Long = 0L,
-    val newsToday: Long = 0L,
-    val photosToday: Long = 0L,
-    val downsToday: Long = 0L
+data class TotalStatsSnapshot(
+    val postsTotal: Long = 0L,
+    val newsTotal: Long = 0L,
+    val photosTotal: Long = 0L,
+    val downsTotal: Long = 0L
 )
 
-fun detectTodayUpdates(previous: TodayStatsSnapshot?, current: TodayStatsSnapshot): List<String> {
+fun detectTotalUpdates(previous: TotalStatsSnapshot?, current: TotalStatsSnapshot): List<String> {
     if (previous == null) return emptyList()
     val updates = mutableListOf<String>()
-    if (current.postsToday > previous.postsToday) {
-        updates.add("Форум (+${current.postsToday - previous.postsToday})")
+    if (current.postsTotal > previous.postsTotal) {
+        updates.add("Форум +${current.postsTotal - previous.postsTotal}")
     }
-    if (current.newsToday > previous.newsToday) {
-        updates.add("Новости (+${current.newsToday - previous.newsToday})")
+    if (current.newsTotal > previous.newsTotal) {
+        updates.add("Новости +${current.newsTotal - previous.newsTotal}")
     }
-    if (current.photosToday > previous.photosToday) {
-        updates.add("Галерея (+${current.photosToday - previous.photosToday})")
+    if (current.photosTotal > previous.photosTotal) {
+        updates.add("Галерея +${current.photosTotal - previous.photosTotal}")
     }
-    if (current.downsToday > previous.downsToday) {
-        updates.add("Загрузки (+${current.downsToday - previous.downsToday})")
+    if (current.downsTotal > previous.downsTotal) {
+        updates.add("Загрузки +${current.downsTotal - previous.downsTotal}")
     }
     return updates
 }
@@ -61,32 +61,32 @@ object SiteUpdatesNotificationManager {
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
         val notificationsEnabled = prefs.getBoolean("notify_site_updates", false)
 
-        val currentSnapshot = TodayStatsSnapshot(
-            postsToday = newStats.sections?.posts?.today ?: 0L,
-            newsToday = newStats.sections?.news?.today ?: 0L,
-            photosToday = newStats.sections?.photos?.today ?: 0L,
-            downsToday = newStats.sections?.downs?.today ?: 0L
+        val currentSnapshot = TotalStatsSnapshot(
+            postsTotal = newStats.sections?.posts?.total ?: 0L,
+            newsTotal = newStats.sections?.news?.total ?: 0L,
+            photosTotal = newStats.sections?.photos?.total ?: 0L,
+            downsTotal = newStats.sections?.downs?.total ?: 0L
         )
 
-        val hasBaseline = prefs.getBoolean("has_stats_baseline", false)
+        val hasBaseline = prefs.getBoolean("has_total_stats_baseline", false)
         val previousSnapshot = if (hasBaseline) {
-            TodayStatsSnapshot(
-                postsToday = prefs.getLong("prev_today_posts", 0L),
-                newsToday = prefs.getLong("prev_today_news", 0L),
-                photosToday = prefs.getLong("prev_today_photos", 0L),
-                downsToday = prefs.getLong("prev_today_downs", 0L)
+            TotalStatsSnapshot(
+                postsTotal = prefs.getLong("prev_total_posts", 0L),
+                newsTotal = prefs.getLong("prev_total_news", 0L),
+                photosTotal = prefs.getLong("prev_total_photos", 0L),
+                downsTotal = prefs.getLong("prev_total_downs", 0L)
             )
         } else {
             null
         }
 
-        // Сохраняем текущие значения как новый baseline
+        // Сохраняем текущие total значения как новый baseline
         prefs.edit()
-            .putLong("prev_today_posts", currentSnapshot.postsToday)
-            .putLong("prev_today_news", currentSnapshot.newsToday)
-            .putLong("prev_today_photos", currentSnapshot.photosToday)
-            .putLong("prev_today_downs", currentSnapshot.downsToday)
-            .putBoolean("has_stats_baseline", true)
+            .putLong("prev_total_posts", currentSnapshot.postsTotal)
+            .putLong("prev_total_news", currentSnapshot.newsTotal)
+            .putLong("prev_total_photos", currentSnapshot.photosTotal)
+            .putLong("prev_total_downs", currentSnapshot.downsTotal)
+            .putBoolean("has_total_stats_baseline", true)
             .apply()
 
         Log.d(TAG, "checkAndNotify: enabled=$notificationsEnabled, previous=$previousSnapshot, current=$currentSnapshot")
@@ -95,12 +95,12 @@ object SiteUpdatesNotificationManager {
             return
         }
 
-        val updates = detectTodayUpdates(previousSnapshot, currentSnapshot)
+        val updates = detectTotalUpdates(previousSnapshot, currentSnapshot)
         if (updates.isNotEmpty()) {
-            Log.d(TAG, "Обнаружены обновления: $updates. Отправляем уведомление.")
+            Log.d(TAG, "Обнаружены обновления total: $updates. Отправляем уведомление.")
             showNotification(context, updates)
         } else {
-            Log.d(TAG, "Нет новых обновлений today по сравнению с предыдущей проверкой.")
+            Log.d(TAG, "Нет увеличения значений total по сравнению с предыдущей проверкой.")
         }
     }
 
@@ -117,12 +117,12 @@ object SiteUpdatesNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val contentText = updates.joinToString(", ")
+        val text = updates.joinToString(", ")
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_name)
-            .setContentTitle("Новые материалы на Visavi.net")
-            .setContentText(contentText)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(contentText))
+            .setContentTitle(text)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)

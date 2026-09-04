@@ -261,41 +261,41 @@ class TodayFeaturesAndStatsTest {
     }
 
     @Test
-    fun testDetectTodayUpdates() {
+    fun testDetectTotalUpdates() {
         // 1. Первый запуск (нет baseline) -> уведомления не отправляются
-        val snapshot1 = com.ramzes.visavinet.util.TodayStatsSnapshot(
-            postsToday = 10,
-            newsToday = 2,
-            photosToday = 5,
-            downsToday = 1
+        val snapshot1 = com.ramzes.visavinet.util.TotalStatsSnapshot(
+            postsTotal = 1000,
+            newsTotal = 200,
+            photosTotal = 500,
+            downsTotal = 150
         )
-        val initialUpdates = com.ramzes.visavinet.util.detectTodayUpdates(null, snapshot1)
+        val initialUpdates = com.ramzes.visavinet.util.detectTotalUpdates(null, snapshot1)
         assertTrue(initialUpdates.isEmpty())
 
         // 2. Нет изменений -> список пуст
-        val noChangeUpdates = com.ramzes.visavinet.util.detectTodayUpdates(snapshot1, snapshot1)
+        val noChangeUpdates = com.ramzes.visavinet.util.detectTotalUpdates(snapshot1, snapshot1)
         assertTrue(noChangeUpdates.isEmpty())
 
-        // 3. Увеличение в разделах Форум (+3) и Новости (+1)
-        val snapshot2 = com.ramzes.visavinet.util.TodayStatsSnapshot(
-            postsToday = 13,
-            newsToday = 3,
-            photosToday = 5,
-            downsToday = 1
+        // 3. Увеличение в разделах Форум (+2) и Новости (+1)
+        val snapshot2 = com.ramzes.visavinet.util.TotalStatsSnapshot(
+            postsTotal = 1002,
+            newsTotal = 201,
+            photosTotal = 500,
+            downsTotal = 150
         )
-        val updates = com.ramzes.visavinet.util.detectTodayUpdates(snapshot1, snapshot2)
+        val updates = com.ramzes.visavinet.util.detectTotalUpdates(snapshot1, snapshot2)
         assertEquals(2, updates.size)
-        assertTrue(updates.contains("Форум (+3)"))
-        assertTrue(updates.contains("Новости (+1)"))
+        assertTrue(updates.contains("Форум +2"))
+        assertTrue(updates.contains("Новости +1"))
 
-        // 4. Сброс суток (значения стали меньше) -> уведомления не отправляются
-        val resetSnapshot = com.ramzes.visavinet.util.TodayStatsSnapshot(
-            postsToday = 0,
-            newsToday = 0,
-            photosToday = 0,
-            downsToday = 0
+        // 4. Уменьшение значений (например, удалили посты/новости) -> уведомления не отправляются
+        val decreasedSnapshot = com.ramzes.visavinet.util.TotalStatsSnapshot(
+            postsTotal = 995,
+            newsTotal = 201,
+            photosTotal = 490,
+            downsTotal = 150
         )
-        val resetUpdates = com.ramzes.visavinet.util.detectTodayUpdates(snapshot2, resetSnapshot)
-        assertTrue(resetUpdates.isEmpty())
+        val decreasedUpdates = com.ramzes.visavinet.util.detectTotalUpdates(snapshot2, decreasedSnapshot)
+        assertTrue(decreasedUpdates.isEmpty())
     }
 }
