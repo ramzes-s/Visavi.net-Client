@@ -744,6 +744,89 @@ data class DownDetailResponse(
 )
 
 /**
+ * Модели общей ленты событий (GET /api/feed)
+ */
+data class FeedResponse(
+    @SerializedName("data") val data: List<FeedItem> = emptyList(),
+    @SerializedName("links") val links: DialogueLinks? = null,
+    @SerializedName("meta") val meta: PaginationMeta? = null
+)
+
+data class FeedItem(
+    @SerializedName("type") val type: String,
+    @SerializedName("id") val id: Long,
+    @SerializedName("section") val section: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("breadcrumbs") val breadcrumbs: List<BreadcrumbItem> = emptyList(),
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("rating") val rating: Int = 0,
+    @SerializedName("vote") val vote: FeedVote? = null,
+    @SerializedName("comments_count") val commentsCount: Int? = null,
+    @SerializedName("user") val user: FeedUserData? = null,
+    @SerializedName("media") val media: List<FileData> = emptyList(),
+    @SerializedName("files") val files: List<FileData> = emptyList(),
+    @SerializedName("created_at") val createdAtRaw: String? = null,
+    @SerializedName("relate") val relate: RelateData? = null
+) {
+    val isSupported: Boolean
+        get() = when (type) {
+            "topics", "news", "photos" -> true
+            "comments" -> relate?.type in listOf("news", "photos", "downs")
+            else -> false
+        }
+
+    val topicId: Int
+        get() = id.toInt()
+
+    val postId: Int?
+        get() {
+            if (type == "topics") {
+                vote?.id?.let { return it.toInt() }
+                val match = Regex("[?&]pid=(\\d+)").find(url ?: "")
+                if (match != null) {
+                    return match.groupValues[1].toIntOrNull()
+                }
+            }
+            return null
+        }
+
+    val createdAt: Long?
+        get() = createdAtRaw?.let { parseIsoDateTime(it) }
+}
+
+data class RelateData(
+    @SerializedName("type") val type: String,
+    @SerializedName("id") val id: Long,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("url") val url: String? = null
+)
+
+data class BreadcrumbItem(
+    @SerializedName("title") val title: String,
+    @SerializedName("url") val url: String? = null
+)
+
+data class FeedUserData(
+    @SerializedName("login") val login: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("level") val level: String? = null,
+    @SerializedName("color") val color: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("status") val status: String? = null
+) {
+    val displayName: String
+        get() = name?.ifBlank { null } ?: login
+}
+
+data class FeedVote(
+    @SerializedName("type") val type: String? = null,
+    @SerializedName("id") val id: Long? = null,
+    @SerializedName("value") val value: String? = null,
+    @SerializedName("own") val own: Boolean = false
+)
+
+/**
  * Модели статистики сайта (GET /stats)
  */
 data class StatsItem(
@@ -966,6 +1049,11 @@ interface VisaviApiService {
 
     @GET("api/stats")
     suspend fun getStats(): Response<StatsResponse>
+
+    @GET("api/feed")
+    suspend fun getFeed(
+        @Query("page") page: Int = 1
+    ): Response<FeedResponse>
 }
 
 object VisaviApi {

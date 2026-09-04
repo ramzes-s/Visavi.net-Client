@@ -298,4 +298,136 @@ class TodayFeaturesAndStatsTest {
         val decreasedUpdates = com.ramzes.visavinet.util.detectTotalUpdates(snapshot2, decreasedSnapshot)
         assertTrue(decreasedUpdates.isEmpty())
     }
+
+    @Test
+    fun testFeedJsonParsingAndFiltering() {
+        val json = """
+        {
+          "data": [
+            {
+              "type": "topics",
+              "id": 45029,
+              "section": "Темы",
+              "title": "Обновился на 14",
+              "url": "https://visavi.net/topics/45029?pid=717175",
+              "breadcrumbs": [
+                { "title": "Форум", "url": "https://visavi.net/forums" },
+                { "title": "RotorCMS", "url": "https://visavi.net/forums/26" }
+              ],
+              "text": "<p>Тест поста</p>",
+              "rating": 0,
+              "vote": { "type": "posts", "id": 717175, "value": null, "own": false },
+              "comments_count": 11,
+              "user": { "login": "Godzilla", "name": "GodZiLLa", "level": "user" }
+            },
+            {
+              "type": "photos",
+              "id": 3305,
+              "section": "Галерея",
+              "title": "Frontend и backend",
+              "url": "https://visavi.net/photos/3305",
+              "comments_count": 0,
+              "user": { "login": "Vantuz", "name": "Вантуз-мен", "level": "boss" },
+              "media": [
+                {
+                  "id": 8648,
+                  "name": "video.mp4",
+                  "path": "https://visavi.net/uploads/photos/6a9aa787.mp4",
+                  "is_image": false,
+                  "is_video": true
+                }
+              ]
+            },
+            {
+              "type": "comments",
+              "id": 31899,
+              "title": "Вышел Rotor 14.4.0",
+              "url": "https://visavi.net/news/331#comment_31899",
+              "text": "<p>Комментарий к новости</p>",
+              "user": { "login": "ramzes", "name": "ramzes" },
+              "relate": {
+                "type": "news",
+                "id": 331,
+                "title": "Вышел Rotor 14.4.0"
+              }
+            },
+            {
+              "type": "comments",
+              "id": 31885,
+              "title": "Кнопки поделиться",
+              "url": "https://visavi.net/offers/209#comment_31885",
+              "text": "<p>Ага, норм выглядит.</p>",
+              "user": { "login": "XaOS" },
+              "relate": {
+                "type": "offers",
+                "id": 209,
+                "title": "Кнопки поделиться"
+              }
+            },
+            {
+              "type": "offers",
+              "id": 100,
+              "title": "Неподдерживаемый модуль",
+              "user": { "login": "test" }
+            }
+          ]
+        }
+        """.trimIndent()
+
+        val response = gson.fromJson(json, com.ramzes.visavinet.network.FeedResponse::class.java)
+        assertNotNull(response)
+        assertEquals(5, response.data.size)
+
+        // 1. Проверяем topic
+        val topicItem = response.data[0]
+        assertTrue(topicItem.isSupported)
+        assertEquals("topics", topicItem.type)
+        assertEquals(45029L, topicItem.id)
+        assertEquals(717175, topicItem.postId)
+        assertEquals(2, topicItem.breadcrumbs.size)
+
+        // 2. Проверяем photos
+        val photoItem = response.data[1]
+        assertTrue(photoItem.isSupported)
+        assertEquals("photos", photoItem.type)
+        assertEquals(1, photoItem.media.size)
+        assertTrue(photoItem.media[0].isVideo)
+
+        // 3. Проверяем comment к news (поддерживается)
+        val newsCommentItem = response.data[2]
+        assertTrue(newsCommentItem.isSupported)
+        assertEquals("news", newsCommentItem.relate?.type)
+
+        // 4. Проверяем comment к offers (НЕ поддерживается)
+        val offersCommentItem = response.data[3]
+        assertFalse(offersCommentItem.isSupported)
+
+        // 5. Проверяем корневой offers (НЕ поддерживается)
+        val offersRootItem = response.data[4]
+        assertFalse(offersRootItem.isSupported)
+
+        // Фильтрация для отображения в UI
+        val filtered = response.data.filter { it.isSupported }
+        assertEquals(3, filtered.size)
+    }
+
+    @Test
+    fun testFeedPreviewTextTruncation() {
+        // Короткий HTML
+        val shortHtml = "<p>Привет <b>мир</b> &amp; друзья!</p>"
+        assertEquals("Привет мир & друзья!", formatFeedPreviewText(shortHtml, 300))
+
+        // Длинный текст > 300 символов
+        val longContent = "А".repeat(350)
+        val longHtml = "<div>$longContent</div>"
+        val formatted = formatFeedPreviewText(longHtml, 300)
+        assertEquals(301, formatted.length) // 300 + '…'
+        assertTrue(formatted.endsWith("…"))
+        assertEquals("А".repeat(300) + "…", formatted)
+
+        // Удаление тегов скриптов и стилей
+        val scriptHtml = "<p>Текст<script>alert(1)</script><style>body{color:red;}</style> продолжение</p>"
+        assertEquals("Текст продолжение", formatFeedPreviewText(scriptHtml, 300))
+    }
 }
+

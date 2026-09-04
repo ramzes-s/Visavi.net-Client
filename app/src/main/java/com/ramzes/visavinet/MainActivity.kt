@@ -49,6 +49,7 @@ import com.ramzes.visavinet.network.ForumTopic
 import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.service.NewMessagesService
 import com.ramzes.visavinet.ui.components.*
+import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -128,7 +129,7 @@ private fun DrawerItemLabel(
     }
 }
 
-enum class Screen { Profile, News, Gallery, Downs, Private, Forum, Settings }
+enum class Screen { Profile, Feed, News, Gallery, Downs, Private, Forum, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,6 +139,7 @@ fun MainNavigation(
     onThemeChange: (Boolean) -> Unit = {}
 ) {
     val viewModel: MainViewModel = viewModel()
+    val feedViewModel: FeedViewModel = viewModel()
     val dialoguesViewModel: DialoguesViewModel = viewModel()
     val forumViewModel: ForumViewModel = viewModel()
     val newsViewModel: NewsViewModel = viewModel()
@@ -162,6 +164,8 @@ fun MainNavigation(
     var userProfileLoading by remember { mutableStateOf(false) }
     var userProfileError by remember { mutableStateOf<String?>(null) }
     var userProfileData by remember { mutableStateOf<com.ramzes.visavinet.network.UserData?>(null) }
+
+    var selectedImageForLightbox by remember { mutableStateOf<String?>(null) }
 
     var pendingUserLogin by remember { mutableStateOf<String?>(null) }
     var shouldRefreshDialoguesFromNotification by remember { mutableStateOf(false) }
@@ -516,6 +520,19 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
+                        label = { Text(text = "ЛЕНТА", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Feed,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Feed
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
                         label = {
                             DrawerItemLabel(
                                 title = "ДИАЛОГИ",
@@ -687,6 +704,36 @@ fun MainNavigation(
 
                             when (currentScreen) {
                                 Screen.Profile -> ProfileScreen(viewModel.currentUser!!, viewModel.statusMessage)
+                                Screen.Feed -> {
+                                    FeedScreen(
+                                        viewModel = feedViewModel,
+                                        onTopicClick = onOpenTopic,
+                                        onNewsClick = onOpenNews,
+                                        onPhotoClick = onOpenPhoto,
+                                        onDownClick = onOpenDown,
+                                        onUserClick = { login ->
+                                            userProfileLoading = true
+                                            userProfileError = null
+                                            dialoguesViewModel.loadUserProfile(
+                                                context = context.applicationContext,
+                                                login = login,
+                                                onSuccess = { user ->
+                                                    userProfileData = user
+                                                    userProfileLoading = false
+                                                    showUserProfile = true
+                                                },
+                                                onError = { error ->
+                                                    userProfileError = error
+                                                    userProfileLoading = false
+                                                    showUserProfile = true
+                                                }
+                                            )
+                                        },
+                                        onImageClick = { imageUrl ->
+                                            selectedImageForLightbox = imageUrl
+                                        }
+                                    )
+                                }
                                 Screen.News -> {
                                     if (showNewsDetailScreen && selectedNews != null) {
                                         NewsDetailScreen(
@@ -1110,6 +1157,13 @@ fun MainNavigation(
                         pendingUserLogin = login
                         dialoguesViewModel.loadDialogues(context.applicationContext)
                     }
+                )
+            }
+
+            selectedImageForLightbox?.let { imageUrl ->
+                ImageLightboxDialog(
+                    imageUrl = imageUrl,
+                    onDismiss = { selectedImageForLightbox = null }
                 )
             }
         }
