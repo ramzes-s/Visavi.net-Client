@@ -154,18 +154,13 @@ fun ForumTopicScreen(
 
     LaunchedEffect(viewModel.posts.size, viewModel.isLoadingPosts) {
         if (viewModel.posts.isNotEmpty() && !viewModel.isLoadingPosts && !hasScrolledToBottom) {
-            val getTargetIndex = {
-                val total = listState.layoutInfo.totalItemsCount
-                if (total > 0) total - 1 else viewModel.posts.size + 1
-            }
-            // 1. Мгновенная прокрутка к последнему элементу списка
-            listState.scrollToItem(getTargetIndex(), 10000)
-            // 2. Повторная прокрутка после первого такта компоновки LazyColumn
-            delay(60)
-            listState.scrollToItem(getTargetIndex(), 10000)
-            // 3. Финальная докрутка после рендеринга и замера высоты форматированного контента/изображений
-            delay(180)
-            listState.scrollToItem(getTargetIndex(), 10000)
+            val total = listState.layoutInfo.totalItemsCount
+            val targetIndex = if (total > 0) total - 1 else viewModel.posts.size + 1
+            
+            // Выставляем начальную позицию рядом с концом списка без дерганья с самого верха
+            listState.scrollToItem((targetIndex - 2).coerceAtLeast(0))
+            // Мягко и плавно анимируем прокрутку к самому низу
+            listState.animateScrollToItem(targetIndex, 10000)
             hasScrolledToBottom = true
         }
     }

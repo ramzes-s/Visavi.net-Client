@@ -105,15 +105,10 @@ fun MessagesScreen(
 
     LaunchedEffect(scrollToBottom, messages.size, isLoading) {
         if (scrollToBottom && messages.isNotEmpty() && !isLoading) {
-            val getTargetIndex = {
-                val total = listState.layoutInfo.totalItemsCount
-                if (total > 0) total - 1 else messages.size + 1
-            }
-            listState.scrollToItem(getTargetIndex(), 10000)
-            delay(60)
-            listState.scrollToItem(getTargetIndex(), 10000)
-            delay(180)
-            listState.scrollToItem(getTargetIndex(), 10000)
+            val total = listState.layoutInfo.totalItemsCount
+            val targetIndex = if (total > 0) total - 1 else messages.size + 1
+            listState.scrollToItem((targetIndex - 2).coerceAtLeast(0))
+            listState.animateScrollToItem(targetIndex, 10000)
             onScrollComplete()
         }
     }
