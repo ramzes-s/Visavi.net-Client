@@ -39,6 +39,7 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.FeedItem
 import com.ramzes.visavinet.network.FileData
 import com.ramzes.visavinet.ui.components.GlassCard
+import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.RenderContentBlocks
 import com.ramzes.visavinet.util.formatUnixTime
@@ -414,40 +415,34 @@ fun FeedCardItem(
             // Превью медиа для раздела "Галерея" (фото/видео)
             if (item.type == "photos" && item.media.isNotEmpty()) {
                 val mediaItem = item.media.first()
+                val isVideo = mediaItem.isVideo || mediaItem.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 120.dp, max = 220.dp)
+                        .height(180.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Black.copy(alpha = 0.2f))
+                        .background(if (isDark) Color(0x331E293B) else Color(0x1F64748B))
                         .clickable { onPhotoClick(item.id.toInt()) },
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(mediaItem.path)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    if (mediaItem.isVideo) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.6f),
-                            modifier = Modifier.size(44.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Видео",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                        }
+                    if (isVideo) {
+                        VideoPlaceholder(
+                            modifier = Modifier.fillMaxSize(),
+                            isDark = isDark,
+                            accentColor = primaryAccent,
+                            iconSize = 38.dp,
+                            showLabel = true
+                        )
+                    } else if (mediaItem.path != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(mediaItem.path)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = item.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -476,19 +471,39 @@ fun FeedCardItem(
                     modifier = Modifier.padding(vertical = 4.dp)
                 ) {
                     items(item.media) { media ->
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(media.path)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
+                        val isMediaVideo = media.isVideo || media.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
+                        Box(
                             modifier = Modifier
                                 .size(72.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                                .clickable { media.path?.let { onImageClick(it) } },
-                            contentScale = ContentScale.Crop
-                        )
+                                .clickable {
+                                    if (isMediaVideo) {
+                                        onItemClick()
+                                    } else {
+                                        media.path?.let { onImageClick(it) }
+                                    }
+                                }
+                        ) {
+                            if (isMediaVideo) {
+                                VideoPlaceholder(
+                                    modifier = Modifier.fillMaxSize(),
+                                    isDark = isDark,
+                                    accentColor = primaryAccent,
+                                    iconSize = 20.dp
+                                )
+                            } else {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(media.path)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
