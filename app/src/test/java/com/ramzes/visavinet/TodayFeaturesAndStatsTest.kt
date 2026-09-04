@@ -429,5 +429,16 @@ class TodayFeaturesAndStatsTest {
         val scriptHtml = "<p>Текст<script>alert(1)</script><style>body{color:red;}</style> продолжение</p>"
         assertEquals("Текст продолжение", formatFeedPreviewText(scriptHtml, 300))
     }
+
+    @Test
+    fun testFeedAsStartScreenSelection() {
+        val determineStartScreen = { feedAsStartScreen: Boolean ->
+            if (feedAsStartScreen) Screen.Feed else Screen.Profile
+        }
+
+        assertEquals(Screen.Feed, determineStartScreen(true))
+        assertEquals(Screen.Profile, determineStartScreen(false))
+    }
 }
+
 

@@ -149,7 +149,10 @@ fun MainNavigation(
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var currentScreen by remember { mutableStateOf(Screen.Profile) }
+    val getStartScreen = {
+        if (prefs.getBoolean("feed_as_start_screen", false)) Screen.Feed else Screen.Profile
+    }
+    var currentScreen by remember { mutableStateOf(getStartScreen()) }
     var isTabletMode by remember { mutableStateOf(prefs.getBoolean("tablet_mode", false)) }
 
     var showMessagesScreen by remember { mutableStateOf(false) }
@@ -210,6 +213,9 @@ fun MainNavigation(
     LaunchedEffect(viewModel.currentUser) {
         if (viewModel.currentUser != null) {
             viewModel.startStatsPolling(context.applicationContext)
+            if (currentScreen == Screen.Profile || currentScreen == Screen.Feed) {
+                currentScreen = getStartScreen()
+            }
         } else {
             viewModel.stopStatsPolling()
         }
@@ -659,6 +665,7 @@ fun MainNavigation(
                             dialoguesViewModel.clear()
                             forumViewModel.clear()
                             NewMessagesService.stop(context)
+                            currentScreen = getStartScreen()
                         },
                         colors = itemColors
                     )
