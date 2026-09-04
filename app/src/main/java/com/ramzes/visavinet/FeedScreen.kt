@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -283,11 +284,11 @@ fun FeedCardItem(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Верхняя строка: Бейдж типа события + Хлебные крошки/Раздел
+            // Верхняя строка: Бейдж типа события + Заголовок темы / материала
+            val titleText = item.title ?: item.relate?.title ?: ""
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
                     color = badgeColor.copy(alpha = 0.2f),
@@ -314,98 +315,112 @@ fun FeedCardItem(
                     }
                 }
 
-                val subBreadcrumbs = if (item.breadcrumbs.size > 1) {
-                    item.breadcrumbs.drop(1)
-                } else {
-                    emptyList()
-                }
-
-                val breadcrumbText = if (subBreadcrumbs.isNotEmpty()) {
-                    subBreadcrumbs.joinToString(" / ") { it.title }
-                } else {
-                    val rawSection = item.section ?: ""
-                    if (rawSection !in listOf("Форум", "Темы", "Новости", "Галерея", "Загрузки", "Разделы")) {
-                        rawSection
-                    } else {
-                        ""
-                    }
-                }
-
-                if (breadcrumbText.isNotBlank()) {
+                if (titleText.isNotBlank()) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = breadcrumbText,
-                        fontSize = 11.sp,
-                        color = secondaryTextColor,
+                        text = stripHtml(titleText),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Заголовок темы / материала
-            val titleText = item.title ?: item.relate?.title ?: ""
-            if (titleText.isNotBlank()) {
-                Text(
-                    text = stripHtml(titleText),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Автор и дата
-            item.user?.let { user ->
+            // Автор и дата / время события (в стиле комментариев)
+            if (item.user != null || item.createdAt != null) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(user.avatar)
-                            .placeholder(R.drawable.ic_default_avatar)
-                            .error(R.drawable.ic_default_avatar)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .border(1.dp, if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.1f), CircleShape)
-                            .clickable { onUserClick(user.login) },
-                        contentScale = ContentScale.Crop
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            val authorColor = try {
-                                if (!user.color.isNullOrBlank()) Color(android.graphics.Color.parseColor(user.color)) else textColor
-                            } catch (e: Exception) {
-                                textColor
+                    // Автор (аватар + ник)
+                    if (item.user != null) {
+                        val user = item.user
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            if (!user.avatar.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(user.avatar)
+                                        .placeholder(R.drawable.ic_default_avatar)
+                                        .error(R.drawable.ic_default_avatar)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Аватар",
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .clip(CircleShape)
+                                        .clickable { onUserClick(user.login) },
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
                             }
+
+                            val authorColor = try {
+                                if (!user.color.isNullOrBlank()) Color(android.graphics.Color.parseColor(user.color)) else primaryAccent
+                            } catch (e: Exception) {
+                                primaryAccent
+                            }
+
                             Text(
                                 text = user.displayName,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
                                 color = authorColor,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.clickable { onUserClick(user.login) }
                             )
                         }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
 
-                        item.createdAt?.let { timeMs ->
-                            Text(
-                                text = formatUnixTime(timeMs),
-                                fontSize = 11.sp,
-                                color = secondaryTextColor
-                            )
+                    // Бейджик: иконка + время (в стиле комментариев)
+                    item.createdAt?.let { createdTime ->
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                            ),
+                            modifier = Modifier.wrapContentSize()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Reply,
+                                    contentDescription = null,
+                                    tint = primaryAccent,
+                                    modifier = Modifier.size(13.dp)
+                                )
+
+                                Text(
+                                    text = "•",
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(horizontal = 1.dp)
+                                )
+
+                                Text(
+                                    text = formatUnixTime(createdTime),
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
