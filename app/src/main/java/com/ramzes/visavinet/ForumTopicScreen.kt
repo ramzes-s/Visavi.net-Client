@@ -126,15 +126,17 @@ fun ForumTopicScreen(
 
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(listState, viewModel.posts.size) {
+    LaunchedEffect(listState, viewModel.posts.size, hasScrolledToBottom) {
+        if (!hasScrolledToBottom) return@LaunchedEffect
+
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull()?.index }
             .distinctUntilChanged()
             .collect { firstVisibleIndex ->
-                if (firstVisibleIndex != null && firstVisibleIndex <= 2 && !viewModel.isLoadingOlderPosts) {
-                    val currentFirstIndex = listState.firstVisibleItemIndex
-                    val currentFirstOffset = listState.firstVisibleItemScrollOffset
+                if (hasScrolledToBottom && firstVisibleIndex != null && firstVisibleIndex <= 2 && !viewModel.isLoadingOlderPosts) {
                     viewModel.loadOlderPosts(context) { addedCount ->
                         coroutineScope.launch {
+                            val currentFirstIndex = listState.firstVisibleItemIndex
+                            val currentFirstOffset = listState.firstVisibleItemScrollOffset
                             listState.scrollToItem(currentFirstIndex + addedCount, currentFirstOffset)
                         }
                     }
@@ -142,11 +144,13 @@ fun ForumTopicScreen(
             }
     }
 
-    LaunchedEffect(listState, viewModel.posts.size) {
+    LaunchedEffect(listState, viewModel.posts.size, hasScrolledToBottom) {
+        if (!hasScrolledToBottom) return@LaunchedEffect
+
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .distinctUntilChanged()
             .collect { lastVisibleIndex ->
-                if (lastVisibleIndex != null && lastVisibleIndex >= viewModel.posts.size - 2) {
+                if (hasScrolledToBottom && lastVisibleIndex != null && lastVisibleIndex >= viewModel.posts.size - 2 && !viewModel.isLoadingNewerPosts) {
                     viewModel.loadNewerPosts(context)
                 }
             }
@@ -157,10 +161,8 @@ fun ForumTopicScreen(
             val total = listState.layoutInfo.totalItemsCount
             val targetIndex = if (total > 0) total - 1 else viewModel.posts.size + 1
             
-            // Выставляем начальную позицию рядом с концом списка без дерганья с самого верха
-            listState.scrollToItem((targetIndex - 2).coerceAtLeast(0))
-            // Мягко и плавно анимируем прокрутку к самому низу
-            listState.animateScrollToItem(targetIndex, 10000)
+            // Позиционируем на конец темы
+            listState.scrollToItem(maxOf(0, targetIndex))
             hasScrolledToBottom = true
         }
     }

@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -383,7 +382,7 @@ fun FeedCardItem(
                         Spacer(modifier = Modifier.width(1.dp))
                     }
 
-                    // Бейджик: иконка + время (в стиле комментариев)
+                    // Бейджик: время события
                     item.createdAt?.let { createdTime ->
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
@@ -395,32 +394,13 @@ fun FeedCardItem(
                             ),
                             modifier = Modifier.wrapContentSize()
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            Text(
+                                text = formatUnixTime(createdTime),
+                                fontSize = 10.sp,
+                                color = secondaryTextColor,
+                                fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Reply,
-                                    contentDescription = null,
-                                    tint = primaryAccent,
-                                    modifier = Modifier.size(13.dp)
-                                )
-
-                                Text(
-                                    text = "•",
-                                    fontSize = 10.sp,
-                                    color = secondaryTextColor.copy(alpha = 0.4f),
-                                    modifier = Modifier.padding(horizontal = 1.dp)
-                                )
-
-                                Text(
-                                    text = formatUnixTime(createdTime),
-                                    fontSize = 10.sp,
-                                    color = secondaryTextColor,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
+                            )
                         }
                     }
                 }
