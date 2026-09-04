@@ -6,12 +6,14 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +25,11 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,6 +96,55 @@ fun NewsDetailScreen(
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
 
+    // Состояние свернутых веток комментариев (по умолчанию пусто = все развернуты)
+    var collapsedCommentIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+
+    // Древовидное упорядочивание комментариев: каждый ответ (включая 3-й уровень) идет строго под своим родителем
+    val treeComments = remember(viewModel.comments) {
+        buildCommentTree(viewModel.comments)
+    }
+
+    // Карта количества всех потомков в ветке для каждого комментария
+    val replyCountMap = remember(treeComments) {
+        val byId = treeComments.associateBy { it.id }
+        val getParentId: (NewsCommentItem) -> Int? = { c ->
+            val pId = c.parent?.id?.takeIf { it > 0 } ?: c.parentId?.takeIf { it > 0 }
+            if (pId != null && pId in byId) pId else null
+        }
+        val childrenMap = treeComments.groupBy { getParentId(it) }
+        fun countDescendants(parentId: Int): Int {
+            val children = childrenMap[parentId] ?: emptyList()
+            return children.size + children.sumOf { countDescendants(it.id) }
+        }
+        treeComments.associate { it.id to countDescendants(it.id) }
+    }
+
+    // Отображаемый список комментариев с фильтрацией скрытых потомков свернутых веток
+    val visibleComments = remember(treeComments, collapsedCommentIds) {
+        if (collapsedCommentIds.isEmpty()) {
+            treeComments
+        } else {
+            val byId = treeComments.associateBy { it.id }
+            val getParentId: (NewsCommentItem) -> Int? = { c ->
+                val pId = c.parent?.id?.takeIf { it > 0 } ?: c.parentId?.takeIf { it > 0 }
+                if (pId != null && pId in byId) pId else null
+            }
+            val childrenMap = treeComments.groupBy { getParentId(it) }
+            val hiddenIds = mutableSetOf<Int>()
+            for (collapsedId in collapsedCommentIds) {
+                fun collectDescendants(pId: Int) {
+                    childrenMap[pId]?.forEach { child ->
+                        if (hiddenIds.add(child.id)) {
+                            collectDescendants(child.id)
+                        }
+                    }
+                }
+                collectDescendants(collapsedId)
+            }
+            treeComments.filter { it.id !in hiddenIds }
+        }
+    }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
@@ -132,7 +188,7 @@ fun NewsDetailScreen(
                 ) {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
                             tint = getSecondaryAccentColor()
                         )
@@ -162,7 +218,7 @@ fun NewsDetailScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.Top
                 ) {
                     // Карточка новости
                     item {
@@ -279,32 +335,45 @@ fun NewsDetailScreen(
                             }
                         }
                     } else {
-                        items(viewModel.comments, key = { "comment_${it.id}" }) { comment ->
+                        itemsIndexed(visibleComments, key = { _, comment -> "comment_${comment.id}" }) { index, comment ->
+                            val replyCount = replyCountMap[comment.id] ?: 0
+                            val isCollapsed = comment.id in collapsedCommentIds
+                            val parentId = comment.parent?.id?.takeIf { it > 0 } ?: comment.parentId
+                            val isReply = comment.depth > 0 || (parentId != null && parentId > 0)
+                            val prevIsReply = if (index > 0) {
+                                val prev = visibleComments[index - 1]
+                                prev.depth > 0 || ((prev.parent?.id ?: prev.parentId ?: 0) > 0)
+                            } else false
+                            val nextIsReply = if (index + 1 < visibleComments.size) {
+                                val next = visibleComments[index + 1]
+                                next.depth > 0 || ((next.parent?.id ?: next.parentId ?: 0) > 0)
+                            } else false
+                            val isFirstReply = isReply && !prevIsReply
+                            val continuesBelow = isReply && nextIsReply
+
                             NewsCommentCard(
                                 comment = comment,
+                                currentLogin = currentLogin,
                                 isDark = isDark,
                                 isHighlighted = highlightedCommentId == comment.id,
+                                replyCount = replyCount,
+                                isCollapsed = isCollapsed,
+                                onToggleCollapse = {
+                                    collapsedCommentIds = if (isCollapsed) {
+                                        collapsedCommentIds - comment.id
+                                    } else {
+                                        collapsedCommentIds + comment.id
+                                    }
+                                },
+                                isFirstReply = isFirstReply,
+                                continuesBelow = continuesBelow,
                                 onUserClick = onUserClick,
                                 onTopicClick = onTopicClick,
                                 onNewsClick = onNewsClick,
                                 onDownClick = onDownClick,
                                 onPhotoClick = onPhotoClick,
-                                onParentCommentClick = { parentId ->
-                                    val targetIndex = viewModel.comments.indexOfFirst { it.id == parentId }
-                                    if (targetIndex != -1) {
-                                        coroutineScope.launch {
-                                            highlightedCommentId = parentId
-                                            listState.animateScrollToItem(index = 2 + targetIndex)
-                                            kotlinx.coroutines.delay(2000)
-                                            if (highlightedCommentId == parentId) {
-                                                highlightedCommentId = null
-                                            }
-                                        }
-                                    }
-                                },
                                 onReplyClick = {
                                     replyingToCommentId = comment.id
-                                    replyingToLogin = comment.user?.login
                                     isFullscreenModalOpen = true
                                 },
                                 onImageClick = { url -> zoomImageUrl = url }
@@ -340,7 +409,10 @@ fun NewsDetailScreen(
                     color = Color.Transparent
                 ) {
                     GlassButton(
-                        onClick = { isFullscreenModalOpen = true },
+                        onClick = {
+                            replyingToCommentId = null
+                            isFullscreenModalOpen = true
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         isDark = isDark,
                         accentColor = getPrimaryAccentColor()
@@ -390,21 +462,15 @@ fun NewsDetailScreen(
                 onTextChanged = { commentText = it },
                 selectedFiles = attachedFiles,
                 onFilesChanged = { attachedFiles = it },
-                replyToUser = replyingToLogin,
-                onRemoveReplyToUser = {
-                    replyingToLogin = null
-                    replyingToCommentId = null
-                },
+                replyToUser = null,
+                onRemoveReplyToUser = null,
                 textMin = 1,
                 textMax = 5000,
                 isSending = viewModel.isSubmittingComment,
-                title = if (replyingToLogin != null) "Ответ для @$replyingToLogin" else "Комментарий",
+                title = if (replyingToCommentId != null) "Ответ на комментарий" else "Комментарий",
                 onSend = {
                     if (isCommentValid && !viewModel.isSubmittingComment) {
-                        val formatted = buildFinalNewsCommentText(
-                            rawText = commentText.trim(),
-                            replyToUser = replyingToLogin
-                        )
+                        val formatted = ensureParagraphTags(commentText.trim())
                         viewModel.createComment(
                             context = context,
                             newsId = news.id,
@@ -413,6 +479,9 @@ fun NewsDetailScreen(
                             fileUris = attachedFiles,
                             onSuccess = { msg ->
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                replyingToCommentId?.let { pId ->
+                                    collapsedCommentIds = collapsedCommentIds - pId
+                                }
                                 commentText = ""
                                 replyingToCommentId = null
                                 replyingToLogin = null
@@ -425,7 +494,11 @@ fun NewsDetailScreen(
                         )
                     }
                 },
-                onDismiss = { isFullscreenModalOpen = false }
+                onDismiss = {
+                    isFullscreenModalOpen = false
+                    replyingToCommentId = null
+                    replyingToLogin = null
+                }
             )
         }
 
@@ -593,17 +666,113 @@ fun NewsMainContentCard(
     }
 }
 
+fun buildCommentTree(comments: List<NewsCommentItem>): List<NewsCommentItem> {
+    if (comments.isEmpty()) return emptyList()
+
+    val byId = comments.associateBy { it.id }
+    val getParentId: (NewsCommentItem) -> Int? = { c ->
+        val pId = c.parent?.id?.takeIf { it > 0 } ?: c.parentId?.takeIf { it > 0 }
+        if (pId != null && pId in byId) pId else null
+    }
+
+    val childrenMap = comments.groupBy { getParentId(it) }
+    val result = mutableListOf<NewsCommentItem>()
+    val visited = mutableSetOf<Int>()
+
+    fun collectSubtree(comment: NewsCommentItem) {
+        if (!visited.add(comment.id)) return
+        result.add(comment)
+        childrenMap[comment.id]?.forEach { child ->
+            collectSubtree(child)
+        }
+    }
+
+    val roots = comments.filter { getParentId(it) == null }
+    for (root in roots) {
+        collectSubtree(root)
+    }
+
+    for (c in comments) {
+        if (c.id !in visited) {
+            collectSubtree(c)
+        }
+    }
+
+    return result
+}
+
+fun formatRepliesCount(count: Int): String {
+    val rem100 = count % 100
+    val rem10 = count % 10
+    return when {
+        rem100 in 11..19 -> "$count ответов"
+        rem10 == 1 -> "$count ответ"
+        rem10 in 2..4 -> "$count ответа"
+        else -> "$count ответов"
+    }
+}
+
+@Composable
+fun BranchGuideCanvas(
+    isFirstReply: Boolean,
+    continuesBelow: Boolean,
+    branchLineColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val strokeWidth = 2.dp.toPx()
+        val cornerRadius = 6.dp.toPx()
+        val midY = 22.dp.toPx()
+        val lineX = size.width / 2f
+
+        // Линия сверху и L-отвод к карточке
+        val path = Path().apply {
+            moveTo(lineX, 0f)
+            val turnStartY = (midY - cornerRadius).coerceAtLeast(0f)
+            lineTo(lineX, turnStartY)
+            quadraticBezierTo(lineX, midY, lineX + cornerRadius, midY)
+            lineTo(size.width, midY)
+        }
+
+        drawPath(
+            path = path,
+            color = branchLineColor,
+            style = Stroke(
+                width = strokeWidth,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
+        )
+
+        // Продолжение вертикальной линии вниз, если ниже есть еще ответы ветки
+        if (continuesBelow) {
+            drawLine(
+                color = branchLineColor,
+                start = Offset(lineX, midY),
+                end = Offset(lineX, size.height),
+                strokeWidth = strokeWidth,
+                cap = StrokeCap.Round
+            )
+        }
+    }
+}
+
 @Composable
 fun NewsCommentCard(
     comment: NewsCommentItem,
     isDark: Boolean,
     isHighlighted: Boolean = false,
+    replyCount: Int = 0,
+    isCollapsed: Boolean = false,
+    onToggleCollapse: () -> Unit = {},
+    isFirstReply: Boolean = false,
+    continuesBelow: Boolean = false,
+    currentLogin: String? = null,
     onUserClick: (String) -> Unit,
     onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
     onNewsClick: (newsId: Int) -> Unit = {},
     onDownClick: (downId: Int) -> Unit = {},
     onPhotoClick: (photoId: Int) -> Unit = {},
-    onParentCommentClick: ((parentId: Int) -> Unit)? = null,
     onReplyClick: () -> Unit,
     onImageClick: (String) -> Unit
 ) {
@@ -616,179 +785,250 @@ fun NewsCommentCard(
     }
 
     val parentId = comment.parent?.id?.takeIf { it > 0 } ?: comment.parentId
+    val isReply = comment.depth > 0 || (parentId != null && parentId > 0)
+    val branchLineColor = if (isDark) {
+        getPrimaryAccentColor().copy(alpha = 0.7f)
+    } else {
+        getPrimaryAccentColor().copy(alpha = 0.6f)
+    }
 
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        isDark = isDark,
-        shape = RoundedCornerShape(6.dp),
-        glowColor = if (isHighlighted) getPrimaryAccentColor().copy(alpha = 0.6f) else Color.Transparent
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .padding(top = if (!isReply) 8.dp else 0.dp)
     ) {
-        Column(
+        // Отрисовка направляющей ветвления для ответов (все уровни ответов на одном уровне)
+        if (isReply) {
+            BranchGuideCanvas(
+                isFirstReply = isFirstReply,
+                continuesBelow = continuesBelow,
+                branchLineColor = branchLineColor,
+                modifier = Modifier
+                    .width(20.dp)
+                    .fillMaxHeight()
+            )
+        }
+
+        GlassCard(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp)
+                .weight(1f)
+                .padding(vertical = if (isReply) 3.dp else 0.dp),
+            isDark = isDark,
+            shape = RoundedCornerShape(8.dp),
+            glowColor = if (isHighlighted) getPrimaryAccentColor().copy(alpha = 0.6f) else Color.Transparent
         ) {
-            // Контекст ответа родителю
-            if (comment.parent != null && !comment.parent.login.isNullOrBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = if (isDark) Color(0x3338BDF8) else Color(0x1A0284C7),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp)
-                        .then(
-                            if (parentId != null && parentId > 0 && onParentCommentClick != null) {
-                                Modifier.clickable { onParentCommentClick(parentId) }
-                            } else {
-                                Modifier
-                            }
-                        )
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(if (isReply) 8.dp else 10.dp)
+            ) {
+                if (comment.deleted) {
+                    Text(
+                        text = "Комментарий удален",
+                        color = secondaryTextColor.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                } else {
+                    // Шапка комментария: автор, аватар, кнопка ветки, кнопка ответа и время
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Reply,
-                            contentDescription = null,
-                            tint = getSecondaryAccentColor(),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "В ответ @${comment.parent.login}: ${comment.parent.excerpt ?: ""}",
-                            color = getSecondaryAccentColor(),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            if (comment.deleted) {
-                Text(
-                    text = "Комментарий удален",
-                    color = secondaryTextColor.copy(alpha = 0.5f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            } else {
-                // Шапка комментария: автор, аватар, и бейджик с временем и кнопкой ответа
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Автор
-                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        if (!comment.user?.avatar.isNullOrBlank()) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(comment.user.avatar)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Аватар",
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-
-                        val authorLogin = comment.user?.authorLogin
-                        Text(
-                            text = comment.user?.displayName ?: "Пользователь",
-                            color = authorColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.clickable(enabled = authorLogin != null) {
-                                authorLogin?.let { onUserClick(it) }
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Бейджик: кнопка ответа + время (в стиле форума)
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
-                        ),
-                        modifier = Modifier.wrapContentSize()
-                    ) {
+                        // Автор
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            // Кнопка ответа
-                            IconButton(
-                                onClick = onReplyClick,
-                                modifier = Modifier.size(22.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Reply,
-                                    contentDescription = "Ответить",
-                                    tint = authorColor,
-                                    modifier = Modifier.size(14.dp)
+                            if (!comment.user?.avatar.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(comment.user.avatar)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Аватар",
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
                             }
 
-                            comment.createdAt?.let { created ->
-                                Text(
-                                    text = "•",
-                                    fontSize = 10.sp,
-                                    color = secondaryTextColor.copy(alpha = 0.4f),
-                                    modifier = Modifier.padding(horizontal = 2.dp)
-                                )
+                            val authorLogin = comment.user?.authorLogin
+                            Text(
+                                text = comment.user?.displayName ?: "Пользователь",
+                                color = authorColor,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clickable(enabled = authorLogin != null) {
+                                    authorLogin?.let { onUserClick(it) }
+                                }
+                            )
+                        }
 
-                                Text(
-                                    text = formatUnixTime(created),
-                                    fontSize = 10.sp,
-                                    color = secondaryTextColor,
-                                    fontWeight = FontWeight.Medium
-                                )
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // Правая часть: кнопка ветки (свернуть/развернуть) + кнопка ответа + время
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // Кнопка сворачивания/разворачивания ветки, если у комментария есть ответы
+                            if (replyCount > 0) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isCollapsed) authorColor.copy(alpha = 0.16f) else (if (isDark) Color(0x0DFFFFFF) else Color(0x06000000)),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        width = 1.dp,
+                                        color = if (isCollapsed) authorColor.copy(alpha = 0.5f) else (if (isDark) Color(0x18FFFFFF) else Color(0x10000000))
+                                    ),
+                                    modifier = Modifier.clickable { onToggleCollapse() }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                            contentDescription = if (isCollapsed) "Развернуть ветку" else "Свернуть ветку",
+                                            tint = if (isCollapsed) authorColor else secondaryTextColor,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text(
+                                            text = "$replyCount",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isCollapsed) authorColor else secondaryTextColor
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Бейджик: кнопка ответа + время (в стиле форума)
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                                ),
+                                modifier = Modifier.wrapContentSize()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    val authorLogin = comment.user?.authorLogin ?: comment.user?.login
+                                    val isMyComment = currentLogin != null && (
+                                        comment.user?.login.equals(currentLogin, ignoreCase = true) ||
+                                        comment.user?.authorLogin.equals(currentLogin, ignoreCase = true)
+                                    )
+
+                                    if (!isMyComment) {
+                                        IconButton(
+                                            onClick = onReplyClick,
+                                            modifier = Modifier.size(20.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.Reply,
+                                                contentDescription = "Ответить",
+                                                tint = authorColor,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                        }
+                                    }
+
+                                    comment.createdAt?.let { created ->
+                                        if (!isMyComment) {
+                                            Text(
+                                                text = "•",
+                                                fontSize = 10.sp,
+                                                color = secondaryTextColor.copy(alpha = 0.4f),
+                                                modifier = Modifier.padding(horizontal = 1.dp)
+                                            )
+                                        }
+
+                                        Text(
+                                            text = formatUnixTime(created),
+                                            fontSize = 10.sp,
+                                            color = secondaryTextColor,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Текст комментария
-                comment.text?.let { text ->
-                    val blocks = parseHtmlToBlocks(text)
-                    RenderContentBlocks(
-                        blocks = blocks,
-                        isDark = isDark,
-                        onUserClick = onUserClick,
-                        onTopicClick = onTopicClick,
-                        onNewsClick = onNewsClick,
-                        onDownClick = onDownClick,
-                        onPhotoClick = onPhotoClick
-                    )
-                }
-
-                // Прикрепленные файлы
-                if (allFiles.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        allFiles.filter { isImageFile(it) }.forEach { file ->
-                            ImageFilePreview(file = file, onImageClick = onImageClick)
+
+                    // Текст комментария
+                    comment.text?.let { text ->
+                        val blocks = parseHtmlToBlocks(text)
+                        RenderContentBlocks(
+                            blocks = blocks,
+                            isDark = isDark,
+                            onUserClick = onUserClick,
+                            onTopicClick = onTopicClick,
+                            onNewsClick = onNewsClick,
+                            onDownClick = onDownClick,
+                            onPhotoClick = onPhotoClick
+                        )
+                    }
+
+                    // Прикрепленные файлы
+                    if (allFiles.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            allFiles.filter { isImageFile(it) }.forEach { file ->
+                                ImageFilePreview(file = file, onImageClick = onImageClick)
+                            }
+                            allFiles.filter { !isImageFile(it) }.forEach { file ->
+                                GlassFileCard(file = file, isDark = isDark)
+                            }
                         }
-                        allFiles.filter { !isImageFile(it) }.forEach { file ->
-                            GlassFileCard(file = file, isDark = isDark)
+                    }
+
+                    // Если ветка свернута — плашка внизу для быстрого разворачивания
+                    if (replyCount > 0 && isCollapsed) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isDark) getPrimaryAccentColor().copy(alpha = 0.12f) else getPrimaryAccentColor().copy(alpha = 0.08f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = getPrimaryAccentColor().copy(alpha = 0.25f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggleCollapse() }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = authorColor,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Показать ${formatRepliesCount(replyCount)}",
+                                    color = authorColor,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }
@@ -796,3 +1036,4 @@ fun NewsCommentCard(
         }
     }
 }
+
