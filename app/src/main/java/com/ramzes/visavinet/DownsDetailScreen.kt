@@ -496,22 +496,30 @@ fun DownsMainContentCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f, fill = false)
                 ) {
-                    if (!down.user?.avatar.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(down.user.avatar)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-
                     val authorLogin = down.user?.authorLogin
+                    val avatarData: Any = if (!down.user?.avatar.isNullOrBlank()) {
+                        down.user.avatar
+                    } else {
+                        R.drawable.ic_default_avatar
+                    }
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(avatarData)
+                            .placeholder(R.drawable.ic_default_avatar)
+                            .error(R.drawable.ic_default_avatar)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Аватар автора",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .clickable(enabled = authorLogin != null) {
+                                authorLogin?.let { onUserClick(it) }
+                            },
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
                         text = down.user?.displayName ?: "Автор",
                         color = authorColor,
@@ -930,22 +938,30 @@ fun DownCommentCard(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
-                        if (!comment.user?.avatar.isNullOrBlank()) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(comment.user.avatar)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-
                         val authorLogin = comment.user?.authorLogin
+                        val avatarData: Any = if (!comment.user?.avatar.isNullOrBlank()) {
+                            comment.user.avatar
+                        } else {
+                            R.drawable.ic_default_avatar
+                        }
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(avatarData)
+                                .placeholder(R.drawable.ic_default_avatar)
+                                .error(R.drawable.ic_default_avatar)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Аватар",
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .clickable(enabled = authorLogin != null) {
+                                    authorLogin?.let { onUserClick(it) }
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+
                         Text(
                             text = comment.user?.displayName ?: "Пользователь",
                             color = authorColor,

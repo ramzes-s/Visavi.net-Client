@@ -279,22 +279,30 @@ fun GalleryGridItem(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (!photo.user?.avatar.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(photo.user.avatar)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-
                     val authorLogin = photo.user?.authorLogin
+                    val avatarData: Any = if (!photo.user?.avatar.isNullOrBlank()) {
+                        photo.user.avatar
+                    } else {
+                        R.drawable.ic_default_avatar
+                    }
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(avatarData)
+                            .placeholder(R.drawable.ic_default_avatar)
+                            .error(R.drawable.ic_default_avatar)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Аватар",
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .clickable(enabled = authorLogin != null) {
+                                authorLogin?.let { onUserClick(it) }
+                            },
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+
                     Text(
                         text = photo.user?.displayName ?: "Пользователь",
                         color = authorColor,

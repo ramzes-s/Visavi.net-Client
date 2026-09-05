@@ -702,22 +702,30 @@ fun DownItemCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!down.user?.avatar.isNullOrBlank()) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(down.user.avatar)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                    }
-
                     val authorLogin = down.user?.authorLogin
+                    val avatarData: Any = if (!down.user?.avatar.isNullOrBlank()) {
+                        down.user.avatar
+                    } else {
+                        R.drawable.ic_default_avatar
+                    }
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(avatarData)
+                            .placeholder(R.drawable.ic_default_avatar)
+                            .error(R.drawable.ic_default_avatar)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Аватар",
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clip(CircleShape)
+                            .clickable(enabled = authorLogin != null) {
+                                authorLogin?.let { onUserClick(it) }
+                            },
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+
                     Text(
                         text = down.user?.displayName ?: "Автор",
                         color = authorColor,

@@ -344,23 +344,26 @@ fun FeedCardItem(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            if (!user.avatar.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current)
-                                        .data(user.avatar)
-                                        .placeholder(R.drawable.ic_default_avatar)
-                                        .error(R.drawable.ic_default_avatar)
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = "Аватар",
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clip(CircleShape)
-                                        .clickable { onUserClick(user.login) },
-                                    contentScale = ContentScale.Crop
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                            val avatarData: Any = if (!user.avatar.isNullOrBlank()) {
+                                user.avatar
+                            } else {
+                                R.drawable.ic_default_avatar
                             }
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(avatarData)
+                                    .placeholder(R.drawable.ic_default_avatar)
+                                    .error(R.drawable.ic_default_avatar)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Аватар",
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .clickable { onUserClick(user.login) },
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
 
                             val authorColor = try {
                                 if (!user.color.isNullOrBlank()) Color(android.graphics.Color.parseColor(user.color)) else primaryAccent

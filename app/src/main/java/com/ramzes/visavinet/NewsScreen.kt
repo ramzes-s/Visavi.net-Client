@@ -302,22 +302,30 @@ fun NewsItemCard(
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         // Аватар
-                        if (!news.user?.avatar.isNullOrBlank()) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(news.user.avatar)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Аватар",
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-
                         val authorLogin = news.user?.authorLogin
+                        val avatarData: Any = if (!news.user?.avatar.isNullOrBlank()) {
+                            news.user.avatar
+                        } else {
+                            R.drawable.ic_default_avatar
+                        }
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(avatarData)
+                                .placeholder(R.drawable.ic_default_avatar)
+                                .error(R.drawable.ic_default_avatar)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Аватар",
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .clickable(enabled = authorLogin != null) {
+                                    authorLogin?.let { onUserClick(it) }
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+
                         Text(
                             text = news.user?.displayName ?: "Администратор",
                             color = authorColor,
