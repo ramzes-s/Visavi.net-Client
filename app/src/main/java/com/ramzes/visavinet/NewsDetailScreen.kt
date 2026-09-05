@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
@@ -84,6 +85,7 @@ fun NewsDetailScreen(
     val isDark = isDarkTheme()
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
+    val accentColor = getSecondaryAccentColor()
     val listState = rememberLazyListState()
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingDetail)
     val coroutineScope = rememberCoroutineScope()
@@ -217,7 +219,7 @@ fun NewsDetailScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
+                    contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 88.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
                     // Карточка новости
@@ -400,39 +402,8 @@ fun NewsDetailScreen(
                 }
             }
 
-            // Нижняя панель отправки комментария
-            if (!displayNews.closed) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = Color.Transparent
-                ) {
-                    GlassButton(
-                        onClick = {
-                            replyingToCommentId = null
-                            isFullscreenModalOpen = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isDark = isDark,
-                        accentColor = getPrimaryAccentColor()
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Reply,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Написать комментарий",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            } else {
+            // Индикатор закрытого комментирования (если новость закрыта)
+            if (displayNews.closed) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     color = if (isDark) Color(0x33000000) else Color(0x1A000000)
@@ -451,6 +422,27 @@ fun NewsDetailScreen(
                         )
                     }
                 }
+            }
+        }
+
+        // Плавающая круглая кнопка добавления комментария (если новость не закрыта)
+        if (!displayNews.closed) {
+            FloatingActionButton(
+                onClick = {
+                    replyingToCommentId = null
+                    isFullscreenModalOpen = true
+                },
+                shape = CircleShape,
+                containerColor = accentColor,
+                contentColor = if (isDark) Color.Black else Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Comment,
+                    contentDescription = "Добавить комментарий"
+                )
             }
         }
 
