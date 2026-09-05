@@ -628,7 +628,8 @@ fun NewsMainContentCard(
                     onTopicClick = onTopicClick,
                     onNewsClick = onNewsClick,
                     onDownClick = onDownClick,
-                    onPhotoClick = onPhotoClick
+                    onPhotoClick = onPhotoClick,
+                    onImageClick = onImageClick
                 )
             }
 
@@ -987,7 +988,8 @@ fun NewsCommentCard(
                             onTopicClick = onTopicClick,
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
-                            onPhotoClick = onPhotoClick
+                            onPhotoClick = onPhotoClick,
+                            onImageClick = onImageClick
                         )
                     }
 

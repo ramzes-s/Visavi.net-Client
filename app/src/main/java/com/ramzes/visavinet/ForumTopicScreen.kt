@@ -690,7 +690,8 @@ fun ForumPostItem(
                     onTopicClick = onTopicClick,
                     onNewsClick = onNewsClick,
                     onDownClick = onDownClick,
-                    onPhotoClick = onPhotoClick
+                    onPhotoClick = onPhotoClick,
+                    onImageClick = onImageClick
                 )
             }
 

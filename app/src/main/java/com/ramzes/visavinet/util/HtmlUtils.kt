@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -18,7 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
@@ -235,10 +238,38 @@ fun ClickableAndSelectableText(
 /**
  * Блок контента — результат парсинга HTML
  */
+/**
+ * Блок контента — результат парсинга HTML
+ */
 sealed class ContentBlock {
     data class TextBlock(val text: String, val html: String? = null) : ContentBlock()
     data class CodeBlock(val code: String) : ContentBlock()
     data class QuoteBlock(val quoteText: String, val footerText: String, val quoteHtml: String? = null, val footerHtml: String? = null) : ContentBlock()
+    data class ImageBlock(val url: String, val alt: String? = null) : ContentBlock()
+}
+
+/**
+ * Проверяет, является ли тег изображения смайликом или стикером
+ */
+fun isStickerOrSmile(imgTag: String, src: String?): Boolean {
+    if (src == null) return false
+    val lowerSrc = src.lowercase()
+    val lowerTag = imgTag.lowercase()
+    if (lowerSrc.contains("/stickers/") || lowerSrc.contains("/smiles/") || lowerSrc.contains("/assets/img/smiles/")) return true
+    if (lowerTag.contains("sticker") || lowerTag.contains("smile")) return true
+    return false
+}
+
+/**
+ * Приводит относительный URL сайта Visavi к абсолютному https://visavi.net/...
+ */
+fun normalizeVisaviUrl(rawUrl: String): String {
+    val trimmed = rawUrl.trim()
+    return if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+        "https://${VisaviApi.BASE_HOST}" + (if (trimmed.startsWith("/")) "" else "/") + trimmed
+    } else {
+        trimmed
+    }
 }
 
 /**
@@ -253,11 +284,12 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
         .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
 
-    // Заменяем </p> и <br> на переносы строк
+    // Заменяем </p> и <br> на переносы строк, удаляем </img>
     var processed = sanitized
         .replace(Regex("</p\\s*>", RegexOption.IGNORE_CASE), "\n")
         .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+        .replace(Regex("</img\\s*>", RegexOption.IGNORE_CASE), "")
 
     // Находим все блоки и сортируем по позиции
     val allMatches = mutableListOf<MatchResult>()
@@ -274,6 +306,28 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
     val quotePattern = Regex("<blockquote[^>]*>(.*?)</blockquote>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
     allMatches.addAll(quotePattern.findAll(processed))
 
+    // Находим картинки в ссылке: <a ...><img ...></a>
+    val linkedImgPattern = Regex("<a[^>]*href=[\"']([^\"']+)[\"'][^>]*>\\s*(<img[^>]*>)\\s*</a>", RegexOption.IGNORE_CASE)
+    for (m in linkedImgPattern.findAll(processed)) {
+        val imgTag = m.groupValues[2]
+        val (src, _) = parseImgSrcAndAlt(imgTag)
+        if (!isStickerOrSmile(imgTag, src)) {
+            allMatches.add(m)
+        }
+    }
+
+    // Находим отдельные картинки: <img ...>
+    val imgPattern = Regex("<img[^>]*>", RegexOption.IGNORE_CASE)
+    for (m in imgPattern.findAll(processed)) {
+        val (src, _) = parseImgSrcAndAlt(m.value)
+        if (!isStickerOrSmile(m.value, src)) {
+            val overlaps = allMatches.any { it.range.contains(m.range.first) || m.range.contains(it.range.first) }
+            if (!overlaps) {
+                allMatches.add(m)
+            }
+        }
+    }
+
     // Сортируем по позиции начала
     allMatches.sortBy { it.range.first }
 
@@ -281,7 +335,7 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
     var currentPosition = 0
 
     for (match in allMatches) {
-        // Защита от некорректных позиций и вложенных блоков (например code внутри pre)
+        // Защита от некорректных позиций и вложенных блоков
         val startPos = maxOf(0, match.range.first)
         if (startPos < currentPosition) continue
 
@@ -297,7 +351,6 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
         // Обрабатываем <pre> и <code> как самостоятельные блоки кода
         if (tag.startsWith("<pre") || tag.startsWith("<code")) {
             val rawCode = match.groupValues[1]
-            // Вырезаем служебные вложенные теги (<span>, <code>, etc.)
             val cleanCode = rawCode.replace(Regex("<[^>]+>"), "").trim('\r', '\n')
             blocks.add(ContentBlock.CodeBlock(cleanCode))
         }
@@ -332,6 +385,23 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
                 quoteHtml = cleanQuoteHtml,
                 footerHtml = cleanFooterHtml
             ))
+        }
+        // Обрабатываем полноразмерные изображения и изображения-ссылки
+        else if (tag.startsWith("<a") || tag.startsWith("<img")) {
+            val imgTag = if (tag.startsWith("<a")) {
+                Regex("<img[^>]*>", RegexOption.IGNORE_CASE).find(match.value)?.value ?: match.value
+            } else {
+                match.value
+            }
+            val hrefUrl = if (tag.startsWith("<a")) {
+                parseHrefFromATag(match.value)?.let { normalizeVisaviUrl(it) }
+            } else null
+
+            val (src, alt) = parseImgSrcAndAlt(imgTag)
+            val finalUrl = hrefUrl ?: src
+            if (!finalUrl.isNullOrBlank()) {
+                blocks.add(ContentBlock.ImageBlock(url = finalUrl, alt = alt))
+            }
         }
 
         currentPosition = maxOf(currentPosition, match.range.last + 1)
@@ -399,7 +469,8 @@ fun RenderContentBlocks(
     onTopicClick: ((topicId: Int, page: Int?, postId: Int?) -> Unit)? = null,
     onNewsClick: ((newsId: Int) -> Unit)? = null,
     onDownClick: ((downId: Int) -> Unit)? = null,
-    onPhotoClick: ((photoId: Int) -> Unit)? = null
+    onPhotoClick: ((photoId: Int) -> Unit)? = null,
+    onImageClick: ((String) -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         blocks.forEach { block ->
@@ -433,6 +504,33 @@ fun RenderContentBlocks(
                         onPhotoClick = onPhotoClick
                     )
                 }
+                is ContentBlock.ImageBlock -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .then(
+                                if (onImageClick != null) {
+                                    Modifier.clickable { onImageClick(block.url) }
+                                } else Modifier
+                            )
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(block.url)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = block.alt ?: "Изображение",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 260.dp),
+                            contentScale = ContentScale.FillWidth
+                        )
+                    }
+                }
             }
         }
     }
@@ -452,15 +550,15 @@ fun parseHrefFromATag(fullTag: String): String? {
  */
 fun parseImgSrcAndAlt(imgTag: String): Pair<String?, String?> {
     val srcRegex = Regex("src\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
-    val srcMatch = srcRegex.find(imgTag) ?: Regex("src\\s*=\\s*'([^']+)'", RegexOption.IGNORE_CASE).find(imgTag)
-    val altRegex = Regex("alt\\s*=\\s*\"([^\"]+)\"", RegexOption.IGNORE_CASE)
-    val altMatch = altRegex.find(imgTag) ?: Regex("alt\\s*=\\s*'([^']+)'", RegexOption.IGNORE_CASE).find(imgTag)
+    val srcMatch = srcRegex.find(imgTag) ?: Regex("src\\s*=\\s*'([^']+)'", RegexOption.IGNORE_CASE).find(imgTag) ?: Regex("src\\s*=\\s*([^\\s>]+)", RegexOption.IGNORE_CASE).find(imgTag)
+    val altRegex = Regex("alt\\s*=\\s*\"([^\"]*)\"", RegexOption.IGNORE_CASE)
+    val altMatch = altRegex.find(imgTag) ?: Regex("alt\\s*=\\s*'([^']*)'", RegexOption.IGNORE_CASE).find(imgTag)
 
-    var src = srcMatch?.groupValues?.get(1)
-    if (src != null && !src.startsWith("http://") && !src.startsWith("https://")) {
-        src = "https://${VisaviApi.BASE_HOST}" + (if (src.startsWith("/")) "" else "/") + src
+    var src = srcMatch?.groupValues?.get(1)?.trim()
+    if (src != null) {
+        src = normalizeVisaviUrl(src)
     }
-    val alt = altMatch?.groupValues?.get(1) ?: "smile"
+    val alt = altMatch?.groupValues?.get(1)?.trim() ?: "image"
     return Pair(src, alt)
 }
 
@@ -927,6 +1025,10 @@ fun htmlToAnnotatedString(html: String?, isDark: Boolean = true): AnnotatedStrin
                     }
                     
                     append("\n\n")
+                }
+                is ContentBlock.ImageBlock -> {
+                    append("[Изображение]")
+                    if (index < blocks.lastIndex) append("\n")
                 }
             }
         }

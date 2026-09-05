@@ -679,7 +679,8 @@ fun GalleryMainContentCard(
                         onTopicClick = onTopicClick,
                         onNewsClick = onNewsClick,
                         onDownClick = onDownClick,
-                        onPhotoClick = onPhotoClick
+                        onPhotoClick = onPhotoClick,
+                        onImageClick = onImageClick
                     )
                 }
             }
@@ -915,7 +916,8 @@ fun GalleryCommentCard(
                             onTopicClick = onTopicClick,
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
-                            onPhotoClick = onPhotoClick
+                            onPhotoClick = onPhotoClick,
+                            onImageClick = onImageClick
                         )
                     }
 

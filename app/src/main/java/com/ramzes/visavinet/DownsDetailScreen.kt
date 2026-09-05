@@ -784,7 +784,8 @@ fun DownsMainContentCard(
                         onTopicClick = onTopicClick,
                         onNewsClick = onNewsClick,
                         onDownClick = onDownClick,
-                        onPhotoClick = onPhotoClick
+                        onPhotoClick = onPhotoClick,
+                        onImageClick = onImageClick
                     )
                 }
             }
@@ -1115,7 +1116,8 @@ fun DownCommentCard(
                             onTopicClick = onTopicClick,
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
-                            onPhotoClick = onPhotoClick
+                            onPhotoClick = onPhotoClick,
+                            onImageClick = onImageClick
                         )
                     }
 

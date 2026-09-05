@@ -481,7 +481,8 @@ fun GlassMessageItem(
                     onTopicClick = onTopicClick,
                     onNewsClick = onNewsClick,
                     onDownClick = onDownClick,
-                    onPhotoClick = onPhotoClick
+                    onPhotoClick = onPhotoClick,
+                    onImageClick = onImageClick
                 )
             }
 
@@ -514,7 +515,7 @@ fun ImageFilePreview(file: FileData, onImageClick: (String) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 180.dp)
+            .height(180.dp)
             .clip(RoundedCornerShape(6.dp))
             .clickable { onImageClick(path) }
     ) {
@@ -524,7 +525,7 @@ fun ImageFilePreview(file: FileData, onImageClick: (String) -> Unit) {
                 .crossfade(true)
                 .build(),
             contentDescription = file.name ?: "Превью",
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
     }
