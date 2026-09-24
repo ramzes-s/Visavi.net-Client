@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -266,11 +267,13 @@ fun DialogueItem(
                     }
 
                     dialogue.text?.let { text ->
-                        val cleanHtml = text
-                            .replace(Regex("</?p[^>]*>", RegexOption.IGNORE_CASE), " ")
-                            .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")
-                            .trim()
-                        val annotatedPreview = parseInlineHtmlTags(cleanHtml, isDark).first
+                        val annotatedPreview = remember(text, isDark) {
+                            val cleanHtml = text
+                                .replace(Regex("</?p[^>]*>", RegexOption.IGNORE_CASE), " ")
+                                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")
+                                .trim()
+                            parseInlineHtmlTags(cleanHtml, isDark).first
+                        }
 
                         Text(
                             text = annotatedPreview,

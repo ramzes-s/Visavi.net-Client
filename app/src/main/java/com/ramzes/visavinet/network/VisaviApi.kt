@@ -187,29 +187,40 @@ data class NewMessagesResponse(
     @SerializedName("dialogues") val dialogues: List<NewMessageInfo>? = null
 )
 
+private val fallbackFormatters = arrayOf(
+    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(java.time.ZoneOffset.UTC),
+    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(java.time.ZoneOffset.UTC)
+)
+
 fun parseIsoDateTime(isoDate: String?): Long? {
     if (isoDate.isNullOrBlank()) return null
     val clean = isoDate.trim()
-    val patterns = arrayOf(
-        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS",
-        "yyyy-MM-dd'T'HH:mm:ssXXX",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'",
-        "yyyy-MM-dd'T'HH:mm:ss",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-dd"
-    )
-    for (pattern in patterns) {
+
+    // 1. Быстрый путь: стандартный ISO 8601 (OffsetDateTime: "2026-08-09T12:00:00+03:00", Instant: "2026-08-09T12:00:00Z")
+    try {
+        return java.time.OffsetDateTime.parse(clean).toInstant().toEpochMilli()
+    } catch (_: Exception) {}
+
+    try {
+        return java.time.Instant.parse(clean).toEpochMilli()
+    } catch (_: Exception) {}
+
+    try {
+        return java.time.LocalDateTime.parse(clean)
+            .atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+    } catch (_: Exception) {}
+
+    // 2. Fallback для форматов без T ("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd")
+    for (formatter in fallbackFormatters) {
         try {
-            val sdf = java.text.SimpleDateFormat(pattern, java.util.Locale.US).apply {
-                timeZone = java.util.TimeZone.getTimeZone("UTC")
-                isLenient = false
-            }
-            val date = sdf.parse(clean)
-            if (date != null) return date.time
-        } catch (e: Exception) {
-            // пробуем следующий формат
+            val temporalAccessor = formatter.parse(clean)
+            val instant = java.time.Instant.from(temporalAccessor)
+            return instant.toEpochMilli()
+        } catch (_: Exception) {
+            try {
+                val localDate = java.time.LocalDate.parse(clean, formatter)
+                return localDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+            } catch (_: Exception) {}
         }
     }
     return null

@@ -473,7 +473,7 @@ fun GlassMessageItem(
             Spacer(modifier = Modifier.height(6.dp))
 
             message.text?.let { text ->
-                val blocks = parseHtmlToBlocks(text)
+                val blocks = remember(text) { parseHtmlToBlocks(text) }
                 RenderContentBlocks(
                     blocks = blocks,
                     isDark = isDark,

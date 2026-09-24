@@ -43,7 +43,10 @@ import com.ramzes.visavinet.ui.theme.LightText
 import com.ramzes.visavinet.ui.theme.LightTextSecondary
 import com.ramzes.visavinet.ui.theme.TextLightGray
 import com.ramzes.visavinet.network.VisaviApi
-import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 sealed class VisaviUrlTarget {
@@ -272,11 +275,16 @@ fun normalizeVisaviUrl(rawUrl: String): String {
     }
 }
 
+private val htmlBlocksCache = object : android.util.LruCache<String, List<ContentBlock>>(250) {}
+
 /**
  * Парсинг HTML в список блоков контента
  */
 fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
     if (html == null || html.isBlank()) return emptyList()
+
+    val cached = htmlBlocksCache.get(html)
+    if (cached != null) return cached
 
     // Декодируем HTML entities
     val decoded = decodeHtmlEntities(html)
@@ -424,6 +432,7 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
         }
     }
 
+    htmlBlocksCache.put(html, blocks)
     return blocks
 }
 
@@ -1046,6 +1055,9 @@ fun sanitizeHtml(html: String?): String {
     return withoutScripts.replace(Regex("<[^>]*>"), "")
 }
 
+private val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
+private val fullDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yy HH:mm", Locale.getDefault())
+
 /**
  * Форматирование времени в читаемый формат:
  * - Если дата совпадает с текущей: "Сегодня в HH:mm"
@@ -1054,29 +1066,19 @@ fun sanitizeHtml(html: String?): String {
  */
 fun formatUnixTime(timestamp: Long): String {
     if (timestamp <= 0) return ""
-    val date = Date(timestamp)
+    return try {
+        val zone = ZoneId.systemDefault()
+        val itemDateTime = Instant.ofEpochMilli(timestamp).atZone(zone)
+        val itemDate = itemDateTime.toLocalDate()
+        val today = LocalDate.now(zone)
 
-    val nowCal = Calendar.getInstance()
-    val dateCal = Calendar.getInstance().apply { time = date }
-    val yesterdayCal = Calendar.getInstance().apply {
-        add(Calendar.DAY_OF_YEAR, -1)
-    }
-
-    val isToday = nowCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
-                  nowCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
-
-    val isYesterday = yesterdayCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
-                      yesterdayCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
-
-    val timeSdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-
-    return when {
-        isToday -> "Сегодня в ${timeSdf.format(date)}"
-        isYesterday -> "Вчера в ${timeSdf.format(date)}"
-        else -> {
-            val sdf = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
-            sdf.format(date)
+        when (itemDate) {
+            today -> "Сегодня в ${itemDateTime.format(timeFormatter)}"
+            today.minusDays(1) -> "Вчера в ${itemDateTime.format(timeFormatter)}"
+            else -> itemDateTime.format(fullDateFormatter)
         }
+    } catch (e: Exception) {
+        ""
     }
 }
 
@@ -1085,10 +1087,13 @@ fun formatUnixTime(timestamp: Long): String {
  */
 fun isDateToday(timestamp: Long): Boolean {
     if (timestamp <= 0) return false
-    val nowCal = Calendar.getInstance()
-    val dateCal = Calendar.getInstance().apply { time = Date(timestamp) }
-    return nowCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
-           nowCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
+    return try {
+        val zone = ZoneId.systemDefault()
+        val itemDate = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+        itemDate == LocalDate.now(zone)
+    } catch (e: Exception) {
+        false
+    }
 }
 
 /**
@@ -1096,10 +1101,13 @@ fun isDateToday(timestamp: Long): Boolean {
  */
 fun isDateYesterday(timestamp: Long): Boolean {
     if (timestamp <= 0) return false
-    val dateCal = Calendar.getInstance().apply { time = Date(timestamp) }
-    val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-    return yesterdayCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
-           yesterdayCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
+    return try {
+        val zone = ZoneId.systemDefault()
+        val itemDate = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+        itemDate == LocalDate.now(zone).minusDays(1)
+    } catch (e: Exception) {
+        false
+    }
 }
 
 /**
@@ -1107,15 +1115,14 @@ fun isDateYesterday(timestamp: Long): Boolean {
  */
 fun isDateRecent(timestamp: Long): Boolean {
     if (timestamp <= 0) return false
-    val nowCal = Calendar.getInstance()
-    val dateCal = Calendar.getInstance().apply { time = Date(timestamp) }
-    val isToday = nowCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
-                  nowCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
-    if (isToday) return true
-
-    val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-    return yesterdayCal.get(Calendar.YEAR) == dateCal.get(Calendar.YEAR) &&
-           yesterdayCal.get(Calendar.DAY_OF_YEAR) == dateCal.get(Calendar.DAY_OF_YEAR)
+    return try {
+        val zone = ZoneId.systemDefault()
+        val itemDate = Instant.ofEpochMilli(timestamp).atZone(zone).toLocalDate()
+        val today = LocalDate.now(zone)
+        itemDate == today || itemDate == today.minusDays(1)
+    } catch (e: Exception) {
+        false
+    }
 }
 
 /**

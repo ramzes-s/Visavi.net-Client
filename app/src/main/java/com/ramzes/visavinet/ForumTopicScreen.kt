@@ -682,7 +682,7 @@ fun ForumPostItem(
             Spacer(modifier = Modifier.height(8.dp))
 
             post.text?.let { text ->
-                val blocks = parseHtmlToBlocks(text)
+                val blocks = remember(text) { parseHtmlToBlocks(text) }
                 RenderContentBlocks(
                     blocks = blocks,
                     isDark = isDark,

@@ -77,7 +77,7 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
-        viewModel.checkAutoUpdateIfDayPassed(context.applicationContext, versionName)
+        viewModel.checkAutoUpdateIfWeekPassed(context.applicationContext, versionName)
     }
 
     Column(
