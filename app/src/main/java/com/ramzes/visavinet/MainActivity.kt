@@ -366,6 +366,19 @@ fun MainNavigation(
                 shouldRefreshDialoguesFromNotification = true
             }
         }
+
+        val openFeed = intent?.getBooleanExtra("OPEN_FEED", false) ?: false
+        if (openFeed) {
+            while (viewModel.isInitialChecking && viewModel.currentUser == null) {
+                kotlinx.coroutines.delay(100)
+            }
+            if (viewModel.currentUser != null) {
+                resetSubScreens()
+                currentScreen = Screen.Feed
+                feedViewModel.refresh(context.applicationContext)
+                intent?.removeExtra("OPEN_FEED")
+            }
+        }
     }
 
     LaunchedEffect(currentScreen, showMessagesScreen, shouldRefreshDialoguesFromNotification) {
