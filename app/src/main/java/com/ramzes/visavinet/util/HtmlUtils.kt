@@ -292,8 +292,11 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
         .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
 
+    // Обработка списков <ul>, <ol>, <li>
+    val withLists = processListTags(sanitized)
+
     // Заменяем </p> и <br> на переносы строк, удаляем </img>
-    var processed = sanitized
+    var processed = withLists
         .replace(Regex("</p\\s*>", RegexOption.IGNORE_CASE), "\n")
         .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
@@ -440,6 +443,64 @@ private fun stripOrphanCodeTags(text: String): String {
     return text
         .replace(Regex("</?pre[^>]*>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("</?code[^>]*>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("</?ul[^>]*>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("</?ol[^>]*>", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("</?li[^>]*>", RegexOption.IGNORE_CASE), "")
+}
+
+/**
+ * Преобразует HTML-списки <ul>, <ol> и элементы <li> в форматированный текст с маркерами (•) или нумерацией (1.)
+ */
+fun processListTags(html: String): String {
+    if (!html.contains("<ul", ignoreCase = true) &&
+        !html.contains("<ol", ignoreCase = true) &&
+        !html.contains("<li", ignoreCase = true)) {
+        return html
+    }
+
+    var result = html
+
+    // 1. Нумерованные списки: <ol>...</ol>
+    val olRegex = Regex("<ol[^>]*>(.*?)</ol>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    result = olRegex.replace(result) { match ->
+        val inner = match.groupValues[1]
+        val liRegex = Regex("<li[^>]*>(.*?)(?:</li>|(?=<li[^>]*>)|$)", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        var idx = 1
+        val items = liRegex.findAll(inner)
+            .map { it.groupValues[1].trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+        if (items.isNotEmpty()) {
+            "\n" + items.joinToString("\n") { item -> "${idx++}. " + item.removePrefix("\n").trimStart() } + "\n"
+        } else {
+            ""
+        }
+    }
+
+    // 2. Маркированные списки: <ul>...</ul>
+    val ulRegex = Regex("<ul[^>]*>(.*?)</ul>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    result = ulRegex.replace(result) { match ->
+        val inner = match.groupValues[1]
+        val liRegex = Regex("<li[^>]*>(.*?)(?:</li>|(?=<li[^>]*>)|$)", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        val items = liRegex.findAll(inner)
+            .map { it.groupValues[1].trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+        if (items.isNotEmpty()) {
+            "\n" + items.joinToString("\n") { item -> "• " + item.removePrefix("\n").trimStart() } + "\n"
+        } else {
+            ""
+        }
+    }
+
+    // 3. Fallback для одиночных или незакрытых тегов <li>, <ul>, <ol>
+    result = result
+        .replace(Regex("</li>", RegexOption.IGNORE_CASE), "\n")
+        .replace(Regex("(?:\\r?\\n)?\\s*<li[^>]*>", RegexOption.IGNORE_CASE), "\n• ")
+        .replace(Regex("</?ul[^>]*>", RegexOption.IGNORE_CASE), "\n")
+        .replace(Regex("</?ol[^>]*>", RegexOption.IGNORE_CASE), "\n")
+
+    return result.replace(Regex("\n{3,}"), "\n\n")
 }
 
 /**
@@ -607,7 +668,7 @@ private fun TextBlock(
  */
 fun parseInlineHtmlTags(text: String, isDark: Boolean): Pair<AnnotatedString, Map<String, InlineTextContent>> {
     val inlineMap = mutableMapOf<String, InlineTextContent>()
-    val cleanText = text
+    val cleanText = processListTags(text)
         .replace(Regex("<div[^>]*>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("</div>", RegexOption.IGNORE_CASE), "")
         .trim()
@@ -1052,7 +1113,7 @@ fun sanitizeHtml(html: String?): String {
     val withoutScripts = html
         .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
-    return withoutScripts.replace(Regex("<[^>]*>"), "")
+    return processListTags(withoutScripts).replace(Regex("<[^>]*>"), "")
 }
 
 private val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
