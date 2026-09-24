@@ -365,15 +365,9 @@ fun FeedCardItem(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
 
-                            val authorColor = try {
-                                if (!user.color.isNullOrBlank()) Color(android.graphics.Color.parseColor(user.color)) else primaryAccent
-                            } catch (e: Exception) {
-                                primaryAccent
-                            }
-
                             Text(
                                 text = user.displayName,
-                                color = authorColor,
+                                color = primaryAccent,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
