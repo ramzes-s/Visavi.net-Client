@@ -129,7 +129,7 @@ private fun DrawerItemLabel(
     }
 }
 
-enum class Screen { Profile, Feed, News, Gallery, Downs, Private, Forum, Settings }
+enum class Screen { Profile, Feed, Online, News, Gallery, Downs, Private, Forum, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,6 +140,7 @@ fun MainNavigation(
 ) {
     val viewModel: MainViewModel = viewModel()
     val feedViewModel: FeedViewModel = viewModel()
+    val onlineViewModel: OnlineViewModel = viewModel()
     val dialoguesViewModel: DialoguesViewModel = viewModel()
     val forumViewModel: ForumViewModel = viewModel()
     val newsViewModel: NewsViewModel = viewModel()
@@ -288,6 +289,9 @@ fun MainNavigation(
                             currentScreen = Screen.Profile
                         }
                     }
+                    currentScreen == Screen.Online -> {
+                        currentScreen = Screen.Profile
+                    }
                     currentScreen == Screen.Private && !showMessagesScreen -> {
                         currentScreen = Screen.Profile
                     }
@@ -297,7 +301,7 @@ fun MainNavigation(
     }
 
     LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level, downsViewModel.navigationLevel) {
-        backCallback.isEnabled = currentScreen == Screen.Private || currentScreen == Screen.Forum || currentScreen == Screen.News || currentScreen == Screen.Gallery || currentScreen == Screen.Downs
+        backCallback.isEnabled = currentScreen == Screen.Online || currentScreen == Screen.Private || currentScreen == Screen.Forum || currentScreen == Screen.News || currentScreen == Screen.Gallery || currentScreen == Screen.Downs
         onBackPressedDispatcher?.addCallback(backCallback)
     }
 
@@ -647,6 +651,25 @@ fun MainNavigation(
                         },
                         colors = itemColors
                     )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
+                        label = {
+                            DrawerItemLabel(
+                                title = "СЕЙЧАС НА САЙТЕ",
+                                badgeCount = onlineViewModel.meta?.users?.toLong() ?: viewModel.siteStats?.online?.users ?: 0L,
+                                badgeColor = primaryAccent
+                            )
+                        },
+                        selected = currentScreen == Screen.Online,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            resetSubScreens()
+                            currentScreen = Screen.Online
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
 
                     if (!showPermanentDrawer) {
                         Spacer(Modifier.weight(1f))
@@ -751,6 +774,29 @@ fun MainNavigation(
                                         },
                                         onImageClick = { imageUrl ->
                                             selectedImageForLightbox = imageUrl
+                                        }
+                                    )
+                                }
+                                Screen.Online -> {
+                                    OnlineScreen(
+                                        viewModel = onlineViewModel,
+                                        onUserClick = { login ->
+                                            userProfileLoading = true
+                                            userProfileError = null
+                                            dialoguesViewModel.loadUserProfile(
+                                                context = context.applicationContext,
+                                                login = login,
+                                                onSuccess = { user ->
+                                                    userProfileData = user
+                                                    userProfileLoading = false
+                                                    showUserProfile = true
+                                                },
+                                                onError = { error ->
+                                                    userProfileError = error
+                                                    userProfileLoading = false
+                                                    showUserProfile = true
+                                                }
+                                            )
                                         }
                                     )
                                 }

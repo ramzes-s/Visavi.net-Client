@@ -875,6 +875,32 @@ data class StatsResponse(
     @SerializedName("sections") val sections: StatsSections? = null
 )
 
+data class OnlineUser(
+    @SerializedName("login") val login: String = "",
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("level") val level: String? = null,
+    @SerializedName("color") val color: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("status") val status: String? = null
+) {
+    val displayName: String
+        get() = name?.ifBlank { null } ?: login
+}
+
+data class OnlineMeta(
+    @SerializedName("current_page") val currentPage: Int = 1,
+    @SerializedName("last_page") val lastPage: Int = 1,
+    @SerializedName("per_page") val perPage: Int = 10,
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("users") val users: Int = 0,
+    @SerializedName("guests") val guests: Int = 0
+)
+
+data class OnlineResponse(
+    @SerializedName("data") val data: List<OnlineUser>? = null,
+    @SerializedName("meta") val meta: OnlineMeta? = null
+)
+
 /**
  * API сервис Visavi.net
  * RotorCMS OpenAPI v1.0.0
@@ -1065,6 +1091,12 @@ interface VisaviApiService {
     suspend fun getFeed(
         @Query("page") page: Int = 1
     ): Response<FeedResponse>
+
+    @GET("api/online")
+    suspend fun getOnline(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 10
+    ): Response<OnlineResponse>
 }
 
 object VisaviApi {
