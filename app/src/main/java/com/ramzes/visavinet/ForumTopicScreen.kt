@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -606,8 +607,25 @@ fun ForumPostItem(
                         }
                     )
 
-                    if (post.rating > 0) {
-                        Text(text = "⭐ ${post.rating}", fontSize = 10.sp, color = AmberGold)
+                    if (post.rating != 0) {
+                        val ratingColor = if (post.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Рейтинг",
+                                tint = ratingColor,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = if (post.rating > 0) "+${post.rating}" else "${post.rating}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ratingColor
+                            )
+                        }
                     }
                 }
 
