@@ -277,7 +277,13 @@ fun normalizeVisaviUrl(rawUrl: String): String {
     }
 }
 
-private val htmlBlocksCache = object : android.util.LruCache<String, List<ContentBlock>>(250) {}
+private val htmlBlocksCache: MutableMap<String, List<ContentBlock>> = java.util.Collections.synchronizedMap(
+    object : java.util.LinkedHashMap<String, List<ContentBlock>>(250, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<ContentBlock>>?): Boolean {
+            return size > 250
+        }
+    }
+)
 
 /**
  * Парсинг HTML в список блоков контента
