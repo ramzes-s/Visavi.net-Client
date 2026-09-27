@@ -55,7 +55,8 @@ fun FeedScreen(
     onPhotoClick: (photoId: Int) -> Unit,
     onDownClick: (downId: Int) -> Unit,
     onUserClick: (login: String) -> Unit,
-    onImageClick: (imageUrl: String) -> Unit = {}
+    onImageClick: (imageUrl: String) -> Unit = {},
+    onImagesClick: (images: List<String>, initialIndex: Int) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val isDark = isDarkTheme()
@@ -172,7 +173,8 @@ fun FeedScreen(
                                     onPhotoClick = onPhotoClick,
                                     onDownClick = onDownClick,
                                     onUserClick = onUserClick,
-                                    onImageClick = onImageClick
+                                    onImageClick = onImageClick,
+                                    onImagesClick = onImagesClick
                                 )
                             }
 
@@ -235,7 +237,8 @@ fun FeedCardItem(
     onPhotoClick: (photoId: Int) -> Unit,
     onDownClick: (downId: Int) -> Unit,
     onUserClick: (login: String) -> Unit,
-    onImageClick: (imageUrl: String) -> Unit
+    onImageClick: (imageUrl: String) -> Unit,
+    onImagesClick: (images: List<String>, initialIndex: Int) -> Unit = { _, _ -> }
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
@@ -463,6 +466,9 @@ fun FeedCardItem(
 
             // Прикрепленные медиа (для комментариев / тем)
             if (item.type != "photos" && item.media.isNotEmpty()) {
+                val mediaImages = remember(item.media) {
+                    item.media.filter { !it.isVideo && it.path != null }.mapNotNull { it.path }
+                }
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -477,8 +483,13 @@ fun FeedCardItem(
                                 .clickable {
                                     if (isMediaVideo) {
                                         onItemClick()
-                                    } else {
-                                        media.path?.let { onImageClick(it) }
+                                    } else if (media.path != null) {
+                                        if (mediaImages.isNotEmpty()) {
+                                            val idx = mediaImages.indexOf(media.path).coerceAtLeast(0)
+                                            onImagesClick(mediaImages, idx)
+                                        } else {
+                                            onImageClick(media.path)
+                                        }
                                     }
                                 }
                         ) {

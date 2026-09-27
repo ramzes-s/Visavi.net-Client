@@ -178,6 +178,7 @@ fun ForumScreen(
     if (showCreateTopicDialog && viewModel.navigationState.sectionId != null) {
         val sectionId = viewModel.navigationState.sectionId!!
         CreateTopicDialog(
+            forumId = sectionId,
             onDismiss = { 
                 createTopicError = null
                 showCreateTopicDialog = false 
@@ -197,6 +198,8 @@ fun ForumScreen(
                     fileUris = files,
                     userRating = userRating,
                     onSuccess = { newTopic ->
+                        com.ramzes.visavinet.util.DraftsManager.clearDraft(context, "create_topic_title_$sectionId")
+                        com.ramzes.visavinet.util.DraftsManager.clearDraft(context, com.ramzes.visavinet.util.DraftsManager.forumCreateTopicKey(sectionId))
                         showCreateTopicDialog = false
                         onTopicClick(newTopic)
                     },

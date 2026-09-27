@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -541,8 +542,12 @@ fun RenderContentBlocks(
     onNewsClick: ((newsId: Int) -> Unit)? = null,
     onDownClick: ((downId: Int) -> Unit)? = null,
     onPhotoClick: ((photoId: Int) -> Unit)? = null,
-    onImageClick: ((String) -> Unit)? = null
+    onImageClick: ((String) -> Unit)? = null,
+    onImagesClick: ((List<String>, Int) -> Unit)? = null
 ) {
+    val allImageUrls = remember(blocks) {
+        blocks.filterIsInstance<ContentBlock.ImageBlock>().map { it.url }
+    }
     ProvideContentFontScale {
         Column(modifier = Modifier.fillMaxWidth()) {
             blocks.forEach { block ->
@@ -577,16 +582,20 @@ fun RenderContentBlocks(
                     )
                 }
                 is ContentBlock.ImageBlock -> {
+                    val clickModifier = when {
+                        onImagesClick != null -> Modifier.clickable {
+                            val idx = allImageUrls.indexOf(block.url).coerceAtLeast(0)
+                            onImagesClick(allImageUrls, idx)
+                        }
+                        onImageClick != null -> Modifier.clickable { onImageClick(block.url) }
+                        else -> Modifier
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .then(
-                                if (onImageClick != null) {
-                                    Modifier.clickable { onImageClick(block.url) }
-                                } else Modifier
-                            )
+                            .then(clickModifier)
                     ) {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)

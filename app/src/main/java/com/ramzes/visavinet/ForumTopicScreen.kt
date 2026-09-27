@@ -8,14 +8,23 @@ import android.net.Uri
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Reply
@@ -56,6 +65,7 @@ import com.ramzes.visavinet.util.formatFileSize
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.parseHtmlToBlocks
 import com.ramzes.visavinet.util.sanitizeHtml
+import com.ramzes.visavinet.util.ContentBlock
 import com.ramzes.visavinet.util.RenderContentBlocks
 
 fun buildFinalForumPostText(rawText: String, replyToUser: String?, quoteInfo: QuoteInfo?): String {
@@ -99,14 +109,37 @@ fun ForumTopicScreen(
     val listState = rememberLazyListState()
     var hasScrolledToBottom by remember { mutableStateOf(false) }
 
-    var replyText by remember { mutableStateOf("") }
+    val initialLastSeenPostId = rememberSaveable(topic.id) {
+        com.ramzes.visavinet.util.ForumTopicReadTracker.getLastSeenPostId(context, topic.id)
+    }
+
+    val firstNewPostIndex = remember(viewModel.posts, initialLastSeenPostId) {
+        if (initialLastSeenPostId > 0) {
+            viewModel.posts.indexOfFirst { it.id > initialLastSeenPostId }
+        } else {
+            -1
+        }
+    }
+
+    LaunchedEffect(viewModel.posts) {
+        val maxPostId = viewModel.posts.maxOfOrNull { it.id } ?: 0
+        if (maxPostId > 0) {
+            com.ramzes.visavinet.util.ForumTopicReadTracker.saveLastSeenPostId(context, topic.id, maxPostId)
+        }
+    }
+
+    val draftKey = remember(topic.id) { com.ramzes.visavinet.util.DraftsManager.forumReplyKey(topic.id) }
+    var replyText by rememberSaveable(topic.id) {
+        mutableStateOf(com.ramzes.visavinet.util.DraftsManager.getDraft(context, draftKey))
+    }
     var replyToUser by remember { mutableStateOf<String?>(null) }
     var quoteInfo by remember { mutableStateOf<QuoteInfo?>(null) }
     var selectedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isSendingReply by remember { mutableStateOf(false) }
     var replyError by remember { mutableStateOf<String?>(null) }
     var showFullscreenInput by remember { mutableStateOf(false) }
-    var selectedImageForLightbox by remember { mutableStateOf<String?>(null) }
+    var lightboxImages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var lightboxInitialIndex by remember { mutableIntStateOf(0) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -269,7 +302,10 @@ fun ForumTopicScreen(
                                 )
                             }
 
-                            items(viewModel.posts, key = { it.id }) { post ->
+                            itemsIndexed(viewModel.posts, key = { _, post -> post.id }) { index, post ->
+                                if (index == firstNewPostIndex) {
+                                    ForumDividerWithText(text = "Новые сообщения", isDark = isDark)
+                                }
                                 ForumPostItem(
                                     post = post,
                                     currentLogin = currentLogin,
@@ -287,7 +323,14 @@ fun ForumTopicScreen(
                                         quoteInfo = QuoteInfo(author = author, text = cleanText)
                                         showFullscreenInput = true
                                     },
-                                    onImageClick = { url -> selectedImageForLightbox = url },
+                                    onImageClick = { url ->
+                                        lightboxImages = listOf(url)
+                                        lightboxInitialIndex = 0
+                                    },
+                                    onImagesClick = { urls, imgIndex ->
+                                        lightboxImages = urls
+                                        lightboxInitialIndex = imgIndex
+                                    },
                                     isDark = isDark
                                 )
                             }
@@ -358,7 +401,7 @@ fun ForumTopicScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Ответить в тему",
+                            text = if (replyText.isNotBlank()) "Ответить в тему (черновик)" else "Ответить в тему",
                             color = Color.White,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
@@ -373,7 +416,10 @@ fun ForumTopicScreen(
         val topicTitle = topic.title ?: ""
         FullscreenInputModal(
             text = replyText,
-            onTextChanged = { replyText = it },
+            onTextChanged = {
+                replyText = it
+                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, draftKey, it)
+            },
             selectedFiles = selectedFiles,
             onFilesChanged = { selectedFiles = it },
             replyToUser = replyToUser,
@@ -399,6 +445,7 @@ fun ForumTopicScreen(
                         userRating = userRating,
                         onSuccess = {
                             replyText = ""
+                            com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
                             replyToUser = null
                             quoteInfo = null
                             selectedFiles = emptyList()
@@ -419,10 +466,11 @@ fun ForumTopicScreen(
         )
     }
 
-    selectedImageForLightbox?.let { imageUrl ->
+    if (lightboxImages.isNotEmpty()) {
         ImageLightboxDialog(
-            imageUrl = imageUrl,
-            onDismiss = { selectedImageForLightbox = null }
+            images = lightboxImages,
+            initialPage = lightboxInitialIndex,
+            onDismiss = { lightboxImages = emptyList() }
         )
     }
 }
@@ -573,6 +621,7 @@ fun ForumPostItem(
     onUserReplyClick: (String) -> Unit,
     onQuoteClick: (author: String, text: String) -> Unit,
     onImageClick: (String) -> Unit,
+    onImagesClick: ((List<String>, Int) -> Unit)? = null,
     isDark: Boolean
 ) {
     val textColor = if (isDark) Color.White else LightText
@@ -699,6 +748,23 @@ fun ForumPostItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val allPostImages = remember(post.text, post.files) {
+                val textImages: List<String> = post.text?.let { t ->
+                    parseHtmlToBlocks(t).filterIsInstance<ContentBlock.ImageBlock>().map { it.url }
+                } ?: emptyList()
+                val fileImages: List<String> = post.files.filter { isImageFile(it) }.mapNotNull { it.path }
+                (textImages + fileImages).distinct()
+            }
+
+            val handlePostImageClick: (String) -> Unit = { url ->
+                if (allPostImages.isNotEmpty() && onImagesClick != null) {
+                    val idx = allPostImages.indexOf(url).coerceAtLeast(0)
+                    onImagesClick(allPostImages, idx)
+                } else {
+                    onImageClick(url)
+                }
+            }
+
             post.text?.let { text ->
                 val blocks = remember(text) { parseHtmlToBlocks(text) }
                 RenderContentBlocks(
@@ -709,19 +775,73 @@ fun ForumPostItem(
                     onNewsClick = onNewsClick,
                     onDownClick = onDownClick,
                     onPhotoClick = onPhotoClick,
-                    onImageClick = onImageClick
+                    onImageClick = handlePostImageClick
                 )
             }
 
             if (post.files.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // Картинки выводим выше
-                    post.files.filter { isImageFile(it) }.forEach { file ->
-                        ImageFilePreview(file = file, onImageClick = onImageClick)
+                    val imageFiles = remember(post.files) { post.files.filter { isImageFile(it) } }
+                    val otherFiles = remember(post.files) { post.files.filter { !isImageFile(it) } }
+
+                    if (imageFiles.size == 1) {
+                        ImageFilePreview(
+                            file = imageFiles[0],
+                            onImageClick = handlePostImageClick
+                        )
+                    } else if (imageFiles.size > 1) {
+                        val pagerState = rememberPagerState(initialPage = 0) { imageFiles.size }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(230.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isDark) Color(0x33000000) else Color(0x10000000))
+                        ) {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxSize()
+                            ) { page ->
+                                val file = imageFiles[page]
+                                val filePath = file.path
+                                if (!filePath.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(filePath)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = file.name,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clickable {
+                                                handlePostImageClick(filePath)
+                                            },
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color.Black.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                            ) {
+                                Text(
+                                    text = "${pagerState.currentPage + 1} / ${imageFiles.size}",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
+
                     // Остальные файлы выводим ниже
-                    post.files.filter { !isImageFile(it) }.forEach { file ->
+                    otherFiles.forEach { file ->
                         com.ramzes.visavinet.ui.components.GlassFileCard(file = file, isDark = isDark)
                     }
                 }

@@ -611,6 +611,7 @@ fun DownItemCard(
     onClick: () -> Unit,
     onUserClick: (String) -> Unit
 ) {
+    val context = LocalContext.current
     val authorColor = getPrimaryAccentColor()
 
     val previewText = remember(down.text) {
@@ -779,11 +780,19 @@ fun DownItemCard(
                             modifier = Modifier.size(11.dp)
                         )
                         Spacer(modifier = Modifier.width(2.dp))
+                        val newComments = remember(down.id, down.commentsCount) {
+                            com.ramzes.visavinet.util.CommentsReadTracker.getNewCommentsCount(
+                                context,
+                                com.ramzes.visavinet.util.CommentsReadTracker.SECTION_DOWNS,
+                                down.id,
+                                down.commentsCount
+                            )
+                        }
                         Text(
-                            text = "${down.commentsCount}",
+                            text = if (newComments > 0) "${down.commentsCount} (+$newComments)" else "${down.commentsCount}",
                             color = getSecondaryAccentColor(),
                             fontSize = 10.5.sp,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = if (newComments > 0) FontWeight.Bold else FontWeight.SemiBold
                         )
                     }
 

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,7 @@ import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatFileSize
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.parseHtmlToBlocks
+import com.ramzes.visavinet.util.ContentBlock
 import com.ramzes.visavinet.util.RenderContentBlocks
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -75,13 +77,18 @@ fun MessagesScreen(
     textMax: Int = 1000
 ) {
     val isDark = isDarkTheme()
+    val context = LocalContext.current
     val listState = rememberLazyListState()
-    var messageText by remember { mutableStateOf("") }
+    val draftKey = remember(dialogue.id, dialogue.authorLogin) {
+        com.ramzes.visavinet.util.DraftsManager.dialogueKey("${dialogue.id}_${dialogue.authorLogin}")
+    }
+    var messageText by rememberSaveable(dialogue.id) {
+        mutableStateOf(com.ramzes.visavinet.util.DraftsManager.getDraft(context, draftKey))
+    }
     var selectedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var showFullscreenInput by remember { mutableStateOf(false) }
-    var selectedImageForLightbox by remember { mutableStateOf<String?>(null) }
-
-    val context = LocalContext.current
+    var lightboxImages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var lightboxInitialIndex by remember { mutableIntStateOf(0) }
     val primaryAccent = getPrimaryAccentColor()
 
     val canReply = dialogue.canReply != false
@@ -223,7 +230,14 @@ fun MessagesScreen(
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
                             onPhotoClick = onPhotoClick,
-                            onImageClick = { url -> selectedImageForLightbox = url },
+                            onImageClick = { url ->
+                                lightboxImages = listOf(url)
+                                lightboxInitialIndex = 0
+                            },
+                            onImagesClick = { urls, idx ->
+                                lightboxImages = urls
+                                lightboxInitialIndex = idx
+                            },
                             isDark = isDark
                         )
                     }
@@ -283,6 +297,7 @@ fun MessagesScreen(
                         onValueChange = {
                             if (it.length <= textMax) {
                                 messageText = it
+                                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, draftKey, it)
                             }
                         },
                         placeholderText = "Сообщение...",
@@ -306,6 +321,7 @@ fun MessagesScreen(
                                 val formatted = com.ramzes.visavinet.util.ensureParagraphTags(messageText)
                                 onSendMessage(formatted, selectedFiles)
                                 messageText = ""
+                                com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
                                 selectedFiles = emptyList()
                                 hideKeyboard()
                             }
@@ -336,13 +352,17 @@ fun MessagesScreen(
         val dialogueName = dialogue.name?.ifBlank { null } ?: dialogue.login ?: ""
         FullscreenInputModal(
             text = messageText,
-            onTextChanged = { messageText = it },
+            onTextChanged = {
+                messageText = it
+                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, draftKey, it)
+            },
             selectedFiles = selectedFiles,
             onFilesChanged = { selectedFiles = it },
             onSend = {
                 if (messageText.isNotBlank() && !isSendingMessage) {
                     onSendMessage(messageText, selectedFiles)
                     messageText = ""
+                    com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
                     selectedFiles = emptyList()
                     showFullscreenInput = false
                     hideKeyboard()
@@ -354,10 +374,13 @@ fun MessagesScreen(
         )
     }
 
-    selectedImageForLightbox?.let { imageUrl ->
+    if (lightboxImages.isNotEmpty()) {
+        val dialogueTitle = dialogue.name?.ifBlank { null } ?: dialogue.login ?: "Диалог"
         ImageLightboxDialog(
-            imageUrl = imageUrl,
-            onDismiss = { selectedImageForLightbox = null }
+            images = lightboxImages,
+            initialPage = lightboxInitialIndex,
+            title = dialogueTitle,
+            onDismiss = { lightboxImages = emptyList() }
         )
     }
 
@@ -406,12 +429,30 @@ fun GlassMessageItem(
     onDownClick: ((downId: Int) -> Unit)? = null,
     onPhotoClick: ((photoId: Int) -> Unit)? = null,
     onImageClick: (String) -> Unit = {},
+    onImagesClick: ((List<String>, Int) -> Unit)? = null,
     isDark: Boolean = true
 ) {
     val isOutgoing = message.type == "out"
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.6f) else LightTextSecondary
     val primaryAccent = getPrimaryAccentColor()
+
+    val allMessageImages = remember(message.text, message.files) {
+        val textImages: List<String> = message.text?.let { t ->
+            parseHtmlToBlocks(t).filterIsInstance<ContentBlock.ImageBlock>().map { it.url }
+        } ?: emptyList()
+        val fileImages: List<String> = message.files.filter { isImageFile(it) }.mapNotNull { it.path }
+        (textImages + fileImages).distinct()
+    }
+
+    val handleMessageImageClick: (String) -> Unit = { url ->
+        if (allMessageImages.isNotEmpty() && onImagesClick != null) {
+            val idx = allMessageImages.indexOf(url).coerceAtLeast(0)
+            onImagesClick(allMessageImages, idx)
+        } else {
+            onImageClick(url)
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -482,7 +523,7 @@ fun GlassMessageItem(
                     onNewsClick = onNewsClick,
                     onDownClick = onDownClick,
                     onPhotoClick = onPhotoClick,
-                    onImageClick = onImageClick
+                    onImageClick = handleMessageImageClick
                 )
             }
 
@@ -491,7 +532,7 @@ fun GlassMessageItem(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     // Картинки выводим выше
                     message.files.filter { isImageFile(it) }.forEach { file ->
-                        ImageFilePreview(file = file, onImageClick = onImageClick)
+                        ImageFilePreview(file = file, onImageClick = handleMessageImageClick)
                     }
                     // Остальные файлы выводим ниже
                     message.files.filter { !isImageFile(it) }.forEach { file ->

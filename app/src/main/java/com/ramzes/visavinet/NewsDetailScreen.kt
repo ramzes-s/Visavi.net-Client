@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
@@ -90,13 +91,17 @@ fun NewsDetailScreen(
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingDetail)
     val coroutineScope = rememberCoroutineScope()
 
-    var commentText by remember { mutableStateOf("") }
+    val draftKey = remember(news.id) { com.ramzes.visavinet.util.DraftsManager.newsCommentKey(news.id) }
+    var commentText by rememberSaveable(news.id) {
+        mutableStateOf(com.ramzes.visavinet.util.DraftsManager.getDraft(context, draftKey))
+    }
     var replyingToCommentId by remember { mutableStateOf<Int?>(null) }
     var replyingToLogin by remember { mutableStateOf<String?>(null) }
     var highlightedCommentId by remember { mutableStateOf<Int?>(null) }
     var attachedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
-    var zoomImageUrl by remember { mutableStateOf<String?>(null) }
+    var lightboxImages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var lightboxInitialIndex by remember { mutableIntStateOf(0) }
 
     // Состояние свернутых веток комментариев (по умолчанию пусто = все развернуты)
     var collapsedCommentIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -174,6 +179,16 @@ fun NewsDetailScreen(
 
     val displayNews = viewModel.currentNews ?: news
 
+    LaunchedEffect(news.id, displayNews.commentsCount, viewModel.comments.size) {
+        val totalComments = maxOf(news.commentsCount, displayNews.commentsCount, viewModel.comments.size)
+        com.ramzes.visavinet.util.CommentsReadTracker.markAsRead(
+            context,
+            com.ramzes.visavinet.util.CommentsReadTracker.SECTION_NEWS,
+            news.id,
+            totalComments
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Верхняя панель
@@ -242,7 +257,14 @@ fun NewsDetailScreen(
                                 )
                             },
                             isVoting = displayNews.id in viewModel.votingNewsIds,
-                            onImageClick = { url -> zoomImageUrl = url }
+                            onImageClick = { url ->
+                                lightboxImages = listOf(url)
+                                lightboxInitialIndex = 0
+                            },
+                            onImagesClick = { urls, idx ->
+                                lightboxImages = urls
+                                lightboxInitialIndex = idx
+                            }
                         )
                     }
 
@@ -378,7 +400,14 @@ fun NewsDetailScreen(
                                     replyingToCommentId = comment.id
                                     isFullscreenModalOpen = true
                                 },
-                                onImageClick = { url -> zoomImageUrl = url }
+                                onImageClick = { url ->
+                                    lightboxImages = listOf(url)
+                                    lightboxInitialIndex = 0
+                                },
+                                onImagesClick = { urls, idx ->
+                                    lightboxImages = urls
+                                    lightboxInitialIndex = idx
+                                }
                             )
                         }
 
@@ -451,7 +480,10 @@ fun NewsDetailScreen(
             val isCommentValid = commentText.trim().isNotEmpty()
             FullscreenInputModal(
                 text = commentText,
-                onTextChanged = { commentText = it },
+                onTextChanged = {
+                    commentText = it
+                    com.ramzes.visavinet.util.DraftsManager.saveDraft(context, draftKey, it)
+                },
                 selectedFiles = attachedFiles,
                 onFilesChanged = { attachedFiles = it },
                 replyToUser = null,
@@ -474,7 +506,15 @@ fun NewsDetailScreen(
                                 replyingToCommentId?.let { pId ->
                                     collapsedCommentIds = collapsedCommentIds - pId
                                 }
+                                val updatedComments = maxOf(news.commentsCount, displayNews.commentsCount, viewModel.comments.size) + 1
+                                com.ramzes.visavinet.util.CommentsReadTracker.markAsRead(
+                                    context,
+                                    com.ramzes.visavinet.util.CommentsReadTracker.SECTION_NEWS,
+                                    news.id,
+                                    updatedComments
+                                )
                                 commentText = ""
+                                com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
                                 replyingToCommentId = null
                                 replyingToLogin = null
                                 attachedFiles = emptyList()
@@ -494,11 +534,13 @@ fun NewsDetailScreen(
             )
         }
 
-        // Модальный зум картинок
-        zoomImageUrl?.let { url ->
+        // Модальный просмотр картинок (лайтбокс со свайпом)
+        if (lightboxImages.isNotEmpty()) {
             ImageLightboxDialog(
-                imageUrl = url,
-                onDismiss = { zoomImageUrl = null }
+                images = lightboxImages,
+                initialPage = lightboxInitialIndex,
+                title = displayNews.title,
+                onDismiss = { lightboxImages = emptyList() }
             )
         }
     }
@@ -515,7 +557,8 @@ fun NewsMainContentCard(
     onPhotoClick: (photoId: Int) -> Unit = {},
     onVoteUp: (() -> Unit)? = null,
     isVoting: Boolean = false,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    onImagesClick: ((List<String>, Int) -> Unit)? = null
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
@@ -523,6 +566,23 @@ fun NewsMainContentCard(
 
     val allFiles = remember(news.media, news.files) {
         (news.safeMedia + news.safeFiles).distinctBy { it.id }
+    }
+
+    val allNewsImages = remember(news.text, allFiles) {
+        val textImages: List<String> = news.text?.let { t ->
+            parseHtmlToBlocks(t).filterIsInstance<ContentBlock.ImageBlock>().map { it.url }
+        } ?: emptyList()
+        val fileImages: List<String> = allFiles.filter { isImageFile(it) }.mapNotNull { it.path }
+        (textImages + fileImages).distinct()
+    }
+
+    val handleImageClick: (String) -> Unit = { url ->
+        if (allNewsImages.isNotEmpty() && onImagesClick != null) {
+            val idx = allNewsImages.indexOf(url).coerceAtLeast(0)
+            onImagesClick(allNewsImages, idx)
+        } else {
+            onImageClick(url)
+        }
     }
 
     GlassCard(
@@ -629,7 +689,7 @@ fun NewsMainContentCard(
                     onNewsClick = onNewsClick,
                     onDownClick = onDownClick,
                     onPhotoClick = onPhotoClick,
-                    onImageClick = onImageClick
+                    onImageClick = handleImageClick
                 )
             }
 
@@ -638,7 +698,7 @@ fun NewsMainContentCard(
                 Spacer(modifier = Modifier.height(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     allFiles.filter { isImageFile(it) }.forEach { file ->
-                        ImageFilePreview(file = file, onImageClick = onImageClick)
+                        ImageFilePreview(file = file, onImageClick = handleImageClick)
                     }
                     allFiles.filter { !isImageFile(it) }.forEach { file ->
                         GlassFileCard(file = file, isDark = isDark)
@@ -775,7 +835,8 @@ fun NewsCommentCard(
     onDownClick: (downId: Int) -> Unit = {},
     onPhotoClick: (photoId: Int) -> Unit = {},
     onReplyClick: () -> Unit,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    onImagesClick: ((List<String>, Int) -> Unit)? = null
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
@@ -783,6 +844,23 @@ fun NewsCommentCard(
 
     val allFiles = remember(comment.media, comment.files) {
         (comment.safeMedia + comment.safeFiles).distinctBy { it.id }
+    }
+
+    val allCommentImages = remember(comment.text, allFiles) {
+        val textImages: List<String> = comment.text?.let { t ->
+            parseHtmlToBlocks(t).filterIsInstance<ContentBlock.ImageBlock>().map { it.url }
+        } ?: emptyList()
+        val fileImages: List<String> = allFiles.filter { isImageFile(it) }.mapNotNull { it.path }
+        (textImages + fileImages).distinct()
+    }
+
+    val handleCommentImageClick: (String) -> Unit = { url ->
+        if (allCommentImages.isNotEmpty() && onImagesClick != null) {
+            val idx = allCommentImages.indexOf(url).coerceAtLeast(0)
+            onImagesClick(allCommentImages, idx)
+        } else {
+            onImageClick(url)
+        }
     }
 
     val parentId = comment.parent?.id?.takeIf { it > 0 } ?: comment.parentId
@@ -989,7 +1067,7 @@ fun NewsCommentCard(
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
                             onPhotoClick = onPhotoClick,
-                            onImageClick = onImageClick
+                            onImageClick = handleCommentImageClick
                         )
                     }
 
@@ -998,7 +1076,7 @@ fun NewsCommentCard(
                         Spacer(modifier = Modifier.height(6.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             allFiles.filter { isImageFile(it) }.forEach { file ->
-                                ImageFilePreview(file = file, onImageClick = onImageClick)
+                                ImageFilePreview(file = file, onImageClick = handleCommentImageClick)
                             }
                             allFiles.filter { !isImageFile(it) }.forEach { file ->
                                 GlassFileCard(file = file, isDark = isDark)

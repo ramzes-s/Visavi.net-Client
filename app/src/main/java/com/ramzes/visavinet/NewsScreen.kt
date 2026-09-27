@@ -220,6 +220,7 @@ fun NewsItemCard(
     onVoteUp: (() -> Unit)? = null,
     isVoting: Boolean = false
 ) {
+    val context = LocalContext.current
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
     val previewText = remember(news.text) {
@@ -392,11 +393,19 @@ fun NewsItemCard(
                                     tint = authorColor,
                                     modifier = Modifier.size(11.dp)
                                 )
+                                val newComments = remember(news.id, news.commentsCount) {
+                                    com.ramzes.visavinet.util.CommentsReadTracker.getNewCommentsCount(
+                                        context,
+                                        com.ramzes.visavinet.util.CommentsReadTracker.SECTION_NEWS,
+                                        news.id,
+                                        news.commentsCount
+                                    )
+                                }
                                 Text(
-                                    text = "${news.commentsCount}",
+                                    text = if (newComments > 0) "${news.commentsCount} (+$newComments)" else "${news.commentsCount}",
                                     color = authorColor,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = if (newComments > 0) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
 

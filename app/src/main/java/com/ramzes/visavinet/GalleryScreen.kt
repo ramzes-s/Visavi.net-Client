@@ -212,6 +212,7 @@ fun GalleryGridItem(
     onUserClick: (String) -> Unit
 ) {
     val textColor = if (isDark) Color.White else LightText
+    val context = LocalContext.current
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
     val authorColor = getPrimaryAccentColor()
 
@@ -369,11 +370,19 @@ fun GalleryGridItem(
                                 tint = authorColor,
                                 modifier = Modifier.size(10.dp)
                             )
+                            val newComments = remember(photo.id, photo.commentsCount) {
+                                com.ramzes.visavinet.util.CommentsReadTracker.getNewCommentsCount(
+                                    context,
+                                    com.ramzes.visavinet.util.CommentsReadTracker.SECTION_GALLERY,
+                                    photo.id,
+                                    photo.commentsCount
+                                )
+                            }
                             Text(
-                                text = "${photo.commentsCount}",
+                                text = if (newComments > 0) "${photo.commentsCount} (+$newComments)" else "${photo.commentsCount}",
                                 color = authorColor,
                                 fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = if (newComments > 0) FontWeight.Bold else FontWeight.Medium
                             )
                         }
 

@@ -6,6 +6,8 @@ import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,9 +38,31 @@ fun ImageLightboxDialog(
     title: String? = null,
     onDismiss: () -> Unit
 ) {
+    ImageLightboxDialog(
+        images = listOf(imageUrl),
+        initialPage = 0,
+        title = title,
+        onDismiss = onDismiss
+    )
+}
+
+@Composable
+fun ImageLightboxDialog(
+    images: List<String>,
+    initialPage: Int = 0,
+    title: String? = null,
+    onDismiss: () -> Unit
+) {
+    if (images.isEmpty()) {
+        onDismiss()
+        return
+    }
+
     val context = LocalContext.current
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
+
+    val safeInitialPage = initialPage.coerceIn(0, images.size - 1)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -48,6 +72,12 @@ fun ImageLightboxDialog(
             usePlatformDefaultWidth = false
         )
     ) {
+        key(images, safeInitialPage) {
+            val pagerState = rememberPagerState(
+                initialPage = safeInitialPage,
+                pageCount = { images.size }
+            )
+            val currentImageUrl = images.getOrNull(pagerState.currentPage) ?: images[0]
         var blurModifier = Modifier
             .fillMaxSize()
             .background(Color(0xE6000000))
@@ -78,8 +108,14 @@ fun ImageLightboxDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val headerTitle = if (images.size > 1) {
+                        "${pagerState.currentPage + 1} / ${images.size}"
+                    } else {
+                        title ?: "Просмотр изображения"
+                    }
+
                     Text(
-                        text = title ?: "Просмотр изображения",
+                        text = headerTitle,
                         color = Color.White,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -90,10 +126,10 @@ fun ImageLightboxDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IconButton(
                             onClick = {
-                                if (imageUrl.isNotBlank()) {
+                                if (currentImageUrl.isNotBlank()) {
                                     com.ramzes.visavinet.util.DownloaderHelper.downloadFile(
                                         context = context,
-                                        url = imageUrl,
+                                        url = currentImageUrl,
                                         fileName = title
                                     )
                                 }
@@ -112,9 +148,9 @@ fun ImageLightboxDialog(
 
                         IconButton(
                             onClick = {
-                                if (imageUrl.isNotBlank()) {
+                                if (currentImageUrl.isNotBlank()) {
                                     try {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(imageUrl))
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentImageUrl))
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
                                         e.printStackTrace()
@@ -149,24 +185,54 @@ fun ImageLightboxDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Полноэкранное изображение
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
+                // Полноэкранный пейджер изображений свайпом
+                HorizontalPager(
+                    state = pagerState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .wrapContentHeight()
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Fit
-                )
+                        .weight(1f)
+                ) { page ->
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(images[page])
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
 
-                Spacer(modifier = Modifier.weight(1f))
+                // Точечный индикатор, если фото несколько
+                if (images.size in 2..15) {
+                    Row(
+                        modifier = Modifier
+                            .padding(bottom = 12.dp)
+                            .wrapContentWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        repeat(images.size) { index ->
+                            val isSelected = pagerState.currentPage == index
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isSelected) 8.dp else 6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) primaryAccent else Color(0x66FFFFFF))
+                            )
+                        }
+                    }
+                }
             }
+        }
         }
     }
 }

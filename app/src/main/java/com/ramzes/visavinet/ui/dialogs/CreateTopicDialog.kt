@@ -35,6 +35,7 @@ import com.ramzes.visavinet.ui.theme.*
 
 @Composable
 fun CreateTopicDialog(
+    forumId: Int = 0,
     onDismiss: () -> Unit,
     onSubmit: (title: String, text: String, files: List<Uri>) -> Unit,
     isSubmitting: Boolean = false,
@@ -44,12 +45,20 @@ fun CreateTopicDialog(
     textMin: Int = 5,
     textMax: Int = 5000
 ) {
+    val context = LocalContext.current
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
 
-    var titleText by remember { mutableStateOf("") }
-    var contentText by remember { mutableStateOf("") }
+    val titleDraftKey = remember(forumId) { "create_topic_title_$forumId" }
+    val contentDraftKey = remember(forumId) { com.ramzes.visavinet.util.DraftsManager.forumCreateTopicKey(forumId) }
+
+    var titleText by remember(forumId) {
+        mutableStateOf(com.ramzes.visavinet.util.DraftsManager.getDraft(context, titleDraftKey))
+    }
+    var contentText by remember(forumId) {
+        mutableStateOf(com.ramzes.visavinet.util.DraftsManager.getDraft(context, contentDraftKey))
+    }
     var selectedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var showFullscreenInput by remember { mutableStateOf(false) }
 
@@ -121,6 +130,7 @@ fun CreateTopicDialog(
                         onValueChange = {
                             if (it.length <= titleMax) {
                                 titleText = it
+                                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, titleDraftKey, it)
                             }
                         },
                         placeholderText = "Заголовок темы...",
@@ -133,6 +143,7 @@ fun CreateTopicDialog(
                         onInsertTag = { tagStart, tagEnd ->
                             if (contentText.length <= textMax) {
                                 contentText = insertBbTag(contentText, tagStart, tagEnd)
+                                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, contentDraftKey, contentText)
                             }
                         },
                         onExpandFullscreen = { showFullscreenInput = true },
@@ -146,6 +157,7 @@ fun CreateTopicDialog(
                         onValueChange = {
                             if (it.length <= textMax) {
                                 contentText = it
+                                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, contentDraftKey, it)
                             }
                         },
                         placeholderText = "Текст темы...",
@@ -241,7 +253,10 @@ fun CreateTopicDialog(
     if (showFullscreenInput) {
         FullscreenInputModal(
             text = contentText,
-            onTextChanged = { contentText = it },
+            onTextChanged = {
+                contentText = it
+                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, contentDraftKey, it)
+            },
             selectedFiles = selectedFiles,
             onFilesChanged = { selectedFiles = it },
             textMin = textMin,

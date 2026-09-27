@@ -181,7 +181,8 @@ fun MainNavigation(
     var userProfileError by remember { mutableStateOf<String?>(null) }
     var userProfileData by remember { mutableStateOf<com.ramzes.visavinet.network.UserData?>(null) }
 
-    var selectedImageForLightbox by remember { mutableStateOf<String?>(null) }
+    var selectedImagesForLightbox by remember { mutableStateOf<List<String>>(emptyList()) }
+    var selectedImageIndexForLightbox by remember { mutableIntStateOf(0) }
 
     var pendingUserLogin by remember { mutableStateOf<String?>(null) }
     var shouldRefreshDialoguesFromNotification by remember { mutableStateOf(false) }
@@ -816,7 +817,12 @@ fun MainNavigation(
                                             )
                                         },
                                         onImageClick = { imageUrl ->
-                                            selectedImageForLightbox = imageUrl
+                                            selectedImagesForLightbox = listOf(imageUrl)
+                                            selectedImageIndexForLightbox = 0
+                                        },
+                                        onImagesClick = { images, idx ->
+                                            selectedImagesForLightbox = images
+                                            selectedImageIndexForLightbox = idx
                                         }
                                     )
                                 }
@@ -1269,10 +1275,11 @@ fun MainNavigation(
                 )
             }
 
-            selectedImageForLightbox?.let { imageUrl ->
+            if (selectedImagesForLightbox.isNotEmpty()) {
                 ImageLightboxDialog(
-                    imageUrl = imageUrl,
-                    onDismiss = { selectedImageForLightbox = null }
+                    images = selectedImagesForLightbox,
+                    initialPage = selectedImageIndexForLightbox,
+                    onDismiss = { selectedImagesForLightbox = emptyList() }
                 )
             }
         }

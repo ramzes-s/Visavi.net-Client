@@ -15,8 +15,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Comment
@@ -79,13 +82,17 @@ fun GalleryDetailScreen(
     val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingDetail)
     val coroutineScope = rememberCoroutineScope()
 
-    var commentText by remember { mutableStateOf("") }
+    val draftKey = remember(photo.id) { com.ramzes.visavinet.util.DraftsManager.galleryCommentKey(photo.id) }
+    var commentText by rememberSaveable(photo.id) {
+        mutableStateOf(com.ramzes.visavinet.util.DraftsManager.getDraft(context, draftKey))
+    }
     var replyingToCommentId by remember { mutableStateOf<Int?>(null) }
     var replyingToLogin by remember { mutableStateOf<String?>(null) }
     var highlightedCommentId by remember { mutableStateOf<Int?>(null) }
     var attachedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
-    var zoomImageUrl by remember { mutableStateOf<String?>(null) }
+    var lightboxImages by remember { mutableStateOf<List<String>>(emptyList()) }
+    var lightboxInitialIndex by remember { mutableIntStateOf(0) }
     var activeFullscreenPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
 
     // Состояние свернутых веток комментариев (по умолчанию пусто = все развернуты)
@@ -148,6 +155,16 @@ fun GalleryDetailScreen(
     LaunchedEffect(photo.id) {
         viewModel.selectPhoto(photo)
         viewModel.loadPhotoDetail(context, photo.id)
+    }
+
+    LaunchedEffect(photo.id, photo.commentsCount, viewModel.comments.size) {
+        val totalComments = maxOf(photo.commentsCount, viewModel.comments.size)
+        com.ramzes.visavinet.util.CommentsReadTracker.markAsRead(
+            context,
+            com.ramzes.visavinet.util.CommentsReadTracker.SECTION_GALLERY,
+            photo.id,
+            totalComments
+        )
     }
 
     LaunchedEffect(viewModel.comments.size, viewModel.isLoadingMoreComments) {
@@ -243,7 +260,15 @@ fun GalleryDetailScreen(
                                 )
                             },
                             isVoting = displayPhoto.id in viewModel.votingPhotoIds,
-                            onImageClick = { url -> zoomImageUrl = url },
+                            galleryPhotos = viewModel.photosList.mapNotNull { it.primaryMedia?.path }.filter { it.isNotBlank() },
+                            onImageClick = { url ->
+                                lightboxImages = listOf(url)
+                                lightboxInitialIndex = 0
+                            },
+                            onImagesClick = { urls, idx ->
+                                lightboxImages = urls
+                                lightboxInitialIndex = idx
+                            },
                             onFullscreenVideo = { player ->
                                 activeFullscreenPlayer = player
                             }
@@ -343,7 +368,14 @@ fun GalleryDetailScreen(
                                     replyingToCommentId = comment.id
                                     isFullscreenModalOpen = true
                                 },
-                                onImageClick = { url -> zoomImageUrl = url }
+                                onImageClick = { url ->
+                                    lightboxImages = listOf(url)
+                                    lightboxInitialIndex = 0
+                                },
+                                onImagesClick = { urls, idx ->
+                                    lightboxImages = urls
+                                    lightboxInitialIndex = idx
+                                }
                             )
                         }
 
@@ -416,7 +448,10 @@ fun GalleryDetailScreen(
             val isCommentValid = commentText.trim().isNotEmpty()
             FullscreenInputModal(
                 text = commentText,
-                onTextChanged = { commentText = it },
+                onTextChanged = {
+                    commentText = it
+                    com.ramzes.visavinet.util.DraftsManager.saveDraft(context, draftKey, it)
+                },
                 selectedFiles = attachedFiles,
                 onFilesChanged = { attachedFiles = it },
                 replyToUser = null,
@@ -439,7 +474,15 @@ fun GalleryDetailScreen(
                                 replyingToCommentId?.let { pId ->
                                     collapsedCommentIds = collapsedCommentIds - pId
                                 }
+                                val updatedComments = maxOf(photo.commentsCount, viewModel.comments.size) + 1
+                                com.ramzes.visavinet.util.CommentsReadTracker.markAsRead(
+                                    context,
+                                    com.ramzes.visavinet.util.CommentsReadTracker.SECTION_GALLERY,
+                                    photo.id,
+                                    updatedComments
+                                )
                                 commentText = ""
+                                com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
                                 replyingToCommentId = null
                                 replyingToLogin = null
                                 attachedFiles = emptyList()
@@ -460,10 +503,12 @@ fun GalleryDetailScreen(
         }
 
         // Лайтбокс картинок
-        zoomImageUrl?.let { url ->
+        if (lightboxImages.isNotEmpty()) {
             ImageLightboxDialog(
-                imageUrl = url,
-                onDismiss = { zoomImageUrl = null }
+                images = lightboxImages,
+                initialPage = lightboxInitialIndex,
+                title = displayPhoto.title,
+                onDismiss = { lightboxImages = emptyList() }
             )
         }
 
@@ -490,7 +535,9 @@ fun GalleryMainContentCard(
     onVoteUp: (() -> Unit)? = null,
     onVoteDown: (() -> Unit)? = null,
     isVoting: Boolean = false,
+    galleryPhotos: List<String> = emptyList(),
     onImageClick: (String) -> Unit,
+    onImagesClick: (List<String>, Int) -> Unit = { _, _ -> },
     onFullscreenVideo: (ExoPlayer) -> Unit
 ) {
     val textColor = if (isDark) Color.White else LightText
@@ -499,6 +546,19 @@ fun GalleryMainContentCard(
 
     val mediaFiles = remember(photo.media, photo.files) {
         photo.allMedia
+    }
+
+    val currentPhotoImages: List<String> = remember(mediaFiles) {
+        mediaFiles.filter { !it.isVideo && it.path != null }.mapNotNull { it.path }
+    }
+    val allGalleryImages: List<String> = remember(currentPhotoImages, galleryPhotos) {
+        if (currentPhotoImages.size > 1) {
+            currentPhotoImages
+        } else if (galleryPhotos.size > 1) {
+            galleryPhotos
+        } else {
+            currentPhotoImages
+        }
     }
 
     var selectedMediaIndex by remember { mutableIntStateOf(0) }
@@ -511,40 +571,120 @@ fun GalleryMainContentCard(
         glowColor = Color.Transparent
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-            // Медиа-контент: Видео или Картинка
-            if (currentMedia != null) {
-                val isVideo = currentMedia.isVideo || currentMedia.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
+            // Медиа-контент: Видео или Картинка (одно или горизонтальный пейджер)
+            if (mediaFiles.isNotEmpty()) {
+                if (mediaFiles.size == 1) {
+                    val singleMedia = mediaFiles[0]
+                    val isVideo = singleMedia.isVideo || singleMedia.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
 
-                if (isVideo && currentMedia.path != null) {
-                    VideoPlayerView(
-                        videoUrl = currentMedia.path,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(230.dp),
-                        autoPlay = false,
-                        isExternalFullscreenOpen = isExternalFullscreenOpen,
-                        onFullscreenClick = { player -> onFullscreenVideo(player) }
-                    )
-                } else if (currentMedia.path != null) {
+                    if (isVideo && singleMedia.path != null) {
+                        VideoPlayerView(
+                            videoUrl = singleMedia.path,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(230.dp),
+                            autoPlay = false,
+                            isExternalFullscreenOpen = isExternalFullscreenOpen,
+                            onFullscreenClick = { player -> onFullscreenVideo(player) }
+                        )
+                    } else if (singleMedia.path != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 180.dp, max = 320.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0F172A))
+                                .clickable {
+                                    val imageIdx = allGalleryImages.indexOf(singleMedia.path).coerceAtLeast(0)
+                                    onImagesClick(allGalleryImages, imageIdx)
+                                }
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(singleMedia.path)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = photo.title,
+                                modifier = Modifier.fillMaxWidth(),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+                } else {
+                    val pagerState = rememberPagerState(initialPage = 0) { mediaFiles.size }
+                    LaunchedEffect(selectedMediaIndex) {
+                        if (pagerState.currentPage != selectedMediaIndex) {
+                            pagerState.animateScrollToPage(selectedMediaIndex)
+                        }
+                    }
+                    LaunchedEffect(pagerState.currentPage) {
+                        if (selectedMediaIndex != pagerState.currentPage) {
+                            selectedMediaIndex = pagerState.currentPage
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 180.dp, max = 320.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color(0xFF0F172A))
-                            .clickable { onImageClick(currentMedia.path) }
                     ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(currentMedia.path)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = photo.title,
-                            modifier = Modifier.fillMaxWidth(),
-                            contentScale = ContentScale.Fit
-                        )
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            val item = mediaFiles[page]
+                            val isVideo = item.isVideo || item.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
+                            if (isVideo && item.path != null) {
+                                VideoPlayerView(
+                                    videoUrl = item.path,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(230.dp),
+                                    autoPlay = false,
+                                    isExternalFullscreenOpen = isExternalFullscreenOpen,
+                                    onFullscreenClick = { player -> onFullscreenVideo(player) }
+                                )
+                            } else if (item.path != null) {
+                                val imageIdx = allGalleryImages.indexOf(item.path).coerceAtLeast(0)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clickable { onImagesClick(allGalleryImages, imageIdx) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(item.path)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = photo.title,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color.Black.copy(alpha = 0.65f),
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = "${pagerState.currentPage + 1} / ${mediaFiles.size}",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
+            }
 
                 // Если файлов несколько — галерея миниатюр
                 if (mediaFiles.size > 1) {
@@ -591,7 +731,6 @@ fun GalleryMainContentCard(
                         }
                     }
                 }
-            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -680,7 +819,8 @@ fun GalleryMainContentCard(
                         onNewsClick = onNewsClick,
                         onDownClick = onDownClick,
                         onPhotoClick = onPhotoClick,
-                        onImageClick = onImageClick
+                        onImageClick = onImageClick,
+                        onImagesClick = onImagesClick
                     )
                 }
             }
@@ -705,7 +845,8 @@ fun GalleryCommentCard(
     onDownClick: (downId: Int) -> Unit = {},
     onPhotoClick: (photoId: Int) -> Unit = {},
     onReplyClick: () -> Unit,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    onImagesClick: ((List<String>, Int) -> Unit)? = null
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
@@ -713,6 +854,23 @@ fun GalleryCommentCard(
 
     val allFiles = remember(comment.media, comment.files) {
         (comment.safeMedia + comment.safeFiles).distinctBy { it.id }
+    }
+
+    val allCommentImages = remember(comment.text, allFiles) {
+        val textImages = comment.text?.let { t ->
+            parseHtmlToBlocks(t).filterIsInstance<ContentBlock.ImageBlock>().map { it.url }
+        } ?: emptyList()
+        val fileImages = allFiles.filter { isImageFile(it) }.mapNotNull { it.path }
+        (textImages + fileImages).distinct()
+    }
+
+    val handleCommentImageClick: (String) -> Unit = { url ->
+        if (allCommentImages.isNotEmpty() && onImagesClick != null) {
+            val idx = allCommentImages.indexOf(url).coerceAtLeast(0)
+            onImagesClick(allCommentImages, idx)
+        } else {
+            onImageClick(url)
+        }
     }
 
     val parentId = comment.parent?.id?.takeIf { it > 0 } ?: comment.parentId
@@ -917,7 +1075,7 @@ fun GalleryCommentCard(
                             onNewsClick = onNewsClick,
                             onDownClick = onDownClick,
                             onPhotoClick = onPhotoClick,
-                            onImageClick = onImageClick
+                            onImageClick = handleCommentImageClick
                         )
                     }
 
@@ -925,7 +1083,7 @@ fun GalleryCommentCard(
                         Spacer(modifier = Modifier.height(6.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             allFiles.filter { isImageFile(it) }.forEach { file ->
-                                ImageFilePreview(file = file, onImageClick = onImageClick)
+                                ImageFilePreview(file = file, onImageClick = handleCommentImageClick)
                             }
                             allFiles.filter { !isImageFile(it) }.forEach { file ->
                                 GlassFileCard(file = file, isDark = isDark)
