@@ -40,10 +40,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.ramzes.visavinet.network.ForumTopic
 import com.ramzes.visavinet.network.VisaviApi
@@ -440,9 +443,9 @@ fun MainNavigation(
                         .verticalScroll(drawerScrollState)
                 ) {
                     if (!showPermanentDrawer) {
-                        Spacer(Modifier.height(36.dp))
+                        Spacer(Modifier.height(16.dp))
                     } else {
-                        Spacer(Modifier.height(6.dp))
+                        Spacer(Modifier.height(4.dp))
                     }
 
                     val logoGradient = if (isDark) {
@@ -459,7 +462,12 @@ fun MainNavigation(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = if (showPermanentDrawer) 6.dp else 12.dp)
+                            .padding(
+                                start = 12.dp,
+                                end = 12.dp,
+                                top = if (showPermanentDrawer) 2.dp else 4.dp,
+                                bottom = if (showPermanentDrawer) 4.dp else 8.dp
+                            )
                             .clip(RoundedCornerShape(8.dp))
                             .background(
                                 Brush.horizontalGradient(
@@ -524,8 +532,7 @@ fun MainNavigation(
                         }
                     }
 
-                    HorizontalDivider(color = Color.White.copy(0.1f))
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(4.dp))
 
                     val itemColors = NavigationDrawerItemDefaults.colors(
                         selectedContainerColor = drawerSelectedItemColor,
@@ -538,8 +545,35 @@ fun MainNavigation(
 
                     val itemHeight = if (showPermanentDrawer) 42.dp else 52.dp
 
+                    val profileTitle = viewModel.currentUser?.login?.uppercase() ?: "ПРОФИЛЬ"
+                    val avatarUrl = viewModel.currentUser?.picture ?: viewModel.currentUser?.avatar
                     NavigationDrawerItem(
-                        label = { Text(text = "ПРОФИЛЬ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        label = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = profileTitle,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(avatarUrl?.ifBlank { null } ?: R.drawable.ic_default_avatar)
+                                        .placeholder(R.drawable.ic_default_avatar)
+                                        .error(R.drawable.ic_default_avatar)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Аватар",
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        },
                         selected = currentScreen == Screen.Profile,
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
