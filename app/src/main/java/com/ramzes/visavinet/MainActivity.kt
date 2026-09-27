@@ -68,10 +68,19 @@ class MainActivity : ComponentActivity() {
             val initialPrimaryAccent = remember {
                 AvailableAccentColors.getOrElse(accentIndex) { AvailableAccentColors[0] }.color
             }
+            val fontScaleKey = remember { prefs.getString("font_size_scale", FontSizeOption.NORMAL.name) }
+            val initialFontScale = remember {
+                try {
+                    FontSizeOption.valueOf(fontScaleKey ?: FontSizeOption.NORMAL.name).scale
+                } catch (e: Exception) {
+                    1.0f
+                }
+            }
 
             VisaviTheme(
                 initialDarkTheme = initialDarkTheme,
-                initialPrimaryAccent = initialPrimaryAccent
+                initialPrimaryAccent = initialPrimaryAccent,
+                initialFontScale = initialFontScale
             ) {
                 val systemUiController = rememberSystemUiController()
                 val isDark = isDarkTheme()

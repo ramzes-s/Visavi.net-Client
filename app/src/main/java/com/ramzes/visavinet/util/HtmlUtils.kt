@@ -42,6 +42,7 @@ import coil.request.ImageRequest
 import com.ramzes.visavinet.ui.theme.LightText
 import com.ramzes.visavinet.ui.theme.LightTextSecondary
 import com.ramzes.visavinet.ui.theme.TextLightGray
+import com.ramzes.visavinet.ui.theme.ProvideContentFontScale
 import com.ramzes.visavinet.network.VisaviApi
 import java.time.Instant
 import java.time.LocalDate
@@ -542,8 +543,9 @@ fun RenderContentBlocks(
     onPhotoClick: ((photoId: Int) -> Unit)? = null,
     onImageClick: ((String) -> Unit)? = null
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        blocks.forEach { block ->
+    ProvideContentFontScale {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            blocks.forEach { block ->
             when (block) {
                 is ContentBlock.TextBlock -> {
                     TextBlock(
@@ -604,6 +606,7 @@ fun RenderContentBlocks(
             }
         }
     }
+}
 }
 
 /**

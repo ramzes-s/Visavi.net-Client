@@ -316,15 +316,18 @@ fun FeedCardItem(
 
                 if (titleText.isNotBlank()) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stripHtml(titleText),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Box(modifier = Modifier.weight(1f)) {
+                        ProvideContentFontScale {
+                            Text(
+                                text = stripHtml(titleText),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
             }
 
@@ -445,14 +448,16 @@ fun FeedCardItem(
                 formatFeedPreviewText(item.text, 300)
             }
             if (previewText.isNotBlank()) {
-                Text(
-                    text = previewText,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    color = textColor.copy(alpha = 0.88f),
-                    maxLines = 6,
-                    overflow = TextOverflow.Ellipsis
-                )
+                ProvideContentFontScale {
+                    Text(
+                        text = previewText,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = textColor.copy(alpha = 0.88f),
+                        maxLines = 6,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
             }
 

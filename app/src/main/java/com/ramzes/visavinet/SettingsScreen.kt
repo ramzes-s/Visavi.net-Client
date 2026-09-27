@@ -69,6 +69,17 @@ fun SettingsScreen(
     var inputText by remember { mutableStateOf(itemsPerPage.toString()) }
     var inputError by remember { mutableStateOf<String?>(null) }
     
+    var fontScaleOption by remember {
+        val saved = prefs.getString("font_size_scale", FontSizeOption.NORMAL.name)
+        mutableStateOf(
+            try {
+                FontSizeOption.valueOf(saved ?: FontSizeOption.NORMAL.name)
+            } catch (e: Exception) {
+                FontSizeOption.NORMAL
+            }
+        )
+    }
+
     var tabletMode by remember { mutableStateOf(isTabletMode) }
     var feedAsStartScreen by remember { mutableStateOf(prefs.getBoolean("feed_as_start_screen", false)) }
     var forumSortByNewest by remember { mutableStateOf(prefs.getBoolean("forum_sort_by_newest", false)) }
@@ -199,6 +210,77 @@ fun SettingsScreen(
                                 },
                             contentAlignment = Alignment.Center
                         ) {}
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Выбор размера шрифта
+        GlassCard(
+            modifier = Modifier.fillMaxWidth(),
+            isDark = isDark,
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Размер шрифта",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = when (fontScaleOption) {
+                        FontSizeOption.SMALL -> "Меньше"
+                        FontSizeOption.NORMAL -> "Нормальный (текущий)"
+                        FontSizeOption.LARGE -> "Больше"
+                    },
+                    fontSize = 12.sp,
+                    color = secondaryTextColor
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf(
+                        FontSizeOption.SMALL to "Меньше",
+                        FontSizeOption.NORMAL to "Нормальный",
+                        FontSizeOption.LARGE to "Больше"
+                    ).forEach { (option, label) ->
+                        val isSelected = fontScaleOption == option
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    fontScaleOption = option
+                                    setFontScale(option.scale)
+                                    prefs.edit().putString("font_size_scale", option.name).apply()
+                                }
+                                .padding(top = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) currentAccent else secondaryTextColor
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.5.dp)
+                                    .background(
+                                        if (isSelected) currentAccent
+                                        else (if (isDark) Color(0x18FFFFFF) else Color(0x10000000))
+                                    )
+                            )
+                        }
                     }
                 }
             }

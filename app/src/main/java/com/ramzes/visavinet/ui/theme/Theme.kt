@@ -10,25 +10,38 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+
+enum class FontSizeOption(val scale: Float, val title: String) {
+    SMALL(0.85f, "Меньше"),
+    NORMAL(1.0f, "Нормальный"),
+    LARGE(1.15f, "Больше")
+}
 
 var ThemeSetter: ((Boolean) -> Unit)? = null
 var PrimaryAccentSetter: ((Color) -> Unit)? = null
+var FontScaleSetter: ((Float) -> Unit)? = null
 
 val LocalIsDarkTheme = staticCompositionLocalOf { mutableStateOf(true) }
 val LocalPrimaryAccentColor = staticCompositionLocalOf { mutableStateOf(FieryRed) }
+val LocalFontScale = staticCompositionLocalOf { mutableStateOf(1.0f) }
 
 @Composable
 fun VisaviTheme(
     initialDarkTheme: Boolean = true,
     initialPrimaryAccent: Color = FieryRed,
+    initialFontScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
     val themeState = remember { mutableStateOf(initialDarkTheme) }
     val accentState = remember { mutableStateOf(initialPrimaryAccent) }
+    val fontScaleState = remember { mutableStateOf(initialFontScale) }
     
     LaunchedEffect(Unit) {
         ThemeSetter = { themeState.value = it }
         PrimaryAccentSetter = { accentState.value = it }
+        FontScaleSetter = { fontScaleState.value = it }
     }
 
     val darkScheme = darkColorScheme(
@@ -55,7 +68,8 @@ fun VisaviTheme(
 
     CompositionLocalProvider(
         LocalIsDarkTheme provides themeState,
-        LocalPrimaryAccentColor provides accentState
+        LocalPrimaryAccentColor provides accentState,
+        LocalFontScale provides fontScaleState
     ) {
         val colorScheme = if (themeState.value) darkScheme else lightScheme
         MaterialTheme(
@@ -80,6 +94,30 @@ fun getPrimaryAccentColor(): Color {
 @Composable
 fun getSecondaryAccentColor(): Color = getPrimaryAccentColor()
 
+@Composable
+fun getFontScale(): Float {
+    return LocalFontScale.current.value
+}
+
+@Composable
+fun ProvideContentFontScale(content: @Composable () -> Unit) {
+    val scale = getFontScale()
+    if (scale == 1.0f) {
+        content()
+    } else {
+        val currentDensity = LocalDensity.current
+        val customDensity = remember(currentDensity, scale) {
+            Density(
+                density = currentDensity.density,
+                fontScale = currentDensity.fontScale * scale
+            )
+        }
+        CompositionLocalProvider(LocalDensity provides customDensity) {
+            content()
+        }
+    }
+}
+
 fun setDarkTheme(isDark: Boolean) {
     ThemeSetter?.invoke(isDark)
 }
@@ -90,4 +128,8 @@ fun setPrimaryAccentColor(color: Color) {
 
 fun setSecondaryAccentColor(color: Color) {
     setPrimaryAccentColor(color)
+}
+
+fun setFontScale(scale: Float) {
+    FontScaleSetter?.invoke(scale)
 }
