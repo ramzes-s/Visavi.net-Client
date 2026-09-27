@@ -98,57 +98,55 @@ fun SettingsScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Переключатель темы
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Тёмная тема",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (isDark) "Включена" else "Выключена",
-                        fontSize = 12.sp,
-                        color = secondaryTextColor
-                    )
-                }
-
-                Switch(
-                    checked = isDark,
-                    onCheckedChange = { newIsDark ->
-                        setDarkTheme(newIsDark)
-                        onThemeChange(newIsDark)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = currentAccent,
-                        uncheckedThumbColor = LightTextSecondary,
-                        uncheckedTrackColor = LightGray.copy(0.5f)
-                    )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 10 Вариантов выбора главного акцентного цвета
+        // Блок внешнего вида: Тёмная тема, Акцентный цвет, Размер шрифта, Планшетный режим
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
             isDark = isDark,
             shape = RoundedCornerShape(6.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // Тёмная тема
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Тёмная тема",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (isDark) "Включена" else "Выключена",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = isDark,
+                        onCheckedChange = { newIsDark ->
+                            setDarkTheme(newIsDark)
+                            onThemeChange(newIsDark)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Акцентный цвет
                 Text(
                     text = "Акцентный цвет",
                     fontSize = 16.sp,
@@ -212,33 +210,18 @@ fun SettingsScreen(
                         ) {}
                     }
                 }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
 
-        // Выбор размера шрифта
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+                // Выбор размера шрифта
                 Text(
                     text = "Размер шрифта",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = when (fontScaleOption) {
-                        FontSizeOption.SMALL -> "Меньше"
-                        FontSizeOption.NORMAL -> "Нормальный (текущий)"
-                        FontSizeOption.LARGE -> "Больше"
-                    },
-                    fontSize = 12.sp,
-                    color = secondaryTextColor
                 )
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -283,138 +266,188 @@ fun SettingsScreen(
                         }
                     }
                 }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Переключатель планшетного режима
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Планшетный режим",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (tabletMode) "Включено" else "Выключено",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = tabletMode,
+                        onCheckedChange = { newValue ->
+                            tabletMode = newValue
+                            onTabletModeChange(newValue)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Переключатель планшетного режима
+        // Общий блок: Лента при запуске, Сортировка форума, Записей на странице
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
             isDark = isDark,
             shape = RoundedCornerShape(6.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Планшетный режим",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (tabletMode) "Включено" else "Выключено",
-                        fontSize = 12.sp,
-                        color = secondaryTextColor
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Лента при запуске
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Лента при запуске",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (feedAsStartScreen) "Открывать ленту событий вместо профиля" else "Открывать профиль (по умолчанию)",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = feedAsStartScreen,
+                        onCheckedChange = { newValue ->
+                            feedAsStartScreen = newValue
+                            prefs.edit().putBoolean("feed_as_start_screen", newValue).apply()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
                     )
                 }
 
-                Switch(
-                    checked = tabletMode,
-                    onCheckedChange = { newValue ->
-                        tabletMode = newValue
-                        onTabletModeChange(newValue)
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Сортировать форум по новизне
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Сортировать форум по новизне",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (forumSortByNewest) "По времени последнего обновления" else "По порядку (по умолчанию)",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = forumSortByNewest,
+                        onCheckedChange = { newValue ->
+                            forumSortByNewest = newValue
+                            prefs.edit().putBoolean("forum_sort_by_newest", newValue).apply()
+                            onForumSortByNewestChange?.invoke(newValue)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Записей на странице
+                Text(
+                    text = "Записей на странице",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { newValue ->
+                        inputText = newValue
+                        inputError = null
+
+                        val intValue = newValue.toIntOrNull()
+                        if (intValue != null) {
+                            if (intValue in 10..50) {
+                                itemsPerPage = intValue
+                                prefs.edit().putInt("items_per_page", intValue).apply()
+                            } else {
+                                inputError = "Значение должно быть от 10 до 50"
+                            }
+                        } else if (newValue.isEmpty()) {
+                            inputError = "Введите число"
+                        }
                     },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = currentAccent,
-                        uncheckedThumbColor = LightTextSecondary,
-                        uncheckedTrackColor = LightGray.copy(0.5f)
+                    singleLine = true,
+                    label = { Text("Количество") },
+                    isError = inputError != null,
+                    supportingText = inputError?.let { { Text(it) } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = currentAccent,
+                        unfocusedBorderColor = if (isDark) Color.White.copy(0.2f) else Color.Black.copy(0.2f),
+                        focusedTextColor = textColor,
+                        unfocusedTextColor = textColor
                     )
                 )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Лента при запуске
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Лента при запуске",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (feedAsStartScreen) "Открывать ленту событий вместо профиля" else "Открывать профиль (по умолчанию)",
-                        fontSize = 12.sp,
-                        color = secondaryTextColor
-                    )
-                }
-
-                Switch(
-                    checked = feedAsStartScreen,
-                    onCheckedChange = { newValue ->
-                        feedAsStartScreen = newValue
-                        prefs.edit().putBoolean("feed_as_start_screen", newValue).apply()
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = currentAccent,
-                        uncheckedThumbColor = LightTextSecondary,
-                        uncheckedTrackColor = LightGray.copy(0.5f)
-                    )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Сортировать форум по новизне
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Сортировать форум по новизне",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (forumSortByNewest) "По времени последнего обновления" else "По порядку (по умолчанию)",
-                        fontSize = 12.sp,
-                        color = secondaryTextColor
-                    )
-                }
-
-                Switch(
-                    checked = forumSortByNewest,
-                    onCheckedChange = { newValue ->
-                        forumSortByNewest = newValue
-                        prefs.edit().putBoolean("forum_sort_by_newest", newValue).apply()
-                        onForumSortByNewestChange?.invoke(newValue)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = currentAccent,
-                        uncheckedThumbColor = LightTextSecondary,
-                        uncheckedTrackColor = LightGray.copy(0.5f)
-                    )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Текущее: $itemsPerPage (мин: 10, макс: 50)",
+                    fontSize = 11.sp,
+                    color = secondaryTextColor
                 )
             }
         }
@@ -465,95 +498,33 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Записей на страницу
+        // Кэш изображений и Обновление приложения
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
             isDark = isDark,
             shape = RoundedCornerShape(6.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Записей на странице",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                OutlinedTextField(
-                    value = inputText,
-                    onValueChange = { newValue ->
-                        inputText = newValue
-                        inputError = null
-                        
-                        val intValue = newValue.toIntOrNull()
-                        if (intValue != null) {
-                            if (intValue in 10..50) {
-                                itemsPerPage = intValue
-                                prefs.edit().putInt("items_per_page", intValue).apply()
-                            } else {
-                                inputError = "Значение должно быть от 10 до 50"
-                            }
-                        } else if (newValue.isEmpty()) {
-                            inputError = "Введите число"
-                        }
-                    },
-                    singleLine = true,
-                    label = { Text("Количество") },
-                    isError = inputError != null,
-                    supportingText = inputError?.let { { Text(it) } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = currentAccent,
-                        unfocusedBorderColor = Color.White.copy(0.2f),
-                        focusedTextColor = textColor,
-                        unfocusedTextColor = textColor
-                    )
-                )
-                
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Текущее: $itemsPerPage (мин: 10, макс: 50)",
-                    fontSize = 11.sp,
-                    color = secondaryTextColor
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Кэш изображений
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+                // Кэш изображений
                 Text(
                     text = "Кэш изображений",
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Занято места: ${formatCacheSize(cacheSize)}",
                     fontSize = 12.sp,
                     color = secondaryTextColor
                 )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
 
-        // Проверка новой версии на GitHub
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+                // Обновление приложения
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -562,7 +533,7 @@ fun SettingsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Обновление приложения",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor
                         )
