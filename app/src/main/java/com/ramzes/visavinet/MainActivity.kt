@@ -200,6 +200,25 @@ fun MainNavigation(
         dialoguesViewModel.backToDialogues()
     }
 
+    // История переходов между разделами: кнопка «назад» возвращает на предыдущий раздел
+    val navigationHistory = remember { mutableStateListOf<Screen>() }
+
+    fun navigateTo(target: Screen) {
+        if (target != currentScreen) {
+            navigationHistory.add(currentScreen)
+            if (navigationHistory.size > 50) navigationHistory.removeAt(0)
+        }
+        resetSubScreens()
+        currentScreen = target
+    }
+
+    fun navigateBackToPreviousScreen(): Boolean {
+        val previous = navigationHistory.removeLastOrNull() ?: return false
+        resetSubScreens()
+        currentScreen = previous
+        return true
+    }
+
     val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { _: Boolean -> }
@@ -232,6 +251,7 @@ fun MainNavigation(
             }
         } else {
             viewModel.stopStatsPolling()
+            navigationHistory.clear()
         }
     }
 
@@ -242,7 +262,7 @@ fun MainNavigation(
         val dialogue = dialoguesViewModel.dialogues.find { it.login == login }
         if (dialogue != null) {
             dialoguesViewModel.selectDialogue(dialogue, context.applicationContext)
-            currentScreen = Screen.Private
+            navigateTo(Screen.Private)
             showMessagesScreen = true
         } else {
             val tempDialogue = com.ramzes.visavinet.network.DialogueData(
@@ -256,7 +276,7 @@ fun MainNavigation(
                 createdAtRaw = null
             )
             dialoguesViewModel.selectDialogue(tempDialogue, context.applicationContext)
-            currentScreen = Screen.Private
+            navigateTo(Screen.Private)
             showMessagesScreen = true
         }
         pendingUserLogin = null
@@ -280,41 +300,56 @@ fun MainNavigation(
                         forumViewModel.navigateBack(context.applicationContext)
                     }
                     currentScreen == Screen.Forum && forumViewModel.navigationState.level == ForumNavigationLevel.SECTIONS -> {
-                        currentScreen = Screen.Profile
+                        navigateBackToPreviousScreen()
                     }
                     currentScreen == Screen.News && showNewsDetailScreen -> {
                         showNewsDetailScreen = false
                         selectedNews = null
                     }
                     currentScreen == Screen.News && !showNewsDetailScreen -> {
-                        currentScreen = Screen.Profile
+                        navigateBackToPreviousScreen()
                     }
                     currentScreen == Screen.Gallery && showGalleryDetailScreen -> {
                         showGalleryDetailScreen = false
                         selectedPhoto = null
                     }
                     currentScreen == Screen.Gallery && !showGalleryDetailScreen -> {
-                        currentScreen = Screen.Profile
+                        navigateBackToPreviousScreen()
                     }
                     currentScreen == Screen.Downs -> {
                         val handled = downsViewModel.navigateBack(context.applicationContext)
                         if (!handled) {
-                            currentScreen = Screen.Profile
+                            navigateBackToPreviousScreen()
                         }
                     }
                     currentScreen == Screen.Online -> {
-                        currentScreen = Screen.Profile
+                        navigateBackToPreviousScreen()
                     }
                     currentScreen == Screen.Private && !showMessagesScreen -> {
-                        currentScreen = Screen.Profile
+                        navigateBackToPreviousScreen()
+                    }
+                    else -> {
+                        // Корневой раздел (Профиль/Лента/Настройки): возврат на предыдущий раздел
+                        if (!navigateBackToPreviousScreen()) {
+                            // История пуста — пробрасываем «назад» системе (выход из приложения)
+                            isEnabled = false
+                            onBackPressedDispatcher?.onBackPressed()
+                        }
                     }
                 }
             }
         }
     }
 
-    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level, downsViewModel.navigationLevel) {
-        backCallback.isEnabled = currentScreen == Screen.Online || currentScreen == Screen.Private || currentScreen == Screen.Forum || currentScreen == Screen.News || currentScreen == Screen.Gallery || currentScreen == Screen.Downs
+    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level, downsViewModel.navigationLevel, navigationHistory.size) {
+        // «Назад» доступен, если есть что закрыть: подэкраны/вложенные уровни или предыдущий раздел в истории
+        val hasNestedLevel =
+            (currentScreen == Screen.Private && showMessagesScreen) ||
+                (currentScreen == Screen.Forum && forumViewModel.navigationState.level != ForumNavigationLevel.SECTIONS) ||
+                (currentScreen == Screen.News && showNewsDetailScreen) ||
+                (currentScreen == Screen.Gallery && showGalleryDetailScreen) ||
+                (currentScreen == Screen.Downs && downsViewModel.navigationLevel != DownsNavigationLevel.CATEGORIES)
+        backCallback.isEnabled = hasNestedLevel || navigationHistory.isNotEmpty()
         onBackPressedDispatcher?.addCallback(backCallback)
     }
 
@@ -346,25 +381,21 @@ fun MainNavigation(
                     )
                 }
                 is com.ramzes.visavinet.util.VisaviUrlTarget.Topic -> {
-                    resetSubScreens()
-                    currentScreen = Screen.Forum
+                    navigateTo(Screen.Forum)
                     forumViewModel.navigateToTopicId(context.applicationContext, target.topicId, target.page, target.postId)
                 }
                 is com.ramzes.visavinet.util.VisaviUrlTarget.News -> {
-                    resetSubScreens()
-                    currentScreen = Screen.News
+                    navigateTo(Screen.News)
                     selectedNews = com.ramzes.visavinet.network.NewsItem(id = target.newsId)
                     showNewsDetailScreen = true
                 }
                 is com.ramzes.visavinet.util.VisaviUrlTarget.Down -> {
-                    resetSubScreens()
-                    currentScreen = Screen.Downs
+                    navigateTo(Screen.Downs)
                     val dummyDown = com.ramzes.visavinet.network.DownItem(id = target.downId)
                     downsViewModel.openDownDetail(dummyDown, context.applicationContext)
                 }
                 is com.ramzes.visavinet.util.VisaviUrlTarget.Photo -> {
-                    resetSubScreens()
-                    currentScreen = Screen.Gallery
+                    navigateTo(Screen.Gallery)
                     selectedPhoto = com.ramzes.visavinet.network.PhotoItem(id = target.photoId)
                     showGalleryDetailScreen = true
                 }
@@ -378,7 +409,7 @@ fun MainNavigation(
                 kotlinx.coroutines.delay(100)
             }
             if (viewModel.currentUser != null) {
-                currentScreen = Screen.Private
+                navigateTo(Screen.Private)
                 showMessagesScreen = false
                 shouldRefreshDialoguesFromNotification = true
             }
@@ -390,8 +421,7 @@ fun MainNavigation(
                 kotlinx.coroutines.delay(100)
             }
             if (viewModel.currentUser != null) {
-                resetSubScreens()
-                currentScreen = Screen.Feed
+                navigateTo(Screen.Feed)
                 feedViewModel.refresh(context.applicationContext)
                 intent?.removeExtra("OPEN_FEED")
             }
@@ -579,8 +609,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Profile
+                            navigateTo(Screen.Profile)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -592,8 +621,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Feed
+                            navigateTo(Screen.Feed)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -611,8 +639,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Private
+                            navigateTo(Screen.Private)
                             dialoguesViewModel.resetNewMessagesCount()
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
@@ -631,8 +658,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.News
+                            navigateTo(Screen.News)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -650,8 +676,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Gallery
+                            navigateTo(Screen.Gallery)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -669,8 +694,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Forum
+                            navigateTo(Screen.Forum)
                             forumViewModel.resetToRootSections(context.applicationContext)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
@@ -689,8 +713,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Downs
+                            navigateTo(Screen.Downs)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -708,8 +731,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Online
+                            navigateTo(Screen.Online)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -727,8 +749,7 @@ fun MainNavigation(
                         shape = RectangleShape,
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
-                            resetSubScreens()
-                            currentScreen = Screen.Settings
+                            navigateTo(Screen.Settings)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
@@ -741,6 +762,7 @@ fun MainNavigation(
                         modifier = Modifier.fillMaxWidth().height(itemHeight),
                         onClick = {
                             resetSubScreens()
+                            navigationHistory.clear()
                             viewModel.logout(context.applicationContext)
                             dialoguesViewModel.clear()
                             forumViewModel.clear()
@@ -766,25 +788,21 @@ fun MainNavigation(
                     content = { padding ->
                         Box(Modifier.padding(padding)) {
                             val onOpenTopic: (Int, Int?, Int?) -> Unit = { topicId, page, postId ->
-                                resetSubScreens()
-                                currentScreen = Screen.Forum
+                                navigateTo(Screen.Forum)
                                 forumViewModel.navigateToTopicId(context.applicationContext, topicId, page, postId)
                             }
                             val onOpenNews: (Int) -> Unit = { newsId ->
-                                resetSubScreens()
-                                currentScreen = Screen.News
+                                navigateTo(Screen.News)
                                 selectedNews = com.ramzes.visavinet.network.NewsItem(id = newsId)
                                 showNewsDetailScreen = true
                             }
                             val onOpenDown: (Int) -> Unit = { downId ->
-                                resetSubScreens()
-                                currentScreen = Screen.Downs
+                                navigateTo(Screen.Downs)
                                 val dummyDown = com.ramzes.visavinet.network.DownItem(id = downId)
                                 downsViewModel.openDownDetail(dummyDown, context.applicationContext)
                             }
                             val onOpenPhoto: (Int) -> Unit = { photoId ->
-                                resetSubScreens()
-                                currentScreen = Screen.Gallery
+                                navigateTo(Screen.Gallery)
                                 selectedPhoto = com.ramzes.visavinet.network.PhotoItem(id = photoId)
                                 showGalleryDetailScreen = true
                             }
@@ -1107,7 +1125,7 @@ fun MainNavigation(
                                                 val currentLogin = viewModel.currentUser?.login
                                                 val dialogueLogin = dialogue.login ?: dialogue.name
                                                 if (currentLogin != null && currentLogin == dialogueLogin) {
-                                                    currentScreen = Screen.Profile
+                                                    navigateTo(Screen.Profile)
                                                 } else {
                                                     dialoguesViewModel.selectDialogue(dialogue, context.applicationContext)
                                                     dialoguesViewModel.resetNewMessagesCount()
@@ -1118,7 +1136,7 @@ fun MainNavigation(
                                             onStartDialogue = { login, name ->
                                                 val currentLogin = viewModel.currentUser?.login
                                                 if (currentLogin != null && currentLogin.equals(login, ignoreCase = true)) {
-                                                    currentScreen = Screen.Profile
+                                                    navigateTo(Screen.Profile)
                                                 } else {
                                                     val existing = dialoguesViewModel.dialogues.find {
                                                         it.login.equals(login, ignoreCase = true) ||
