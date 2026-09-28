@@ -304,7 +304,7 @@ fun ForumTopicScreen(
 
                             itemsIndexed(viewModel.posts, key = { _, post -> post.id }) { index, post ->
                                 if (index == firstNewPostIndex) {
-                                    ForumDividerWithText(text = "Новые сообщения", isDark = isDark)
+                                    ForumDividerWithText(text = "Новые сообщения", isDark = isDark, highlight = true)
                                 }
                                 ForumPostItem(
                                     post = post,
@@ -851,8 +851,14 @@ fun ForumPostItem(
 }
 
 @Composable
-fun ForumDividerWithText(text: String, isDark: Boolean) {
-    val textColor = if (isDark) TextLightGray.copy(0.5f) else LightTextSecondary
+fun ForumDividerWithText(text: String, isDark: Boolean, highlight: Boolean = false) {
+    val accent = getPrimaryAccentColor()
+    val textColor = when {
+        highlight -> accent
+        isDark -> TextLightGray.copy(0.5f)
+        else -> LightTextSecondary
+    }
+    val lineColor = if (highlight) accent.copy(0.5f) else Color.White.copy(0.1f)
 
     Row(
         modifier = Modifier
@@ -860,14 +866,15 @@ fun ForumDividerWithText(text: String, isDark: Boolean) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        HorizontalDivider(modifier = Modifier.weight(1f), color = Color.White.copy(0.1f))
+        HorizontalDivider(modifier = Modifier.weight(1f), color = lineColor)
         Text(
             text = text,
             fontSize = 11.sp,
+            fontWeight = if (highlight) FontWeight.Bold else FontWeight.Normal,
             color = textColor,
             modifier = Modifier.padding(horizontal = 12.dp)
         )
-        HorizontalDivider(modifier = Modifier.weight(1f), color = Color.White.copy(0.1f))
+        HorizontalDivider(modifier = Modifier.weight(1f), color = lineColor)
     }
 }
 
