@@ -14,8 +14,6 @@ import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.extractErrorMessage
 import com.ramzes.visavinet.service.NewMessagesService
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class MainViewModel : ViewModel() {
@@ -206,14 +204,22 @@ class MainViewModel : ViewModel() {
         prefs.edit().putString("api_token", token).apply()
     }
 
+    /**
+     * Единственный цикл опроса stats (раз в 5 минут) живёт в NewMessagesService —
+     * здесь только подписка на его результат. Плюс разовый запрос при старте/логине,
+     * чтобы бейджи разделов заполнились сразу, даже если сервис ещё стартует.
+     * Уведомления об обновлениях сайта решает ровно один владелец — сервис.
+     */
     fun startStatsPolling(context: Context) {
         if (statsJob?.isActive == true) return
         statsJob = viewModelScope.launch {
-            while (isActive) {
-                fetchStats(context)
-                delay(5 * 60 * 1000L) // Интервал 5 минут
+            NewMessagesService.siteStats.collect { stats ->
+                if (stats != null) {
+                    siteStats = stats
+                }
             }
         }
+        fetchStats(context)
     }
 
     fun stopStatsPolling() {
@@ -221,14 +227,16 @@ class MainViewModel : ViewModel() {
         statsJob = null
     }
 
+    /**
+     * Разовый запрос статистики для UI. Уведомления об обновлениях здесь НЕ отправляются —
+     * это делает NewMessagesService (единственный владелец проверки stats).
+     */
     fun fetchStats(context: Context) {
         viewModelScope.launch {
             try {
                 val response = VisaviApi.instance.getStats()
                 if (response.isSuccessful && response.body() != null) {
-                    val stats = response.body()!!
-                    siteStats = stats
-                    com.ramzes.visavinet.util.SiteUpdatesNotificationManager.checkAndNotify(context, stats)
+                    siteStats = response.body()!!
                 }
             } catch (e: Exception) {
                 // Игнорируем сетевые ошибки периодического опроса

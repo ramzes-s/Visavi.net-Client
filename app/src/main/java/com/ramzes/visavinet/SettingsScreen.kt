@@ -85,6 +85,7 @@ fun SettingsScreen(
     var feedAsStartScreen by remember { mutableStateOf(prefs.getBoolean("feed_as_start_screen", false)) }
     var forumSortByNewest by remember { mutableStateOf(prefs.getBoolean("forum_sort_by_newest", false)) }
     var notifySiteUpdates by remember { mutableStateOf(prefs.getBoolean("notify_site_updates", false)) }
+    var statsCheckEnabled by remember { mutableStateOf(prefs.getBoolean("stats_check_enabled", true)) }
     var ignoreColoredText by remember { mutableStateOf(prefs.getBoolean("ignore_colored_text", false)) }
 
     val scrollState = rememberScrollState()
@@ -498,45 +499,104 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Уведомления об обновлениях
+        // Проверка статистики и уведомления об обновлениях — один блок настроек
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
             isDark = isDark,
             shape = RoundedCornerShape(6.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Уведомления об обновлениях",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (notifySiteUpdates) "Уведомлять о новых публикациях на сайте" else "Выключено",
-                        fontSize = 12.sp,
-                        color = secondaryTextColor
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Проверка статистики (фоновый опрос счётчиков сайта)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Проверка статистики",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (statsCheckEnabled) {
+                                "Счётчики разделов и уведомления об обновлениях, раз в 5 минут"
+                            } else {
+                                "Выключено. Счётчики обновятся при открытии приложения"
+                            },
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Проверка личных сообщений от этого не зависит",
+                            fontSize = 11.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = statsCheckEnabled,
+                        onCheckedChange = { newValue ->
+                            statsCheckEnabled = newValue
+                            prefs.edit().putBoolean("stats_check_enabled", newValue).apply()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
                     )
                 }
 
-                Switch(
-                    checked = notifySiteUpdates,
-                    onCheckedChange = { newValue ->
-                        notifySiteUpdates = newValue
-                        prefs.edit().putBoolean("notify_site_updates", newValue).apply()
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = currentAccent,
-                        uncheckedThumbColor = LightTextSecondary,
-                        uncheckedTrackColor = LightGray.copy(0.5f)
-                    )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
                 )
+
+                // Уведомления об обновлениях (зависят от проверки статистики)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Уведомления об обновлениях",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = when {
+                                !statsCheckEnabled -> "Требуется проверка статистики"
+                                notifySiteUpdates -> "Уведомлять о новых публикациях на сайте"
+                                else -> "Выключено"
+                            },
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        enabled = statsCheckEnabled,
+                        checked = notifySiteUpdates,
+                        onCheckedChange = { newValue ->
+                            notifySiteUpdates = newValue
+                            prefs.edit().putBoolean("notify_site_updates", newValue).apply()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
+                    )
+                }
             }
         }
 

@@ -110,6 +110,18 @@ class MainActivity : ComponentActivity() {
         currentIntent.value = intent
         setIntent(intent)
     }
+
+    override fun onStart() {
+        super.onStart()
+        // Приложение вышло на передний план — сервису можно не показывать heads-up уведомления
+        com.ramzes.visavinet.service.NewMessagesService.setAppForeground(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Приложение ушло в фон — возобновляем показ уведомлений о новых ЛС
+        com.ramzes.visavinet.service.NewMessagesService.setAppForeground(false)
+    }
 }
 
 @Composable
