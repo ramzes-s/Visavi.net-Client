@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.AntifloodManager
+import com.ramzes.visavinet.util.TextRenderPrefs
 import java.io.File
 
 @Composable
@@ -84,6 +85,7 @@ fun SettingsScreen(
     var feedAsStartScreen by remember { mutableStateOf(prefs.getBoolean("feed_as_start_screen", false)) }
     var forumSortByNewest by remember { mutableStateOf(prefs.getBoolean("forum_sort_by_newest", false)) }
     var notifySiteUpdates by remember { mutableStateOf(prefs.getBoolean("notify_site_updates", false)) }
+    var ignoreColoredText by remember { mutableStateOf(prefs.getBoolean("ignore_colored_text", false)) }
 
     val scrollState = rememberScrollState()
 
@@ -298,6 +300,48 @@ fun SettingsScreen(
                         onCheckedChange = { newValue ->
                             tabletMode = newValue
                             onTabletModeChange(newValue)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Игнорировать цветной текст
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Игнорировать цветной текст",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (ignoreColoredText) "Сообщения без цветного текста" else "Показывать цветной текст",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = ignoreColoredText,
+                        onCheckedChange = { newValue ->
+                            ignoreColoredText = newValue
+                            TextRenderPrefs.updateIgnoreColoredText(newValue)
+                            prefs.edit().putBoolean("ignore_colored_text", newValue).apply()
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,

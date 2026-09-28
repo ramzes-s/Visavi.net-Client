@@ -42,6 +42,7 @@ import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.extractErrorMessage
 import com.ramzes.visavinet.ui.components.GlassProfileCard
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.parseColorString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -352,7 +353,8 @@ fun NewDialogueDialog(
                                         items(searchResults, key = { it.login }) { user ->
                                             val isMe = currentUserLogin != null &&
                                                     user.login.equals(currentUserLogin, ignoreCase = true)
-                                            val userColor = user.color?.let { parseColorString(it) } ?: textColor
+                                            val userColor = (if (TextRenderPrefs.ignoreColoredText) null
+                                                else user.color?.let { parseColorString(it) }) ?: textColor
 
                                             Surface(
                                                 modifier = Modifier

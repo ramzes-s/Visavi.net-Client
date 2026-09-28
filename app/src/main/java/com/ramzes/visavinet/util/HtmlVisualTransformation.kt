@@ -18,14 +18,15 @@ import java.util.regex.Pattern
  * отображая только чистый текст с наложенными стилями (жирный, курсив, код и т.д.).
  */
 class HtmlVisualTransformation(
-    private val codeBgColor: Color = Color(0x401E3A8A)
+    private val codeBgColor: Color = Color(0x401E3A8A),
+    private val ignoreColorTags: Boolean = false
 ) : VisualTransformation {
 
     override fun filter(text: AnnotatedString): TransformedText {
         val rawText = text.text
 
         // Парсим теги и строим отображаемый текст без самих тегов
-        val parseResult = parseAndStripHtmlTags(rawText, codeBgColor)
+        val parseResult = parseAndStripHtmlTags(rawText, codeBgColor, ignoreColorTags)
 
         val offsetMapping = object : OffsetMapping {
             override fun originalToTransformed(offset: Int): Int {
@@ -50,7 +51,7 @@ private data class HtmlParseResult(
     val transformedToOriginal: IntArray
 )
 
-private fun parseAndStripHtmlTags(rawText: String, codeBgColor: Color): HtmlParseResult {
+private fun parseAndStripHtmlTags(rawText: String, codeBgColor: Color, ignoreColorTags: Boolean = false): HtmlParseResult {
     val origLen = rawText.length
     val isTagMask = BooleanArray(origLen)
 
@@ -70,7 +71,7 @@ private fun parseAndStripHtmlTags(rawText: String, codeBgColor: Color): HtmlPars
     markTagsAndStyles(rawText, "u", underlineStyle, isTagMask, charStyles)
     markTagsAndStyles(rawText, "s", strikethroughStyle, isTagMask, charStyles)
     markCodeBlockTagsAndStyles(rawText, codeStyle, isTagMask, charStyles)
-    markSpanColorTagsAndStyles(rawText, isTagMask, charStyles)
+    markSpanColorTagsAndStyles(rawText, isTagMask, charStyles, ignoreColorTags)
 
     val cleanBuilder = StringBuilder()
     val origToTrans = IntArray(origLen + 1)
@@ -178,7 +179,8 @@ private fun markCodeBlockTagsAndStyles(
 private fun markSpanColorTagsAndStyles(
     text: String,
     isTagMask: BooleanArray,
-    charStyles: Array<MutableList<SpanStyle>>
+    charStyles: Array<MutableList<SpanStyle>>,
+    ignoreColor: Boolean = false
 ) {
     val pattern = Pattern.compile("<span[^>]*style=\\s*\"[^\"]*color\\s*:\\s*([^;\"]+)[;\"]?\"[^>]*>(.*?)</span>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
     val matcher = pattern.matcher(text)
@@ -189,7 +191,7 @@ private fun markSpanColorTagsAndStyles(
         val contentEnd = matcher.end(2)
         val closeTagEnd = matcher.end()
 
-        val parsedColor = parseColorString(colorStr) ?: continue
+        val parsedColor = parseColorString(colorStr)
 
         for (i in openTagStart until contentStart) {
             if (i in isTagMask.indices) isTagMask[i] = true
@@ -198,10 +200,13 @@ private fun markSpanColorTagsAndStyles(
             if (i in isTagMask.indices) isTagMask[i] = true
         }
 
-        val spanStyle = SpanStyle(color = parsedColor)
-        for (i in contentStart until contentEnd) {
-            if (i in charStyles.indices) {
-                charStyles[i].add(spanStyle)
+        // При включённой настройке «Игнорировать цветной текст» тег скрываем, но не окрашиваем текст
+        if (!ignoreColor && parsedColor != null) {
+            val spanStyle = SpanStyle(color = parsedColor)
+            for (i in contentStart until contentEnd) {
+                if (i in charStyles.indices) {
+                    charStyles[i].add(spanStyle)
+                }
             }
         }
     }

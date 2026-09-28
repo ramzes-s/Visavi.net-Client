@@ -31,6 +31,7 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.OnlineUser
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.parseInlineHtmlTags
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -342,7 +343,7 @@ private fun OnlineUserItem(
 
                 user.status?.let { status ->
                     if (status.isNotBlank()) {
-                        val (annotatedStatus, _) = remember(status, isDark) {
+                        val (annotatedStatus, _) = remember(status, isDark, TextRenderPrefs.ignoreColoredText) {
                             parseInlineHtmlTags(status, isDark)
                         }
                         Spacer(modifier = Modifier.height(2.dp))

@@ -6,6 +6,7 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.ramzes.visavinet.network.VisaviApi
+import com.ramzes.visavinet.util.TextRenderPrefs
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -13,6 +14,9 @@ class VisaviApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // Загрузка глобальных настроек отображения текста
+        val prefs = getSharedPreferences("visavi_prefs", MODE_PRIVATE)
+        TextRenderPrefs.updateIgnoreColoredText(prefs.getBoolean("ignore_colored_text", false))
     }
 
     override fun newImageLoader(): ImageLoader {

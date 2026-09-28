@@ -39,6 +39,7 @@ import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.applyTagToTextFieldValue
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.HtmlVisualTransformation
+import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.ensureParagraphTags
 
 data class QuoteInfo(
@@ -68,7 +69,9 @@ fun FullscreenInputModal(
     val textColor = if (isDark) Color.White else LightText
     val backdropColor = if (isDark) Color(0xF5090B10) else Color(0xF5F0F4F8)
 
-    val htmlTransformation = remember(primaryAccent) { HtmlVisualTransformation() }
+    val htmlTransformation = remember(primaryAccent, TextRenderPrefs.ignoreColoredText) {
+        HtmlVisualTransformation(ignoreColorTags = TextRenderPrefs.ignoreColoredText)
+    }
 
     var textFieldValue by remember {
         mutableStateOf(TextFieldValue(text, selection = TextRange(text.length)))

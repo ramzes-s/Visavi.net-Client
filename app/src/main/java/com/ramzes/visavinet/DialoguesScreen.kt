@@ -29,6 +29,7 @@ import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.dialogs.NewDialogueDialog
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.ContentBlock
+import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.parseHtmlToBlocks
 import com.ramzes.visavinet.util.parseInlineHtmlTags
@@ -326,7 +327,7 @@ fun DialogueItem(
                     }
 
                     dialogue.text?.let { text ->
-                        val annotatedPreview = remember(text, isDark) {
+                        val annotatedPreview = remember(text, isDark, TextRenderPrefs.ignoreColoredText) {
                             val cleanHtml = text
                                 .replace(Regex("</?p[^>]*>", RegexOption.IGNORE_CASE), " ")
                                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")

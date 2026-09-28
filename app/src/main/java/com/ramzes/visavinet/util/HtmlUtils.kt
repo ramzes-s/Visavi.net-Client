@@ -852,7 +852,12 @@ private fun parseNestedTags(
                 color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E40AF)
             )
             "span" -> {
-                val spanColor = parseColorFromSpanTag(match.value)
+                // Цветной текст можно отключить в настройках (Функция: Игнорировать цветной текст)
+                val spanColor = if (TextRenderPrefs.ignoreColoredText) {
+                    null
+                } else {
+                    parseColorFromSpanTag(match.value)
+                }
                 if (spanColor != null) SpanStyle(color = spanColor) else null
             }
             "a" -> SpanStyle(
