@@ -901,6 +901,25 @@ data class OnlineResponse(
     @SerializedName("meta") val meta: OnlineMeta? = null
 )
 
+data class SearchUser(
+    @SerializedName("login") val login: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("level") val level: String? = null,
+    @SerializedName("color") val color: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("status") val status: String? = null
+) {
+    val displayName: String
+        get() = name?.ifBlank { null } ?: login
+
+    val avatarUrl: String?
+        get() = if (avatar?.startsWith("/") == true) "https://visavi.net$avatar" else avatar
+}
+
+data class UsersSearchResponse(
+    @SerializedName("data") val data: List<SearchUser>? = null
+)
+
 /**
  * API сервис Visavi.net
  * RotorCMS OpenAPI v1.0.0
@@ -921,6 +940,11 @@ interface VisaviApiService {
     suspend fun getUserByLogin(
         @Path("login") login: String
     ): Response<ApiData>
+
+    @GET("api/users/search")
+    suspend fun searchUsers(
+        @Query("query") query: String
+    ): Response<UsersSearchResponse>
 
     @GET("api/dialogues")
     suspend fun getDialogues(

@@ -569,7 +569,7 @@ fun MainNavigation(
                                         .build(),
                                     contentDescription = "Аватар",
                                     modifier = Modifier
-                                        .size(18.dp)
+                                        .size(24.dp)
                                         .clip(CircleShape),
                                     contentScale = ContentScale.Crop
                                 )
@@ -1095,6 +1095,7 @@ fun MainNavigation(
                                             isLoading = dialoguesViewModel.isLoadingDialogues,
                                             isLoadingMore = dialoguesViewModel.isLoadingMore,
                                             errorMessage = dialoguesViewModel.errorMessage,
+                                            currentUserLogin = viewModel.currentUser?.login,
                                             readDialogues = dialoguesViewModel.readDialogues,
                                             initialScrollIndex = dialoguesViewModel.dialoguesScrollIndex,
                                             initialScrollOffset = dialoguesViewModel.dialoguesScrollOffset,
@@ -1109,6 +1110,32 @@ fun MainNavigation(
                                                     currentScreen = Screen.Profile
                                                 } else {
                                                     dialoguesViewModel.selectDialogue(dialogue, context.applicationContext)
+                                                    dialoguesViewModel.resetNewMessagesCount()
+                                                    NewMessagesService.markAsRead()
+                                                    showMessagesScreen = true
+                                                }
+                                            },
+                                            onStartDialogue = { login, name ->
+                                                val currentLogin = viewModel.currentUser?.login
+                                                if (currentLogin != null && currentLogin.equals(login, ignoreCase = true)) {
+                                                    currentScreen = Screen.Profile
+                                                } else {
+                                                    val existing = dialoguesViewModel.dialogues.find {
+                                                        it.login.equals(login, ignoreCase = true) ||
+                                                                it.authorLogin.equals(login, ignoreCase = true)
+                                                    }
+                                                    val dialogueToOpen = existing ?: com.ramzes.visavinet.network.DialogueData(
+                                                        id = 0,
+                                                        login = login,
+                                                        name = name,
+                                                        text = null,
+                                                        type = null,
+                                                        allReading = true,
+                                                        recipientRead = true,
+                                                        canReply = true,
+                                                        createdAtRaw = null
+                                                    )
+                                                    dialoguesViewModel.selectDialogue(dialogueToOpen, context.applicationContext)
                                                     dialoguesViewModel.resetNewMessagesCount()
                                                     NewMessagesService.markAsRead()
                                                     showMessagesScreen = true

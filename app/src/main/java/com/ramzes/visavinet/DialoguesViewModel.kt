@@ -269,6 +269,7 @@ class DialoguesViewModel : ViewModel() {
                 if (response.isSuccessful) {
                     com.ramzes.visavinet.util.AntifloodManager.markMessageSent()
                     refreshMessages(context)
+                    loadDialogues(context, page = 1)
                     onSuccess()
                 } else {
                     val errorText = response.extractErrorMessage("Ошибка отправки сообщения")

@@ -11,12 +11,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +26,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.DialogueData
 import com.ramzes.visavinet.ui.components.GlassCard
+import com.ramzes.visavinet.ui.dialogs.NewDialogueDialog
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.ContentBlock
 import com.ramzes.visavinet.util.formatUnixTime
@@ -41,11 +40,13 @@ fun DialoguesScreen(
     isLoading: Boolean,
     isLoadingMore: Boolean,
     errorMessage: String?,
+    currentUserLogin: String? = null,
     readDialogues: Set<Int> = emptySet(),
     initialScrollIndex: Int = 0,
     initialScrollOffset: Int = 0,
     onScrollChanged: ((Int, Int) -> Unit)? = null,
     onDialogueClick: (DialogueData) -> Unit,
+    onStartDialogue: ((login: String, name: String?) -> Unit)? = null,
     onRefresh: () -> Unit,
     onLoadMore: () -> Unit
 ) {
@@ -82,32 +83,43 @@ fun DialoguesScreen(
         }
     }
 
+    var showNewDialogueDialog by remember { mutableStateOf(false) }
     val textColor = if (isDark) Color.White else LightText
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Заголовок "Диалоги" (как на главной форума)
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Color.Transparent
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Заголовок "Диалоги" (как на главной форума)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color.Transparent
             ) {
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = "Диалоги",
-                    color = textColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "Диалоги",
+                        color = textColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { showNewDialogueDialog = true }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Новый диалог",
+                            tint = accentColor
+                        )
+                    }
+                }
             }
-        }
 
         when {
             isLoading && dialogues.isEmpty() -> {
@@ -180,6 +192,53 @@ fun DialoguesScreen(
             }
         }
     }
+
+    // Floating Action Button для быстрого создания нового диалога
+    FloatingActionButton(
+        onClick = { showNewDialogueDialog = true },
+        shape = CircleShape,
+        containerColor = accentColor,
+        contentColor = if (isDark) Color.Black else Color.White,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(24.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Новый диалог"
+        )
+    }
+}
+
+if (showNewDialogueDialog) {
+    NewDialogueDialog(
+        currentUserLogin = currentUserLogin,
+        onDismiss = { showNewDialogueDialog = false },
+        onUserSelected = { login, name ->
+            showNewDialogueDialog = false
+            if (onStartDialogue != null) {
+                onStartDialogue(login, name)
+            } else {
+                val existing = dialogues.find {
+                    it.login.equals(login, ignoreCase = true) ||
+                            it.authorLogin.equals(login, ignoreCase = true)
+                }
+                val dialogueToOpen = existing ?: DialogueData(
+                    id = 0,
+                    login = login,
+                    name = name,
+                    text = null,
+                    type = null,
+                    allReading = true,
+                    recipientRead = true,
+                    canReply = true,
+                    createdAtRaw = null
+                )
+                onDialogueClick(dialogueToOpen)
+            }
+        }
+    )
+}
 }
 
 @Composable

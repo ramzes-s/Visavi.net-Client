@@ -257,6 +257,76 @@ class NewFeaturesTest {
     }
 
     // =========================================================================
+    // 5. User Search & New Dialogue Tests
+    // =========================================================================
+
+    @Test
+    fun testSearchUserModelProperties() {
+        val user1 = com.ramzes.visavinet.network.SearchUser(
+            login = "test_user",
+            name = "Test Name",
+            level = "admin",
+            color = "#FF0000",
+            avatar = "https://example.com/avatar.jpg",
+            status = "Online"
+        )
+        assertEquals("test_user", user1.login)
+        assertEquals("Test Name", user1.displayName)
+        assertEquals("https://example.com/avatar.jpg", user1.avatarUrl)
+
+        val user2 = com.ramzes.visavinet.network.SearchUser(
+            login = "simple_user",
+            name = "",
+            level = "user",
+            color = null,
+            avatar = "/uploads/avatars/user2.png",
+            status = null
+        )
+        assertEquals("simple_user", user2.displayName)
+        assertEquals("https://visavi.net/uploads/avatars/user2.png", user2.avatarUrl)
+    }
+
+    @Test
+    fun testSearchUsersResponseJsonParsing() {
+        val json = """
+            {
+                "data": [
+                    {
+                        "login": "Admiral",
+                        "name": "Адмирал",
+                        "level": "user",
+                        "color": "#00FF00",
+                        "avatar": "https://visavi.net/uploads/avatars/admiral.png",
+                        "status": "<i>Капитан</i>"
+                    },
+                    {
+                        "login": "Admin7",
+                        "name": null,
+                        "level": "admin",
+                        "color": null,
+                        "avatar": null,
+                        "status": null
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        val parsed = com.google.gson.Gson().fromJson(json, com.ramzes.visavinet.network.UsersSearchResponse::class.java)
+        assertNotNull(parsed)
+        val users = parsed.data
+        assertNotNull(users)
+        assertEquals(2, users!!.size)
+
+        assertEquals("Admiral", users[0].login)
+        assertEquals("Адмирал", users[0].displayName)
+        assertEquals("#00FF00", users[0].color)
+
+        assertEquals("Admin7", users[1].login)
+        assertEquals("Admin7", users[1].displayName)
+        assertNull(users[1].avatarUrl)
+    }
+
+    // =========================================================================
     // In-memory SharedPreferences Test Double
     // =========================================================================
 
