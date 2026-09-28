@@ -434,17 +434,6 @@ fun NewDialogueDialog(
                                                                 overflow = TextOverflow.Ellipsis
                                                             )
                                                         }
-
-                                                        if (!user.status.isNullOrBlank()) {
-                                                            Spacer(modifier = Modifier.height(2.dp))
-                                                            Text(
-                                                                text = user.status.replace(Regex("<[^>]+>"), "").trim(),
-                                                                color = secondaryTextColor.copy(alpha = 0.8f),
-                                                                fontSize = 11.sp,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
-                                                            )
-                                                        }
                                                     }
 
                                                     Icon(
