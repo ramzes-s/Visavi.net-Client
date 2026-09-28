@@ -11,9 +11,14 @@ import com.ramzes.visavinet.network.OnlineMeta
 import com.ramzes.visavinet.network.OnlineUser
 import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.extractErrorMessage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class OnlineViewModel : ViewModel() {
+
+    /** Текущая (последняя) загрузка списка онлайн */
+    private var loadJob: Job? = null
 
     var users by mutableStateOf<List<OnlineUser>>(emptyList())
         private set
@@ -49,6 +54,11 @@ class OnlineViewModel : ViewModel() {
 
     fun loadOnline(context: Context, page: Int = 1) {
         if (page == 1) {
+            // Отменяем незавершённую загрузку, чтобы старый ответ не перезаписал свежий список
+            loadJob?.let { running ->
+                loadJob = null
+                running.cancel()
+            }
             isLoading = true
             errorMessage = null
         } else {
@@ -57,7 +67,7 @@ class OnlineViewModel : ViewModel() {
 
         val perPage = getPerPage(context)
 
-        viewModelScope.launch {
+        val job = viewModelScope.launch {
             try {
                 val response = VisaviApi.instance.getOnline(page = page, perPage = perPage)
                 if (response.isSuccessful) {
@@ -81,21 +91,31 @@ class OnlineViewModel : ViewModel() {
                         errorMessage = err
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 if (page == 1) {
                     errorMessage = e.message ?: "Ошибка сети"
                 }
             } finally {
-                isLoading = false
-                isLoadingMore = false
+                // Флаги загрузки сбрасывает только актуальная (последняя) загрузка
+                if (loadJob === coroutineContext[Job]) {
+                    isLoading = false
+                    isLoadingMore = false
+                }
             }
         }
+        loadJob = job
     }
 
     fun refresh(context: Context) {
         currentPage = 1
         lastPage = 1
         hasNextPage = false
+        scrollItemIndex = 0
+        scrollOffset = 0
+        // Не показываем прежний список: данные всегда загружаются заново
+        users = emptyList()
         loadOnline(context, 1)
     }
 

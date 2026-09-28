@@ -61,9 +61,9 @@ fun OnlineScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (viewModel.users.isEmpty()) {
-            viewModel.loadOnline(context, 1)
-        }
+        // Список онлайн никогда не кешируется: при каждом открытии вкладки загружаем его заново
+        viewModel.refresh(context)
+        listState.scrollToItem(0)
     }
 
     LaunchedEffect(viewModel.users.size, viewModel.isLoadingMore) {
@@ -204,7 +204,6 @@ fun OnlineScreen(
                                 OnlineUserItem(
                                     user = user,
                                     isDark = isDark,
-                                    primaryAccent = primaryAccent,
                                     textColor = textColor,
                                     secondaryTextColor = secondaryTextColor,
                                     onUserClick = onUserClick
@@ -271,7 +270,6 @@ private fun OnlineStatChip(
 private fun OnlineUserItem(
     user: OnlineUser,
     isDark: Boolean,
-    primaryAccent: Color,
     textColor: Color,
     secondaryTextColor: Color,
     onUserClick: (String) -> Unit
@@ -318,7 +316,7 @@ private fun OnlineUserItem(
                 ) {
                     Text(
                         text = user.displayName,
-                        color = primaryAccent,
+                        color = textColor,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
