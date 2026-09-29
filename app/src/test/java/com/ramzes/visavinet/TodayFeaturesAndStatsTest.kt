@@ -5,6 +5,8 @@ import com.ramzes.visavinet.network.ForumSection
 import com.ramzes.visavinet.network.StatsResponse
 import com.ramzes.visavinet.util.ContentBlock
 import com.ramzes.visavinet.util.buildFeedPreviewBlocks
+import com.ramzes.visavinet.util.formatRelativeTime
+import com.ramzes.visavinet.util.formatUnixTime
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -459,6 +461,32 @@ class TodayFeaturesAndStatsTest {
 
         assertEquals(Screen.Feed, determineStartScreen(true))
         assertEquals(Screen.Profile, determineStartScreen(false))
+    }
+
+    @Test
+    fun testFormatRelativeTime() {
+        val minute = 60_000L
+        val hour = 60 * minute
+        val now = System.currentTimeMillis()
+
+        // Пустое и будущее время
+        assertEquals("", formatRelativeTime(0))
+        assertEquals("Сейчас", formatRelativeTime(now + 5 * minute))
+
+        // Менее часа — "Сейчас"
+        assertEquals("Сейчас", formatRelativeTime(now - 30 * minute))
+        assertEquals("Сейчас", formatRelativeTime(now - 59 * minute))
+
+        // Менее 12 часов — "Час назад" / "N часа(ов) назад"
+        assertEquals("Час назад", formatRelativeTime(now - 65 * minute))
+        assertEquals("2 часа назад", formatRelativeTime(now - 2 * hour - 30 * minute))
+        assertEquals("4 часа назад", formatRelativeTime(now - 4 * hour - 10 * minute))
+        assertEquals("5 часов назад", formatRelativeTime(now - 5 * hour - 30 * minute))
+        assertEquals("11 часов назад", formatRelativeTime(now - 11 * hour - 30 * minute))
+
+        // 12 часов и больше — обычное форматирование даты
+        val older = now - 13 * hour
+        assertEquals(formatUnixTime(older), formatRelativeTime(older))
     }
 }
 

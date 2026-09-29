@@ -44,7 +44,7 @@ import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.RenderFeedPreview
 import com.ramzes.visavinet.util.buildFeedPreviewBlocks
-import com.ramzes.visavinet.util.formatUnixTime
+import com.ramzes.visavinet.util.formatRelativeTime
 import com.ramzes.visavinet.util.isDateRecent
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -527,7 +527,7 @@ fun FeedCardItem(
                                 )
                                 val isRecent = isDateRecent(created)
                                 Text(
-                                    text = formatUnixTime(created),
+                                    text = formatRelativeTime(created),
                                     fontSize = 10.5.sp,
                                     color = if (isRecent) primaryAccent else secondaryTextColor,
                                     fontWeight = FontWeight.Normal

@@ -1452,6 +1452,36 @@ fun formatUnixTime(timestamp: Long): String {
 }
 
 /**
+ * Относительное время для ленты событий:
+ * - менее часа: "Сейчас"
+ * - менее 12 часов: "Час назад", "2 часа назад", "5 часов назад"
+ * - 12 часов и больше: обычное formatUnixTime ("Сегодня в HH:mm" и т.д.)
+ */
+fun formatRelativeTime(timestamp: Long): String {
+    if (timestamp <= 0) return ""
+
+    val elapsed = System.currentTimeMillis() - timestamp
+    if (elapsed < HOUR_MILLIS) return "Сейчас"
+
+    if (elapsed < 12 * HOUR_MILLIS) {
+        val hours = (elapsed / HOUR_MILLIS).toInt()
+        if (hours < 1) return "Сейчас"
+
+        val mod10 = hours % 10
+        val mod100 = hours % 100
+        return when {
+            hours == 1 -> "Час назад"
+            mod10 in 2..4 && mod100 !in 12..14 -> "$hours часа назад"
+            else -> "$hours часов назад"
+        }
+    }
+
+    return formatUnixTime(timestamp)
+}
+
+private const val HOUR_MILLIS = 60L * 60L * 1000L
+
+/**
  * Проверка, является ли переданный timestamp сегодняшним днем
  */
 fun isDateToday(timestamp: Long): Boolean {
