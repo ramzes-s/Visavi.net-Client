@@ -436,6 +436,12 @@ class TodayFeaturesAndStatsTest {
         assertTrue(longText.endsWith("…"))
         assertTrue(longText.length <= 300)
 
+        // После нормализации не остаётся двух и более переносов подряд
+        val paragraphs = buildFeedPreviewBlocks("<p>Первый</p>\n<p>Второй</p>")
+            .filterIsInstance<ContentBlock.TextBlock>().first().text
+        assertFalse(Regex("\n{2,}").containsMatchIn(paragraphs))
+        assertTrue(paragraphs.contains("Первый\nВторой"))
+
         // Удаление тегов скриптов и стилей
         val scriptHtml = "<p>Текст<script>alert(1)</script><style>body{color:red;}</style> продолжение</p>"
         val scriptText = buildFeedPreviewBlocks(scriptHtml)

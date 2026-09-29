@@ -443,9 +443,28 @@ fun parseHtmlToBlocks(html: String?): List<ContentBlock> {
         }
     }
 
-    htmlBlocksCache.put(html, blocks)
-    return blocks
+    // Итоговая нормализация: от двух переносов строки подряд оставляем один,
+    // чтобы абзацы не разъезжались пустыми строками
+    val normalized = blocks.map { block ->
+        when (block) {
+            is ContentBlock.TextBlock -> block.copy(
+                text = collapseNewlines(block.text),
+                html = block.html?.let { collapseNewlines(it) }
+            )
+            is ContentBlock.QuoteBlock -> block.copy(
+                quoteText = collapseNewlines(block.quoteText),
+                footerText = collapseNewlines(block.footerText)
+            )
+            else -> block
+        }
+    }
+
+    htmlBlocksCache.put(html, normalized)
+    return normalized
 }
+
+/** Схлопывает серии из двух и более переносов строки в один */
+private fun collapseNewlines(text: String): String = text.replace(Regex("\n{2,}"), "\n")
 
 private fun stripOrphanCodeTags(text: String): String {
     return text
