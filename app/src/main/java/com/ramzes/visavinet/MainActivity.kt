@@ -66,7 +66,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val prefs = remember { getSharedPreferences("visavi_prefs", MODE_PRIVATE) }
-            val initialDarkTheme = remember { prefs.getBoolean("dark_theme", true) }
+            val initialThemeMode = remember {
+                // Миграция со старого ключа dark_theme (Boolean) на theme_mode (String)
+                val savedMode = prefs.getString("theme_mode", null)
+                when {
+                    savedMode != null -> runCatching { ThemeMode.valueOf(savedMode) }.getOrDefault(ThemeMode.DARK)
+                    prefs.getBoolean("dark_theme", true) -> ThemeMode.DARK
+                    else -> ThemeMode.LIGHT
+                }
+            }
             val accentIndex = remember { prefs.getInt("accent_color_index", 0) }
             val initialPrimaryAccent = remember {
                 AvailableAccentColors.getOrElse(accentIndex) { AvailableAccentColors[0] }.color
@@ -81,7 +89,7 @@ class MainActivity : ComponentActivity() {
             }
 
             VisaviTheme(
-                initialDarkTheme = initialDarkTheme,
+                initialThemeMode = initialThemeMode,
                 initialPrimaryAccent = initialPrimaryAccent,
                 initialFontScale = initialFontScale
             ) {
@@ -96,9 +104,9 @@ class MainActivity : ComponentActivity() {
                 MainNavigation(
                     intent = currentIntent.value,
                     prefs = prefs,
-                    onThemeChange = { isDarkTheme ->
-                        setDarkTheme(isDarkTheme)
-                        prefs.edit().putBoolean("dark_theme", isDarkTheme).apply()
+                    onThemeChange = { themeMode ->
+                        setThemeMode(themeMode)
+                        prefs.edit().putString("theme_mode", themeMode.name).apply()
                     }
                 )
             }
@@ -160,7 +168,7 @@ enum class Screen { Profile, Feed, Online, News, Gallery, Downs, Private, Forum,
 fun MainNavigation(
     intent: Intent? = null,
     prefs: android.content.SharedPreferences,
-    onThemeChange: (Boolean) -> Unit = {}
+    onThemeChange: (ThemeMode) -> Unit = {}
 ) {
     val viewModel: MainViewModel = viewModel()
     val feedViewModel: FeedViewModel = viewModel()
@@ -470,7 +478,12 @@ fun MainNavigation(
             val isTabletScreen = configuration.screenWidthDp >= 600
             val showPermanentDrawer = isTabletMode || isLandscape || isTabletScreen
             val isDark = isDarkTheme()
-            val drawerBgColor = if (isDark) Color(0xF8090B10) else Color(0xF8F0F4F8)
+            val isAmoled = isAmoledTheme()
+            val drawerBgColor = when {
+                isAmoled -> Color.Black
+                isDark -> Color(0xF8090B10)
+                else -> Color(0xF8F0F4F8)
+            }
             val drawerTextColor = if (isDark) Color.White else LightText
             val drawerLogoColor = primaryAccent
             val drawerSelectedItemColor = primaryAccent.copy(alpha = 0.25f)

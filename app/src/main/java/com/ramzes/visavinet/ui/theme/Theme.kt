@@ -1,5 +1,6 @@
 package com.ramzes.visavinet.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -19,30 +20,52 @@ enum class FontSizeOption(val scale: Float, val title: String) {
     LARGE(1.15f, "Больше")
 }
 
-var ThemeSetter: ((Boolean) -> Unit)? = null
+/**
+ * Режим оформления приложения.
+ * SYSTEM — следовать системной настройке светлой/тёмной темы,
+ * AMOLED — тёмная тема с чёрным фоном (пиксели выключены, экономия батареи).
+ */
+enum class ThemeMode(val title: String) {
+    SYSTEM("Как в системе"),
+    LIGHT("Светлая"),
+    DARK("Тёмная"),
+    AMOLED("AMOLED")
+}
+
+var ThemeModeSetter: ((ThemeMode) -> Unit)? = null
 var PrimaryAccentSetter: ((Color) -> Unit)? = null
 var FontScaleSetter: ((Float) -> Unit)? = null
 
+val LocalThemeMode = staticCompositionLocalOf { mutableStateOf(ThemeMode.DARK) }
 val LocalIsDarkTheme = staticCompositionLocalOf { mutableStateOf(true) }
 val LocalPrimaryAccentColor = staticCompositionLocalOf { mutableStateOf(FieryRed) }
 val LocalFontScale = staticCompositionLocalOf { mutableStateOf(1.0f) }
 
 @Composable
 fun VisaviTheme(
-    initialDarkTheme: Boolean = true,
+    initialThemeMode: ThemeMode = ThemeMode.DARK,
     initialPrimaryAccent: Color = FieryRed,
     initialFontScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
-    val themeState = remember { mutableStateOf(initialDarkTheme) }
+    val themeModeState = remember { mutableStateOf(initialThemeMode) }
     val accentState = remember { mutableStateOf(initialPrimaryAccent) }
     val fontScaleState = remember { mutableStateOf(initialFontScale) }
-    
+
     LaunchedEffect(Unit) {
-        ThemeSetter = { themeState.value = it }
+        ThemeModeSetter = { themeModeState.value = it }
         PrimaryAccentSetter = { accentState.value = it }
         FontScaleSetter = { fontScaleState.value = it }
     }
+
+    // Системная тёмная тема (реактивно на смену настроек устройства)
+    val systemDark = isSystemInDarkTheme()
+    val resolvedIsDark = when (themeModeState.value) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> systemDark
+        ThemeMode.DARK, ThemeMode.AMOLED -> true
+    }
+    val darkState = remember(resolvedIsDark) { mutableStateOf(resolvedIsDark) }
 
     val darkScheme = darkColorScheme(
         background = DustyBlack,
@@ -51,6 +74,18 @@ fun VisaviTheme(
         onPrimary = Color.White,
         secondary = TextLightGray,
         onSecondary = DustyBlack,
+        onBackground = Color.White,
+        onSurface = Color.White
+    )
+
+    // AMOLED: чисто чёрный фон — выключенные пиксели OLED-экрана
+    val amoledScheme = darkColorScheme(
+        background = Color.Black,
+        surface = Color.Black,
+        primary = accentState.value,
+        onPrimary = Color.White,
+        secondary = TextLightGray,
+        onSecondary = Color.Black,
         onBackground = Color.White,
         onSurface = Color.White
     )
@@ -67,11 +102,16 @@ fun VisaviTheme(
     )
 
     CompositionLocalProvider(
-        LocalIsDarkTheme provides themeState,
+        LocalThemeMode provides themeModeState,
+        LocalIsDarkTheme provides darkState,
         LocalPrimaryAccentColor provides accentState,
         LocalFontScale provides fontScaleState
     ) {
-        val colorScheme = if (themeState.value) darkScheme else lightScheme
+        val colorScheme = when {
+            themeModeState.value == ThemeMode.AMOLED -> amoledScheme
+            resolvedIsDark -> darkScheme
+            else -> lightScheme
+        }
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
@@ -83,6 +123,22 @@ fun VisaviTheme(
 @Composable
 fun isDarkTheme(): Boolean {
     return LocalIsDarkTheme.current.value
+}
+
+/**
+ * Включена ли сейчас AMOLED-тема (чёрный фон)
+ */
+@Composable
+fun isAmoledTheme(): Boolean {
+    return LocalThemeMode.current.value == ThemeMode.AMOLED
+}
+
+/**
+ * Текущий режим темы (для выпадающего списка в настройках)
+ */
+@Composable
+fun getThemeMode(): ThemeMode {
+    return LocalThemeMode.current.value
 }
 
 @Composable
@@ -118,8 +174,8 @@ fun ProvideContentFontScale(content: @Composable () -> Unit) {
     }
 }
 
-fun setDarkTheme(isDark: Boolean) {
-    ThemeSetter?.invoke(isDark)
+fun setThemeMode(mode: ThemeMode) {
+    ThemeModeSetter?.invoke(mode)
 }
 
 fun setPrimaryAccentColor(color: Color) {

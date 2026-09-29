@@ -79,7 +79,13 @@ fun GlassBackground(
         label = "glow2"
     )
 
-    val bgColor = if (isDark) DustyBlack else LightWhite
+    // AMOLED: чисто чёрный фон, чтобы пиксели OLED были выключены
+    val isAmoled = isAmoledTheme()
+    val bgColor = if (isDark) {
+        if (isAmoled) Color.Black else DustyBlack
+    } else {
+        LightWhite
+    }
 
     Box(
         modifier = Modifier
@@ -89,14 +95,16 @@ fun GlassBackground(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
+            // В AMOLED glow приглушаем: чем меньше залитых пикселей, тем сильнее эффект чёрного
+            val glowFactor = if (isAmoled) 0.45f else 1f
 
             if (isDark) {
                 // Сфера 1: Основной пользовательский цвет сверху слева
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            accentColor.copy(alpha = 0.28f * glowAnim1),
-                            accentColor.copy(alpha = 0.08f * glowAnim1),
+                            accentColor.copy(alpha = 0.28f * glowAnim1 * glowFactor),
+                            accentColor.copy(alpha = 0.08f * glowAnim1 * glowFactor),
                             Color.Transparent
                         ),
                         center = Offset(width * 0.25f, height * 0.15f),
@@ -110,7 +118,7 @@ fun GlassBackground(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            accentColor.copy(alpha = 0.22f * glowAnim2),
+                            accentColor.copy(alpha = 0.22f * glowAnim2 * glowFactor),
                             Color.Transparent
                         ),
                         center = Offset(width * 0.85f, height * 0.75f),

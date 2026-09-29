@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
@@ -38,7 +40,7 @@ import java.io.File
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
-    onThemeChange: (Boolean) -> Unit,
+    onThemeChange: (ThemeMode) -> Unit,
     onTabletModeChange: (Boolean) -> Unit,
     onForumSortByNewestChange: ((Boolean) -> Unit)? = null,
     isTabletMode: Boolean = false,
@@ -108,7 +110,10 @@ fun SettingsScreen(
             shape = RoundedCornerShape(6.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Тёмная тема
+                // Тема оформления (выпадающий список)
+                val currentThemeMode = getThemeMode()
+                var themeMenuExpanded by remember { mutableStateOf(false) }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -116,32 +121,82 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Тёмная тема",
+                            text = "Тема",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = textColor
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (isDark) "Включена" else "Выключена",
+                            text = when (currentThemeMode) {
+                                ThemeMode.SYSTEM -> "Следует настройкам устройства"
+                                ThemeMode.LIGHT -> "Светлое оформление"
+                                ThemeMode.DARK -> "Тёмное оформление"
+                                ThemeMode.AMOLED -> "Чёрный фон для OLED-экрана"
+                            },
                             fontSize = 12.sp,
                             color = secondaryTextColor
                         )
                     }
 
-                    Switch(
-                        checked = isDark,
-                        onCheckedChange = { newIsDark ->
-                            setDarkTheme(newIsDark)
-                            onThemeChange(newIsDark)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = currentAccent,
-                            uncheckedThumbColor = LightTextSecondary,
-                            uncheckedTrackColor = LightGray.copy(0.5f)
-                        )
-                    )
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { themeMenuExpanded = true }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = currentThemeMode.title,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = currentAccent
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Выбрать тему",
+                                tint = textColor
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = themeMenuExpanded,
+                            onDismissRequest = { themeMenuExpanded = false },
+                            modifier = Modifier.background(
+                                when {
+                                    isAmoledTheme() -> Color.Black
+                                    isDark -> Color(0xF8090B10)
+                                    else -> Color(0xF8F0F4F8)
+                                }
+                            )
+                        ) {
+                            ThemeMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = mode.title,
+                                            fontSize = 15.sp,
+                                            color = if (mode == currentThemeMode) currentAccent else textColor
+                                        )
+                                    },
+                                    onClick = {
+                                        themeMenuExpanded = false
+                                        onThemeChange(mode)
+                                    },
+                                    trailingIcon = {
+                                        if (mode == currentThemeMode) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = currentAccent
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 HorizontalDivider(
