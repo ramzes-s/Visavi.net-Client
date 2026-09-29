@@ -26,6 +26,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -378,8 +380,17 @@ fun GalleryGridItem(
                                     photo.commentsCount
                                 )
                             }
+                            // Счётчик: общее кол-во — акцентное, новые комментарии — белые/тёмные
+                            val commentsText = buildAnnotatedString {
+                                append("${photo.commentsCount}")
+                                if (newComments > 0) {
+                                    val start = length
+                                    append(" +$newComments")
+                                    addStyle(SpanStyle(color = textColor), start, length)
+                                }
+                            }
                             Text(
-                                text = if (newComments > 0) "${photo.commentsCount} (+$newComments)" else "${photo.commentsCount}",
+                                text = commentsText,
                                 color = authorColor,
                                 fontSize = 10.sp,
                                 fontWeight = if (newComments > 0) FontWeight.Bold else FontWeight.Medium

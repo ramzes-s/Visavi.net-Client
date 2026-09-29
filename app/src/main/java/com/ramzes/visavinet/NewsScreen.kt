@@ -22,6 +22,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -401,8 +403,17 @@ fun NewsItemCard(
                                         news.commentsCount
                                     )
                                 }
+                                // Счётчик: общее кол-во — акцентное, новые комментарии — белые/тёмные
+                                val commentsText = buildAnnotatedString {
+                                    append("${news.commentsCount}")
+                                    if (newComments > 0) {
+                                        val start = length
+                                        append(" +$newComments")
+                                        addStyle(SpanStyle(color = textColor), start, length)
+                                    }
+                                }
                                 Text(
-                                    text = if (newComments > 0) "${news.commentsCount} (+$newComments)" else "${news.commentsCount}",
+                                    text = commentsText,
                                     color = authorColor,
                                     fontSize = 11.sp,
                                     fontWeight = if (newComments > 0) FontWeight.Bold else FontWeight.Medium
