@@ -38,6 +38,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.FeedItem
 import com.ramzes.visavinet.network.FileData
+import com.ramzes.visavinet.ui.components.GlassBadge
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.theme.*
@@ -274,307 +275,290 @@ fun FeedCardItem(
         }
     }
 
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onItemClick),
-        isDark = isDark,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
+    // Обёртка Box нужна, чтобы бейдж типа события лежал поверх карточки
+    // вплотную к правому верхнему углу (как плашка «Сегодня» в списке новостей)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .clickable(onClick = onItemClick),
+            isDark = isDark,
+            shape = RoundedCornerShape(12.dp)
         ) {
-            // Верхняя строка: Бейдж типа события + Заголовок темы / материала
-            val titleText = item.title ?: item.relate?.title ?: ""
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
             ) {
-                Surface(
-                    color = badgeColor.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(4.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                    ) {
-                        Icon(
-                            imageVector = badgeIcon,
-                            contentDescription = null,
-                            tint = badgeColor,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                // Верхняя строка: Заголовок темы / материала
+                // (бейдж типа события теперь лежит в углу карточки и сюда не входит)
+                val titleText = item.title ?: item.relate?.title ?: ""
+                if (titleText.isNotBlank()) {
+                    ProvideContentFontScale {
                         Text(
-                            text = badgeText,
-                            color = badgeColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
+                            text = stripHtml(titleText),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                if (titleText.isNotBlank()) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(modifier = Modifier.weight(1f)) {
-                        ProvideContentFontScale {
-                            Text(
-                                text = stripHtml(titleText),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Автор и дата / время события (в стиле комментариев)
+                if (item.user != null || item.createdAt != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Автор (аватар + ник)
+                        if (item.user != null) {
+                            val user = item.user
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                val avatarData: Any = if (!user.avatar.isNullOrBlank()) {
+                                    user.avatar
+                                } else {
+                                    R.drawable.ic_default_avatar
+                                }
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(avatarData)
+                                        .placeholder(R.drawable.ic_default_avatar)
+                                        .error(R.drawable.ic_default_avatar)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Аватар",
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .clip(CircleShape)
+                                        .clickable { onUserClick(user.login) },
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                Text(
+                                    text = user.displayName,
+                                    color = primaryAccent,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable { onUserClick(user.login) }
+                                )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+
+                        // Бейджик: время события
+                        item.createdAt?.let { createdTime ->
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                                ),
+                                modifier = Modifier.wrapContentSize()
+                            ) {
+                                Text(
+                                    text = formatUnixTime(createdTime),
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Превью медиа для раздела "Галерея" (фото/видео)
+                if (item.type == "photos" && item.media.isNotEmpty()) {
+                    val mediaItem = item.media.first()
+                    val isVideo = mediaItem.isVideo || mediaItem.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isDark) Color(0x331E293B) else Color(0x1F64748B))
+                            .clickable { onPhotoClick(item.id.toInt()) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isVideo) {
+                            VideoPlaceholder(
+                                modifier = Modifier.fillMaxSize(),
+                                isDark = isDark,
+                                accentColor = primaryAccent,
+                                iconSize = 38.dp,
+                                showLabel = true
+                            )
+                        } else if (mediaItem.path != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(mediaItem.path)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = item.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                // Текстовое содержимое (превью не более 300 символов)
+                val previewText = remember(item.text) {
+                    formatFeedPreviewText(item.text, 300)
+                }
+                if (previewText.isNotBlank()) {
+                    ProvideContentFontScale {
+                        Text(
+                            text = previewText,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            color = textColor.copy(alpha = 0.88f),
+                            maxLines = 6,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
-            // Автор и дата / время события (в стиле комментариев)
-            if (item.user != null || item.createdAt != null) {
+                // Прикрепленные медиа (для комментариев / тем)
+                if (item.type != "photos" && item.media.isNotEmpty()) {
+                    val mediaImages = remember(item.media) {
+                        item.media.filter { !it.isVideo && it.path != null }.mapNotNull { it.path }
+                    }
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        items(item.media) { media ->
+                            val isMediaVideo = media.isVideo || media.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        if (isMediaVideo) {
+                                            onItemClick()
+                                        } else if (media.path != null) {
+                                            if (mediaImages.isNotEmpty()) {
+                                                val idx = mediaImages.indexOf(media.path).coerceAtLeast(0)
+                                                onImagesClick(mediaImages, idx)
+                                            } else {
+                                                onImageClick(media.path)
+                                            }
+                                        }
+                                    }
+                            ) {
+                                if (isMediaVideo) {
+                                    VideoPlaceholder(
+                                        modifier = Modifier.fillMaxSize(),
+                                        isDark = isDark,
+                                        accentColor = primaryAccent,
+                                        iconSize = 20.dp
+                                    )
+                                } else {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(media.path)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                // Футер: Рейтинг и Счетчик комментариев/ответов
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Автор (аватар + ник)
-                    if (item.user != null) {
-                        val user = item.user
+                    // Рейтинг
+                    val ratingColor = when {
+                        item.rating > 0 -> Color(0xFF10B981)
+                        item.rating < 0 -> Color(0xFFEF4444)
+                        else -> secondaryTextColor
+                    }
+                    Surface(
+                        color = ratingColor.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f, fill = false)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            val avatarData: Any = if (!user.avatar.isNullOrBlank()) {
-                                user.avatar
-                            } else {
-                                R.drawable.ic_default_avatar
-                            }
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(avatarData)
-                                    .placeholder(R.drawable.ic_default_avatar)
-                                    .error(R.drawable.ic_default_avatar)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Аватар",
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
-                                    .clickable { onUserClick(user.login) },
-                                contentScale = ContentScale.Crop
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                tint = ratingColor,
+                                modifier = Modifier.size(12.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = user.displayName,
-                                color = primaryAccent,
+                                text = if (item.rating > 0) "+${item.rating}" else "${item.rating}",
+                                color = ratingColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Комментарии
+                    if (item.commentsCount != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ChatBubbleOutline,
+                                contentDescription = null,
+                                tint = secondaryTextColor,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${item.commentsCount}",
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clickable { onUserClick(user.login) }
-                            )
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.width(1.dp))
-                    }
-
-                    // Бейджик: время события
-                    item.createdAt?.let { createdTime ->
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
-                            ),
-                            modifier = Modifier.wrapContentSize()
-                        ) {
-                            Text(
-                                text = formatUnixTime(createdTime),
-                                fontSize = 10.sp,
                                 color = secondaryTextColor,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Превью медиа для раздела "Галерея" (фото/видео)
-            if (item.type == "photos" && item.media.isNotEmpty()) {
-                val mediaItem = item.media.first()
-                val isVideo = mediaItem.isVideo || mediaItem.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isDark) Color(0x331E293B) else Color(0x1F64748B))
-                        .clickable { onPhotoClick(item.id.toInt()) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isVideo) {
-                        VideoPlaceholder(
-                            modifier = Modifier.fillMaxSize(),
-                            isDark = isDark,
-                            accentColor = primaryAccent,
-                            iconSize = 38.dp,
-                            showLabel = true
-                        )
-                    } else if (mediaItem.path != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(mediaItem.path)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = item.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Текстовое содержимое (превью не более 300 символов)
-            val previewText = remember(item.text) {
-                formatFeedPreviewText(item.text, 300)
-            }
-            if (previewText.isNotBlank()) {
-                ProvideContentFontScale {
-                    Text(
-                        text = previewText,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        color = textColor.copy(alpha = 0.88f),
-                        maxLines = 6,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // Прикрепленные медиа (для комментариев / тем)
-            if (item.type != "photos" && item.media.isNotEmpty()) {
-                val mediaImages = remember(item.media) {
-                    item.media.filter { !it.isVideo && it.path != null }.mapNotNull { it.path }
-                }
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                ) {
-                    items(item.media) { media ->
-                        val isMediaVideo = media.isVideo || media.extension?.lowercase() in listOf("mp4", "webm", "mkv", "mov", "avi", "3gp")
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                                .clickable {
-                                    if (isMediaVideo) {
-                                        onItemClick()
-                                    } else if (media.path != null) {
-                                        if (mediaImages.isNotEmpty()) {
-                                            val idx = mediaImages.indexOf(media.path).coerceAtLeast(0)
-                                            onImagesClick(mediaImages, idx)
-                                        } else {
-                                            onImageClick(media.path)
-                                        }
-                                    }
-                                }
-                        ) {
-                            if (isMediaVideo) {
-                                VideoPlaceholder(
-                                    modifier = Modifier.fillMaxSize(),
-                                    isDark = isDark,
-                                    accentColor = primaryAccent,
-                                    iconSize = 20.dp
-                                )
-                            } else {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current)
-                                        .data(media.path)
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = null,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-            }
-
-            // Футер: Рейтинг и Счетчик комментариев/ответов
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Рейтинг
-                val ratingColor = when {
-                    item.rating > 0 -> Color(0xFF10B981)
-                    item.rating < 0 -> Color(0xFFEF4444)
-                    else -> secondaryTextColor
-                }
-                Surface(
-                    color = ratingColor.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = ratingColor,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = if (item.rating > 0) "+${item.rating}" else "${item.rating}",
-                            color = ratingColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // Комментарии
-                if (item.commentsCount != null) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChatBubbleOutline,
-                            contentDescription = null,
-                            tint = secondaryTextColor,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${item.commentsCount}",
-                            fontSize = 12.sp,
-                            color = secondaryTextColor,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
                 }
             }
         }
+
+        // Плашка типа события — в правом верхнем углу блока, вплотную к краю
+        // (стеклянная, в едином стиле гласс-морфизма, как плашка «Сегодня» в новостях)
+        GlassBadge(
+            text = badgeText,
+            color = badgeColor,
+            icon = badgeIcon,
+            isDark = isDark,
+            shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 8.dp),
+            modifier = Modifier.align(Alignment.TopEnd)
+        )
     }
 }
 

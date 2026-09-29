@@ -36,6 +36,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -334,6 +335,61 @@ fun GlassButton(
             verticalAlignment = Alignment.CenterVertically,
             content = content
         )
+    }
+}
+
+/**
+ * Компактная стеклянная плашка GlassBadge: плоская полупрозрачная подложка
+ * с цветным подтоном и тонкой окантовкой — без градиентов и бликов
+ */
+@Composable
+fun GlassBadge(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    isDark: Boolean = isDarkTheme(),
+    shape: Shape = RoundedCornerShape(8.dp)
+) {
+    // Текст: в тёмной теме берём яркий исходный цвет, в светлой — затемнённый,
+    // чтобы мелкий жирный текст читался на светлом подтоне
+    val contentColor = if (isDark) color else Color(
+        red = color.red * 0.72f,
+        green = color.green * 0.72f,
+        blue = color.blue * 0.72f
+    )
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(color.copy(alpha = if (isDark) 0.13f else 0.08f))
+            .border(
+                width = 1.dp,
+                color = color.copy(alpha = if (isDark) 0.55f else 0.40f),
+                shape = shape
+            )
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 1.dp)
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(10.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+            }
+            Text(
+                text = text,
+                color = contentColor,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
     }
 }
 
