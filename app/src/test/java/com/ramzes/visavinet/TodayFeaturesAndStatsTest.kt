@@ -3,6 +3,8 @@ package com.ramzes.visavinet
 import com.google.gson.Gson
 import com.ramzes.visavinet.network.ForumSection
 import com.ramzes.visavinet.network.StatsResponse
+import com.ramzes.visavinet.util.ContentBlock
+import com.ramzes.visavinet.util.buildFeedPreviewBlocks
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -412,22 +414,35 @@ class TodayFeaturesAndStatsTest {
     }
 
     @Test
-    fun testFeedPreviewTextTruncation() {
-        // Короткий HTML
-        val shortHtml = "<p>Привет <b>мир</b> &amp; друзья!</p>"
-        assertEquals("Привет мир & друзья!", formatFeedPreviewText(shortHtml, 300))
+    fun testFeedPreviewBlocks() {
+        // Цитата и абзацы сохраняют структуру в превью ленты
+        val html = "<blockquote>Цитата из темы<footer>@author</footer></blockquote><p>Обычный текст</p>"
+        val blocks = buildFeedPreviewBlocks(html)
+        assertEquals(2, blocks.size)
 
-        // Длинный текст > 300 символов
-        val longContent = "А".repeat(350)
-        val longHtml = "<div>$longContent</div>"
-        val formatted = formatFeedPreviewText(longHtml, 300)
-        assertEquals(301, formatted.length) // 300 + '…'
-        assertTrue(formatted.endsWith("…"))
-        assertEquals("А".repeat(300) + "…", formatted)
+        val quote = blocks.filterIsInstance<ContentBlock.QuoteBlock>().firstOrNull()
+        assertNotNull(quote)
+        assertTrue(quote!!.quoteText.contains("Цитата из темы"))
+        assertEquals("@author", quote.footerText)
+
+        val text = blocks.filterIsInstance<ContentBlock.TextBlock>().first()
+        assertTrue(text.text.contains("Обычный текст"))
+
+        // Длинный текст обрезается по бюджету превью (~300 символов / 6 строк)
+        val longHtml = "<div>${"А".repeat(350)}</div>"
+        val longBlocks = buildFeedPreviewBlocks(longHtml)
+        assertEquals(1, longBlocks.size)
+        val longText = (longBlocks[0] as ContentBlock.TextBlock).text
+        assertTrue(longText.endsWith("…"))
+        assertTrue(longText.length <= 300)
 
         // Удаление тегов скриптов и стилей
         val scriptHtml = "<p>Текст<script>alert(1)</script><style>body{color:red;}</style> продолжение</p>"
-        assertEquals("Текст продолжение", formatFeedPreviewText(scriptHtml, 300))
+        val scriptText = buildFeedPreviewBlocks(scriptHtml)
+            .filterIsInstance<ContentBlock.TextBlock>().first().text
+        assertTrue(scriptText.contains("Текст"))
+        assertTrue(scriptText.contains("продолжение"))
+        assertFalse(scriptText.contains("alert"))
     }
 
     @Test

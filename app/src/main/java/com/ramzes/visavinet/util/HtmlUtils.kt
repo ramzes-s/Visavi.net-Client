@@ -1061,6 +1061,272 @@ private fun QuoteBlock(
     }
 }
 
+// ==================== Превью поста в ленте ====================
+
+/** Лимиты превью поста в ленте: текст, цитаты и код без раздувания карточки */
+private const val FEED_PREVIEW_MAX_CHARS = 300
+private const val FEED_PREVIEW_MAX_LINES = 6
+private const val FEED_PREVIEW_MAX_BLOCKS = 4
+private const val FEED_PREVIEW_CHARS_PER_LINE = 45
+
+/** Оценивает, сколько строк займёт текст при ширине карточки ленты */
+private fun previewLineCount(text: String): Int = text
+    .split('\n')
+    .sumOf { segment ->
+        ((segment.length + FEED_PREVIEW_CHARS_PER_LINE - 1) / FEED_PREVIEW_CHARS_PER_LINE).coerceAtLeast(1)
+    }
+
+/** Обрезает видимый текст по бюджету символов и строк, сохраняя переводы строк */
+private fun fitPreviewText(text: String, charsLeft: Int, linesLeft: Int): String {
+    val fitted = StringBuilder()
+    var usedLines = 0
+
+    for (segment in text.split('\n')) {
+        if (usedLines >= linesLeft) break
+        val segmentLines = ((segment.length + FEED_PREVIEW_CHARS_PER_LINE - 1) / FEED_PREVIEW_CHARS_PER_LINE).coerceAtLeast(1)
+        val allowedLines = minOf(segmentLines, linesLeft - usedLines)
+        if (fitted.isNotEmpty()) fitted.append('\n')
+        if (segmentLines <= allowedLines) {
+            fitted.append(segment)
+        } else {
+            fitted.append(segment.take(allowedLines * FEED_PREVIEW_CHARS_PER_LINE).trimEnd()).append('…')
+        }
+        usedLines += allowedLines
+    }
+
+    val result = fitted.toString()
+    return if (result.length > charsLeft) result.take(charsLeft).trimEnd() + "…" else result
+}
+
+/** Убирает inline-теги из текста блока, чтобы оценить его реальную длину */
+private fun stripPreviewHtml(text: String): String = text
+    .replace(Regex("<[^>]*>"), "")
+    .replace("&nbsp;", " ")
+    .trim()
+
+/**
+ * Собирает блоки превью поста для ленты: сохраняет структуру HTML
+ * (абзацы, цитаты, код), но ограничивает общую длину, число строк и блоков.
+ * Картинки пропускаются — медиа показывается в карточке отдельно.
+ */
+fun buildFeedPreviewBlocks(html: String?): List<ContentBlock> {
+    if (html.isNullOrBlank()) return emptyList()
+
+    val preview = mutableListOf<ContentBlock>()
+    var charsLeft = FEED_PREVIEW_MAX_CHARS
+    var linesLeft = FEED_PREVIEW_MAX_LINES
+
+    for (block in parseHtmlToBlocks(html)) {
+        if (preview.size >= FEED_PREVIEW_MAX_BLOCKS || charsLeft <= 0 || linesLeft <= 0) break
+
+        when (block) {
+            // Медиа в превью не показываем — оно уже есть в карточке
+            is ContentBlock.ImageBlock -> Unit
+
+            is ContentBlock.TextBlock -> {
+                val plain = stripPreviewHtml(block.text)
+                if (plain.isBlank()) continue
+                val fits = plain.length <= charsLeft && previewLineCount(plain) <= linesLeft
+                preview.add(
+                    if (fits) block
+                    else ContentBlock.TextBlock(text = fitPreviewText(plain, charsLeft, linesLeft))
+                )
+                if (fits) {
+                    charsLeft -= plain.length
+                    linesLeft -= previewLineCount(plain)
+                } else {
+                    charsLeft = 0
+                    linesLeft = 0
+                }
+            }
+
+            is ContentBlock.QuoteBlock -> {
+                val plainQuote = stripPreviewHtml(block.quoteText)
+                val plainFooter = stripPreviewHtml(block.footerText)
+                if (plainQuote.isBlank() && plainFooter.isBlank()) continue
+
+                val footerChars = if (plainFooter.isBlank()) 0 else plainFooter.length + 1
+                val footerLines = if (plainFooter.isBlank()) 0 else 1
+                val quoteCharsLeft = charsLeft - footerChars
+                val quoteLinesLeft = linesLeft - footerLines
+                if (quoteCharsLeft <= 0 || quoteLinesLeft <= 0) break
+
+                val fits = plainQuote.length <= quoteCharsLeft && previewLineCount(plainQuote) <= quoteLinesLeft
+                preview.add(
+                    if (fits) block
+                    else ContentBlock.QuoteBlock(
+                        quoteText = fitPreviewText(plainQuote, quoteCharsLeft, quoteLinesLeft),
+                        footerText = block.footerText,
+                        quoteHtml = null
+                    )
+                )
+                if (fits) {
+                    charsLeft -= (plainQuote.length + footerChars)
+                    linesLeft -= (previewLineCount(plainQuote) + footerLines)
+                } else {
+                    charsLeft = 0
+                    linesLeft = 0
+                }
+            }
+
+            is ContentBlock.CodeBlock -> {
+                val code = block.code
+                if (code.isBlank()) continue
+                val fits = code.length <= charsLeft && previewLineCount(code) <= linesLeft
+                preview.add(
+                    if (fits) block
+                    else ContentBlock.CodeBlock(code = fitPreviewText(code, charsLeft, linesLeft))
+                )
+                if (fits) {
+                    charsLeft -= code.length
+                    linesLeft -= previewLineCount(code)
+                } else {
+                    charsLeft = 0
+                    linesLeft = 0
+                }
+            }
+        }
+    }
+
+    return preview
+}
+
+/**
+ * Компактный рендер превью поста для ленты: текст с inline-оформлением,
+ * цитаты и код. Без обработчиков кликов — тап по тексту открывает карточку,
+ * как и раньше.
+ */
+@Composable
+fun RenderFeedPreview(
+    blocks: List<ContentBlock>,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (blocks.isEmpty()) return
+
+    ProvideContentFontScale {
+        Column(modifier = modifier.fillMaxWidth()) {
+            blocks.forEach { block ->
+                when (block) {
+                    is ContentBlock.TextBlock -> PreviewTextBlock(block, isDark)
+                    is ContentBlock.QuoteBlock -> PreviewQuoteBlock(block, isDark)
+                    is ContentBlock.CodeBlock -> PreviewCodeBlock(block, isDark)
+                    is ContentBlock.ImageBlock -> Unit
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreviewTextBlock(block: ContentBlock.TextBlock, isDark: Boolean) {
+    val source = block.html ?: block.text
+    val (annotated, inlineMap) = remember(source, isDark) { parseInlineHtmlTags(source, isDark) }
+
+    BasicText(
+        text = annotated,
+        inlineContent = inlineMap,
+        style = TextStyle(
+            color = (if (isDark) Color.White else LightText).copy(alpha = 0.88f),
+            fontSize = 13.sp,
+            lineHeight = 18.sp
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+    )
+}
+
+@Composable
+private fun PreviewQuoteBlock(block: ContentBlock.QuoteBlock, isDark: Boolean) {
+    val textColor = if (isDark) Color.White else LightText
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .background(color = Color(0x17D67904), shape = RoundedCornerShape(8.dp))
+            .border(width = 1.dp, color = Color(0x50D67904), shape = RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        if (block.quoteText.isNotBlank()) {
+            val source = block.quoteHtml ?: block.quoteText
+            val (annotatedQuote, inlineMapQuote) = remember(source, isDark) { parseInlineHtmlTags(source, isDark) }
+            BasicText(
+                text = annotatedQuote,
+                inlineContent = inlineMapQuote,
+                style = TextStyle(
+                    color = textColor,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    fontStyle = FontStyle.Italic
+                )
+            )
+        }
+
+        if (block.footerText.isNotBlank()) {
+            val footerSource = block.footerHtml ?: block.footerText
+            val (authorPart, datePart) = remember(footerSource) { parseQuoteFooter(footerSource) }
+            if (authorPart.isNotBlank()) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 4.dp),
+                    color = Color(0x30D67904)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val (annotatedAuthor, inlineMapAuthor) = remember(authorPart, isDark) {
+                        parseInlineHtmlTags(authorPart, isDark)
+                    }
+                    BasicText(
+                        text = annotatedAuthor,
+                        inlineContent = inlineMapAuthor,
+                        style = TextStyle(
+                            color = textColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (!datePart.isNullOrBlank()) {
+                        val secondaryColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+                        Text(
+                            text = datePart,
+                            fontSize = 10.sp,
+                            color = secondaryColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreviewCodeBlock(block: ContentBlock.CodeBlock, isDark: Boolean) {
+    val bgColor = if (isDark) Color(0x0F808080) else Color(0x06000000)
+    val borderColor = if (isDark) Color(0x33FFFFFF) else Color(0x22000000)
+    val codeTextColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+
+    Text(
+        text = block.code,
+        fontFamily = FontFamily.Monospace,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        color = codeTextColor,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .background(color = bgColor, shape = RoundedCornerShape(8.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    )
+}
+
 /**
  * Парсинг HTML в AnnotatedString (старый метод для обратной совместимости)
  */

@@ -42,9 +42,9 @@ import com.ramzes.visavinet.ui.components.GlassBadge
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.theme.*
-import com.ramzes.visavinet.util.RenderContentBlocks
+import com.ramzes.visavinet.util.RenderFeedPreview
+import com.ramzes.visavinet.util.buildFeedPreviewBlocks
 import com.ramzes.visavinet.util.formatUnixTime
-import com.ramzes.visavinet.util.parseHtmlToBlocks
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -418,21 +418,15 @@ fun FeedCardItem(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Текстовое содержимое (превью не более 300 символов)
-                val previewText = remember(item.text) {
-                    formatFeedPreviewText(item.text, 300)
+                // Текстовое содержимое: HTML-блоки с оформлением (абзацы, цитаты, код)
+                val previewBlocks = remember(item.text) {
+                    buildFeedPreviewBlocks(item.text)
                 }
-                if (previewText.isNotBlank()) {
-                    ProvideContentFontScale {
-                        Text(
-                            text = previewText,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            color = textColor.copy(alpha = 0.88f),
-                            maxLines = 6,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                if (previewBlocks.isNotEmpty()) {
+                    RenderFeedPreview(
+                        blocks = previewBlocks,
+                        isDark = isDark
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
@@ -562,42 +556,3 @@ fun FeedCardItem(
     }
 }
 
-/**
- * Очищает HTML от тегов и сокращает до maxLength символов для превью в ленте
- */
-fun formatFeedPreviewText(html: String?, maxLength: Int = 300): String {
-    if (html.isNullOrBlank()) return ""
-    val withoutTags = html
-        .replace(Regex("<script[^>]*>[\\s\\S]*?</script>", RegexOption.IGNORE_CASE), "")
-        .replace(Regex("<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
-        .replace(Regex("</?(?:p|div|br|li|tr|h[1-6])[^>]*>", RegexOption.IGNORE_CASE), " ")
-        .replace(Regex("<[^>]*>"), "")
-
-    val decoded = withoutTags
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
-        .replace("&quot;", "\"")
-        .replace("&nbsp;", " ")
-        .replace("&apos;", "'")
-        .replace("&#39;", "'")
-        .replace("&#60;", "<")
-        .replace("&#62;", ">")
-        .replace("&#160;", " ")
-        .replace(Regex("&#(\\d+);")) { match ->
-            val code = match.groupValues[1].toIntOrNull()
-            if (code != null) code.toChar().toString() else match.value
-        }
-        .replace(Regex("&#x([0-9a-fA-F]+);")) { match ->
-            val code = match.groupValues[1].toIntOrNull(16)
-            if (code != null) code.toChar().toString() else match.value
-        }
-
-    val singleSpaced = decoded.replace(Regex("\\s+"), " ").trim()
-
-    return if (singleSpaced.length > maxLength) {
-        singleSpaced.take(maxLength).trimEnd() + "…"
-    } else {
-        singleSpaced
-    }
-}
