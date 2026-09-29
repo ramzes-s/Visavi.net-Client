@@ -24,9 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,7 +68,6 @@ fun FullscreenInputModal(
 ) {
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
-    val textColor = if (isDark) Color.White else LightText
     val backdropColor = if (isDark) Color(0xF5090B10) else Color(0xF5F0F4F8)
 
     val htmlTransformation = remember(primaryAccent, TextRenderPrefs.ignoreColoredText) {
@@ -111,6 +112,10 @@ fun FullscreenInputModal(
             }
         }
 
+        // Окно редактора поднимается над клавиатурой: карточка заканчивается
+        // ровно на её верхней кромке, поле ввода не уходит под клавиатуру
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
         var blurModifier = Modifier
             .fillMaxSize()
             .background(backdropColor)
@@ -129,7 +134,13 @@ fun FullscreenInputModal(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .imePadding()
+                    .padding(
+                        start = 12.dp,
+                        top = 12.dp,
+                        end = 12.dp,
+                        bottom = if (imeVisible) 0.dp else 12.dp
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 GlassCard(
@@ -141,20 +152,28 @@ fun FullscreenInputModal(
                     Column(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Шапка
+                        // Верх редактора: панель тегов и кнопка сворачивания окна
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = title,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor,
-                                maxLines = 1,
-                                modifier = Modifier.weight(1f)
-                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                FormattingToolbar(
+                                    textFieldValue = textFieldValue,
+                                    onInsertTag = { tagStart, tagEnd ->
+                                        val newValue = applyTagToTextFieldValue(textFieldValue, tagStart, tagEnd)
+                                        textFieldValue = newValue
+                                        onTextChanged(newValue.text)
+                                        try {
+                                            focusRequester.requestFocus()
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    },
+                                    onExpandFullscreen = null,
+                                    isDark = isDark
+                                )
+                            }
 
                             IconButton(onClick = onDismiss) {
                                 Icon(
@@ -165,25 +184,6 @@ fun FullscreenInputModal(
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Панель тегов <strong>, <i>, <u>, <s>, <pre class="code"><code> с интерактивной подсветкой активного тега
-                        FormattingToolbar(
-                            textFieldValue = textFieldValue,
-                            onInsertTag = { tagStart, tagEnd ->
-                                val newValue = applyTagToTextFieldValue(textFieldValue, tagStart, tagEnd)
-                                textFieldValue = newValue
-                                onTextChanged(newValue.text)
-                                try {
-                                    focusRequester.requestFocus()
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            },
-                            onExpandFullscreen = null,
-                            isDark = isDark
-                        )
 
                         Spacer(modifier = Modifier.height(6.dp))
 
@@ -393,6 +393,20 @@ fun FullscreenInputModal(
                                     Text("Отправить", color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
+                        }
+
+                        // Низ редактора: заголовок темы / контекст вставки
+                        if (title.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = title,
+                                fontSize = 11.5.sp,
+                                color = if (isDark) TextLightGray else LightTextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
