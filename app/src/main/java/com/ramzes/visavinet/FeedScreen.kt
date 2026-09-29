@@ -45,6 +45,7 @@ import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.RenderFeedPreview
 import com.ramzes.visavinet.util.buildFeedPreviewBlocks
 import com.ramzes.visavinet.util.formatUnixTime
+import com.ramzes.visavinet.util.isDateRecent
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -308,80 +309,6 @@ fun FeedCardItem(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Автор и дата / время события (в стиле комментариев)
-                if (item.user != null || item.createdAt != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Автор (аватар + ник)
-                        if (item.user != null) {
-                            val user = item.user
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f, fill = false)
-                            ) {
-                                val avatarData: Any = if (!user.avatar.isNullOrBlank()) {
-                                    user.avatar
-                                } else {
-                                    R.drawable.ic_default_avatar
-                                }
-                                AsyncImage(
-                                    model = ImageRequest.Builder(LocalContext.current)
-                                        .data(avatarData)
-                                        .placeholder(R.drawable.ic_default_avatar)
-                                        .error(R.drawable.ic_default_avatar)
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = "Аватар",
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .clip(CircleShape)
-                                        .clickable { onUserClick(user.login) },
-                                    contentScale = ContentScale.Crop
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-
-                                Text(
-                                    text = user.displayName,
-                                    color = primaryAccent,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable { onUserClick(user.login) }
-                                )
-                            }
-                        } else {
-                            Spacer(modifier = Modifier.width(1.dp))
-                        }
-
-                        // Бейджик: время события
-                        item.createdAt?.let { createdTime ->
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    width = 1.dp,
-                                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
-                                ),
-                                modifier = Modifier.wrapContentSize()
-                            ) {
-                                Text(
-                                    text = formatUnixTime(createdTime),
-                                    fontSize = 10.sp,
-                                    color = secondaryTextColor,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
                 // Превью медиа для раздела "Галерея" (фото/видео)
                 if (item.type == "photos" && item.media.isNotEmpty()) {
                     val mediaItem = item.media.first()
@@ -483,60 +410,129 @@ fun FeedCardItem(
                     Spacer(modifier = Modifier.height(6.dp))
                 }
 
-                // Футер: Рейтинг и Счетчик комментариев/ответов
+                // Футер: Автор события и общий бейджик (рейтинг, комментарии, дата)
+                // — компоновка автора и бейджика как в списке новостей
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Рейтинг
-                    val ratingColor = when {
-                        item.rating > 0 -> Color(0xFF10B981)
-                        item.rating < 0 -> Color(0xFFEF4444)
-                        else -> secondaryTextColor
-                    }
-                    Surface(
-                        color = ratingColor.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
+                    // Автор (аватар + ник) — на месте рейтинга
+                    if (item.user != null) {
+                        val user = item.user
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = ratingColor,
-                                modifier = Modifier.size(12.dp)
+                            val avatarData: Any = if (!user.avatar.isNullOrBlank()) {
+                                user.avatar
+                            } else {
+                                R.drawable.ic_default_avatar
+                            }
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(avatarData)
+                                    .placeholder(R.drawable.ic_default_avatar)
+                                    .error(R.drawable.ic_default_avatar)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Аватар",
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .clickable { onUserClick(user.login) },
+                                contentScale = ContentScale.Crop
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+
                             Text(
-                                text = if (item.rating > 0) "+${item.rating}" else "${item.rating}",
-                                color = ratingColor,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                text = user.displayName,
+                                color = primaryAccent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clickable { onUserClick(user.login) }
                             )
                         }
                     }
 
-                    // Комментарии
-                    if (item.commentsCount != null) {
+                    // Единый бейджик: рейтинг, счётчик комментариев и дата события
+                    // (оформление как в списке новостей)
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                        ),
+                        modifier = Modifier.wrapContentSize()
+                    ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ChatBubbleOutline,
-                                contentDescription = null,
-                                tint = secondaryTextColor,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${item.commentsCount}",
-                                fontSize = 12.sp,
-                                color = secondaryTextColor,
-                                fontWeight = FontWeight.Medium
-                            )
+                            // Рейтинг (золотая звезда, значение акцентное)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Рейтинг",
+                                    tint = AmberGold,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = if (item.rating > 0) "+${item.rating}" else "${item.rating}",
+                                    fontSize = 11.sp,
+                                    color = primaryAccent,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            // Комментарии (акцентный цвет иконки и текста)
+                            if (item.commentsCount != null) {
+                                Text(
+                                    text = "•",
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor.copy(alpha = 0.4f)
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ChatBubbleOutline,
+                                        contentDescription = "Комментарии",
+                                        tint = primaryAccent,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Text(
+                                        text = "${item.commentsCount}",
+                                        fontSize = 11.sp,
+                                        color = primaryAccent,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            // Дата события
+                            item.createdAt?.let { created ->
+                                Text(
+                                    text = "•",
+                                    fontSize = 10.sp,
+                                    color = secondaryTextColor.copy(alpha = 0.4f)
+                                )
+                                val isRecent = isDateRecent(created)
+                                Text(
+                                    text = formatUnixTime(created),
+                                    fontSize = 10.5.sp,
+                                    color = if (isRecent) primaryAccent else secondaryTextColor,
+                                    fontWeight = FontWeight.Normal
+                                )
+                            }
                         }
                     }
                 }
