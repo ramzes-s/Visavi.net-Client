@@ -227,7 +227,8 @@ class SettingsViewModel : ViewModel() {
                     )
                 }
 
-                val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
+                val baseDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
+                val updatesDir = File(baseDir, "updates").apply { mkdirs() }
                 // Очищаем старые файлы обновлений
                 updatesDir.listFiles()?.forEach { file ->
                     if (file.isFile && file.name.endsWith(".apk")) {
@@ -287,6 +288,11 @@ class SettingsViewModel : ViewModel() {
                         output.flush()
                     }
                 }
+
+                if (totalBytes > 0 && targetFile.length() < totalBytes) {
+                    throw Exception("Файл обновления загружен не полностью")
+                }
+                targetFile.setReadable(true, false)
 
                 withContext(Dispatchers.Main) {
                     updateDownloadState = UpdateDownloadState.ReadyToInstall(targetFile)
