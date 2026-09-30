@@ -786,23 +786,6 @@ fun MainNavigation(
                         },
                         colors = itemColors
                     )
-                    Spacer(Modifier.height(2.dp))
-                    NavigationDrawerItem(
-                        label = { Text(text = "ВЫХОД", fontWeight = FontWeight.Black, color = primaryAccent, fontSize = 14.sp) },
-                        selected = false,
-                        shape = RectangleShape,
-                        modifier = Modifier.fillMaxWidth().height(itemHeight),
-                        onClick = {
-                            resetSubScreens()
-                            navigationHistory.clear()
-                            viewModel.logout(context.applicationContext)
-                            dialoguesViewModel.clear()
-                            forumViewModel.clear()
-                            NewMessagesService.stop(context)
-                            currentScreen = getStartScreen()
-                        },
-                        colors = itemColors
-                    )
                     Spacer(Modifier.height(16.dp))
                 }
             }
@@ -1285,6 +1268,15 @@ fun MainNavigation(
                                     },
                                     onForumSortByNewestChange = { sortByNewest ->
                                         forumViewModel.sortByNewest = sortByNewest
+                                    },
+                                    onLogout = {
+                                        resetSubScreens()
+                                        navigationHistory.clear()
+                                        viewModel.logout(context.applicationContext)
+                                        dialoguesViewModel.clear()
+                                        forumViewModel.clear()
+                                        NewMessagesService.stop(context)
+                                        currentScreen = getStartScreen()
                                     },
                                     isTabletMode = isTabletMode,
                                     userRating = viewModel.currentUser?.rating ?: 0

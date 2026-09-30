@@ -3,6 +3,7 @@ package com.ramzes.visavinet
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,9 +14,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -37,6 +40,7 @@ import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.AntifloodManager
+import com.ramzes.visavinet.util.SleepModeHelper
 import com.ramzes.visavinet.util.TextRenderPrefs
 import java.io.File
 
@@ -46,6 +50,7 @@ fun SettingsScreen(
     onThemeChange: (ThemeMode) -> Unit,
     onTabletModeChange: (Boolean) -> Unit,
     onForumSortByNewestChange: ((Boolean) -> Unit)? = null,
+    onLogout: (() -> Unit)? = null,
     isTabletMode: Boolean = false,
     userRating: Int = 0
 ) {
@@ -68,7 +73,9 @@ fun SettingsScreen(
         }
     }
 
-    val cacheSize = remember { getCoilCacheSize(context) }
+    var cacheSize by remember { mutableLongStateOf(getCoilCacheSize(context)) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     val prefs = context.getSharedPreferences("visavi_prefs", android.content.Context.MODE_PRIVATE)
     var itemsPerPage by remember { mutableStateOf(prefs.getInt("items_per_page", 10)) }
@@ -89,9 +96,29 @@ fun SettingsScreen(
     var tabletMode by remember { mutableStateOf(isTabletMode) }
     var feedAsStartScreen by remember { mutableStateOf(prefs.getBoolean("feed_as_start_screen", false)) }
     var forumSortByNewest by remember { mutableStateOf(prefs.getBoolean("forum_sort_by_newest", false)) }
+    var pinFirstTopicPost by remember { mutableStateOf(prefs.getBoolean("pin_first_topic_post", false)) }
     var notifySiteUpdates by remember { mutableStateOf(prefs.getBoolean("notify_site_updates", false)) }
     var statsCheckEnabled by remember { mutableStateOf(prefs.getBoolean("stats_check_enabled", true)) }
     var ignoreColoredText by remember { mutableStateOf(prefs.getBoolean("ignore_colored_text", false)) }
+    var messagesCheckIntervalMs by remember {
+        mutableLongStateOf(prefs.getLong("messages_check_interval_ms", 30_000L))
+    }
+
+    var sleepModeEnabled by remember {
+        mutableStateOf(prefs.getBoolean(SleepModeHelper.KEY_SLEEP_MODE_ENABLED, false))
+    }
+    var sleepStartHour by remember {
+        mutableIntStateOf(prefs.getInt(SleepModeHelper.KEY_START_HOUR, SleepModeHelper.DEFAULT_START_HOUR))
+    }
+    var sleepStartMinute by remember {
+        mutableIntStateOf(prefs.getInt(SleepModeHelper.KEY_START_MINUTE, SleepModeHelper.DEFAULT_START_MINUTE))
+    }
+    var sleepEndHour by remember {
+        mutableIntStateOf(prefs.getInt(SleepModeHelper.KEY_END_HOUR, SleepModeHelper.DEFAULT_END_HOUR))
+    }
+    var sleepEndMinute by remember {
+        mutableIntStateOf(prefs.getInt(SleepModeHelper.KEY_END_MINUTE, SleepModeHelper.DEFAULT_END_MINUTE))
+    }
 
     val scrollState = rememberScrollState()
 
@@ -506,6 +533,47 @@ fun SettingsScreen(
                     color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
                 )
 
+                // Первое сообщение в темах форума
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Первое сообщение в темах",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (pinFirstTopicPost) "Закреплено вверху темы (свернуто)" else "В обычном порядке (по умолчанию)",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = pinFirstTopicPost,
+                        onCheckedChange = { newValue ->
+                            pinFirstTopicPost = newValue
+                            prefs.edit().putBoolean("pin_first_topic_post", newValue).apply()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
                 // Записей на странице
                 Text(
                     text = "Записей на странице",
@@ -656,6 +724,199 @@ fun SettingsScreen(
                         )
                     )
                 }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Интервал проверки личных сообщений
+                Text(
+                    text = "Интервал проверки сообщений",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf(
+                        30_000L to "30 сек",
+                        60_000L to "1 мин",
+                        180_000L to "3 мин",
+                        300_000L to "5 мин"
+                    ).forEach { (interval, label) ->
+                        val isSelected = messagesCheckIntervalMs == interval
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    messagesCheckIntervalMs = interval
+                                    prefs.edit().putLong("messages_check_interval_ms", interval).apply()
+                                }
+                                .padding(top = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) currentAccent else secondaryTextColor
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.5.dp)
+                                    .background(
+                                        if (isSelected) currentAccent
+                                        else (if (isDark) Color(0x18FFFFFF) else Color(0x10000000))
+                                    )
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Режим сна
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Режим сна",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (sleepModeEnabled) {
+                                "Остановка проверок с ${SleepModeHelper.formatTime(sleepStartHour, sleepStartMinute)} до ${SleepModeHelper.formatTime(sleepEndHour, sleepEndMinute)}"
+                            } else {
+                                "Не приостанавливать проверки (по умолчанию)"
+                            },
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Switch(
+                        checked = sleepModeEnabled,
+                        onCheckedChange = { newValue ->
+                            sleepModeEnabled = newValue
+                            prefs.edit().putBoolean(SleepModeHelper.KEY_SLEEP_MODE_ENABLED, newValue).apply()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = currentAccent,
+                            uncheckedThumbColor = LightTextSecondary,
+                            uncheckedTrackColor = LightGray.copy(0.5f)
+                        )
+                    )
+                }
+
+                if (sleepModeEnabled) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Время начала
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    android.app.TimePickerDialog(
+                                        context,
+                                        { _, h, m ->
+                                            sleepStartHour = h
+                                            sleepStartMinute = m
+                                            prefs.edit()
+                                                .putInt(SleepModeHelper.KEY_START_HOUR, h)
+                                                .putInt(SleepModeHelper.KEY_START_MINUTE, m)
+                                                .apply()
+                                        },
+                                        sleepStartHour,
+                                        sleepStartMinute,
+                                        true
+                                    ).show()
+                                },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isDark) Color(0x14FFFFFF) else Color(0x0A000000),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isDark) Color(0x24FFFFFF) else Color(0x18000000)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "С", fontSize = 13.sp, color = secondaryTextColor)
+                                Text(
+                                    text = SleepModeHelper.formatTime(sleepStartHour, sleepStartMinute),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = currentAccent
+                                )
+                            }
+                        }
+
+                        // Время окончания
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    android.app.TimePickerDialog(
+                                        context,
+                                        { _, h, m ->
+                                            sleepEndHour = h
+                                            sleepEndMinute = m
+                                            prefs.edit()
+                                                .putInt(SleepModeHelper.KEY_END_HOUR, h)
+                                                .putInt(SleepModeHelper.KEY_END_MINUTE, m)
+                                                .apply()
+                                        },
+                                        sleepEndHour,
+                                        sleepEndMinute,
+                                        true
+                                    ).show()
+                                },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isDark) Color(0x14FFFFFF) else Color(0x0A000000),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isDark) Color(0x24FFFFFF) else Color(0x18000000)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "До", fontSize = 13.sp, color = secondaryTextColor)
+                                Text(
+                                    text = SleepModeHelper.formatTime(sleepEndHour, sleepEndMinute),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = currentAccent
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -669,18 +930,49 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Кэш изображений
-                Text(
-                    text = "Кэш изображений",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Занято места: ${formatCacheSize(cacheSize)}",
-                    fontSize = 12.sp,
-                    color = secondaryTextColor
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Кэш изображений",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Занято места: ${formatCacheSize(cacheSize)}",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    GlassButton(
+                        onClick = { showClearCacheDialog = true },
+                        accentColor = currentAccent,
+                        isDark = isDark,
+                        enabled = cacheSize > 0L
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Очистить",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 12.dp),
@@ -825,6 +1117,60 @@ fun SettingsScreen(
             }
         }
 
+        if (onLogout != null) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Блок учётной записи (кнопка выхода)
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                isDark = isDark,
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Учётная запись",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Выход из аккаунта на этом устройстве",
+                            fontSize = 12.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    GlassButton(
+                        onClick = { showLogoutDialog = true },
+                        accentColor = Color(0xFFE53935),
+                        isDark = isDark
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Logout,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Выйти",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
@@ -842,16 +1188,113 @@ fun SettingsScreen(
             modifier = Modifier.padding(bottom = 8.dp)
         )
     }
+
+    if (showClearCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheDialog = false },
+            title = {
+                Text(
+                    text = "Очистка кэша",
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+            },
+            text = {
+                Text(
+                    text = "Очистить сохранённый кэш изображений и временных файлов (${formatCacheSize(cacheSize)})?",
+                    color = secondaryTextColor
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearCacheDialog = false
+                        clearAppCache(context)
+                        cacheSize = getCoilCacheSize(context)
+                        Toast.makeText(context, "Кэш успешно очищен", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("Очистить", color = currentAccent, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheDialog = false }) {
+                    Text("Отмена", color = secondaryTextColor)
+                }
+            },
+            containerColor = if (isAmoledTheme()) Color.Black else if (isDark) Color(0xFF1E222B) else Color.White
+        )
+    }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = {
+                Text(
+                    text = "Выход из аккаунта",
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+            },
+            text = {
+                Text(
+                    text = "Вы действительно хотите выйти из учётной записи? Для входа потребуется повторно ввести логин и пароль.",
+                    color = secondaryTextColor
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout?.invoke()
+                    }
+                ) {
+                    Text("Выйти", color = Color(0xFFE53935), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Отмена", color = secondaryTextColor)
+                }
+            },
+            containerColor = if (isAmoledTheme()) Color.Black else if (isDark) Color(0xFF1E222B) else Color.White
+        )
+    }
+}
+
+@OptIn(coil.annotation.ExperimentalCoilApi::class)
+private fun clearAppCache(context: android.content.Context) {
+    try {
+        val imageLoader = coil.Coil.imageLoader(context)
+        imageLoader.memoryCache?.clear()
+        imageLoader.diskCache?.clear()
+
+        val cacheDir = File(context.cacheDir, "image_cache")
+        if (cacheDir.exists()) {
+            cacheDir.deleteRecursively()
+        }
+
+        val updatesDir = File(
+            context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir,
+            "updates"
+        )
+        if (updatesDir.exists()) {
+            updatesDir.deleteRecursively()
+        }
+    } catch (e: Exception) {
+    }
 }
 
 private fun getCoilCacheSize(context: android.content.Context): Long {
     return try {
         val cacheDir = File(context.cacheDir, "image_cache")
-        if (cacheDir.exists()) {
-            getDirectorySize(cacheDir)
-        } else {
-            0L
-        }
+        val imageCacheSize = if (cacheDir.exists()) getDirectorySize(cacheDir) else 0L
+        val updatesDir = File(
+            context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir,
+            "updates"
+        )
+        val updatesSize = if (updatesDir.exists()) getDirectorySize(updatesDir) else 0L
+        imageCacheSize + updatesSize
     } catch (e: Exception) {
         0L
     }

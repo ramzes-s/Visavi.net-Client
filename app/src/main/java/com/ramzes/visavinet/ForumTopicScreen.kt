@@ -17,12 +17,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.material.icons.Icons
@@ -32,8 +36,11 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AlternateEmail
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -105,6 +112,10 @@ fun ForumTopicScreen(
     val isDark = isDarkTheme()
     val textColor = if (isDark) Color.White else LightText
     val primaryAccent = getPrimaryAccentColor()
+
+    val prefs = remember { context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE) }
+    val pinFirstTopicPost = remember { prefs.getBoolean("pin_first_topic_post", false) }
+    var isFirstPostExpanded by rememberSaveable(topic.id) { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     var hasScrolledToBottom by remember { mutableStateOf(false) }
@@ -224,6 +235,39 @@ fun ForumTopicScreen(
                     sectionTitle = sectionTitle,
                     onBackClick = onBackClick,
                     textColor = textColor,
+                    isDark = isDark
+                )
+            }
+
+            if (pinFirstTopicPost && viewModel.firstTopicPost != null) {
+                PinnedFirstPostCard(
+                    post = viewModel.firstTopicPost!!,
+                    topic = topic,
+                    topicInfo = viewModel.currentTopic,
+                    isExpanded = isFirstPostExpanded,
+                    onToggleExpand = { isFirstPostExpanded = !isFirstPostExpanded },
+                    currentLogin = currentLogin,
+                    onUserClick = onUserClick,
+                    onUserReplyClick = { login ->
+                        replyToUser = login
+                        showFullscreenInput = true
+                    },
+                    onQuoteClick = { author, text ->
+                        quoteInfo = QuoteInfo(author, text)
+                        showFullscreenInput = true
+                    },
+                    onTopicClick = onTopicClick,
+                    onNewsClick = onNewsClick,
+                    onDownClick = onDownClick,
+                    onPhotoClick = onPhotoClick,
+                    onImageClick = { url ->
+                        lightboxImages = listOf(url)
+                        lightboxInitialIndex = 0
+                    },
+                    onImagesClick = { images, index ->
+                        lightboxImages = images
+                        lightboxInitialIndex = index
+                    },
                     isDark = isDark
                 )
             }
@@ -472,6 +516,289 @@ fun ForumTopicScreen(
             initialPage = lightboxInitialIndex,
             onDismiss = { lightboxImages = emptyList() }
         )
+    }
+}
+
+@Composable
+fun PinnedFirstPostCard(
+    post: ForumPost,
+    topic: ForumTopic,
+    topicInfo: TopicInfo?,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    currentLogin: String?,
+    onUserClick: (String) -> Unit,
+    onUserReplyClick: (String) -> Unit,
+    onQuoteClick: (author: String, text: String) -> Unit,
+    onTopicClick: (topicId: Int, page: Int?, postId: Int?) -> Unit,
+    onNewsClick: (newsId: Int) -> Unit,
+    onDownClick: (downId: Int) -> Unit,
+    onPhotoClick: (photoId: Int) -> Unit,
+    onImageClick: (String) -> Unit,
+    onImagesClick: ((List<String>, Int) -> Unit)?,
+    isDark: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val primaryAccent = getPrimaryAccentColor()
+    val textColor = if (isDark) Color.White else LightText
+    val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+    val isMyPost = currentLogin != null && (post.authorLogin == currentLogin || post.authorName == currentLogin)
+
+    val cleanPreview = remember(post.text) {
+        (post.text ?: "")
+            .replace(Regex("<[^>]*>"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    GlassCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .animateContentSize(),
+        isDark = isDark,
+        shape = RoundedCornerShape(8.dp),
+        glowColor = primaryAccent.copy(alpha = 0.22f)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() }
+                    .padding(horizontal = 2.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PushPin,
+                        contentDescription = "Закреплено",
+                        tint = primaryAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+
+                    val topicTitle = topic.title ?: topicInfo?.title ?: "Тема"
+
+                    Text(
+                        text = topicTitle,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        InfoChip(text = "💬 ${topicInfo?.postsCount ?: topic.postsCount}", isDark = isDark)
+                        InfoChip(text = "👁 ${topicInfo?.visits ?: topic.visits}", isDark = isDark)
+                    }
+                }
+
+                IconButton(
+                    onClick = onToggleExpand,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
+                        tint = primaryAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            if (!isExpanded && cleanPreview.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = cleanPreview,
+                    fontSize = 11.sp,
+                    color = secondaryTextColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 14.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleExpand() }
+                        .padding(horizontal = 2.dp, vertical = 2.dp)
+                )
+            }
+
+            if (isExpanded) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 380.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f, fill = false),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val author = post.authorName ?: post.authorLogin ?: "Аноним"
+                            Text(
+                                text = author,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = primaryAccent,
+                                modifier = Modifier.clickable {
+                                    post.authorLogin?.let { onUserClick(it) }
+                                }
+                            )
+
+                            if (post.rating != 0) {
+                                val ratingColor = if (post.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Рейтинг",
+                                        tint = ratingColor,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = if (post.rating > 0) "+${post.rating}" else "${post.rating}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ratingColor
+                                    )
+                                }
+                            }
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isDark) Color(0x0DFFFFFF) else Color(0x06000000),
+                            border = androidx.compose.foundation.BorderStroke(
+                                width = 1.dp,
+                                color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                            ),
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .padding(start = 6.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                if (!isMyPost) {
+                                    IconButton(
+                                        onClick = {
+                                            val userLogin = post.authorLogin ?: post.authorName ?: "user"
+                                            onUserReplyClick(userLogin)
+                                        },
+                                        modifier = Modifier.size(22.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AlternateEmail,
+                                            contentDescription = "Обратиться по имени",
+                                            tint = primaryAccent,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            val authorName = post.authorName ?: post.authorLogin ?: "Аноним"
+                                            val textContent = post.text ?: ""
+                                            onQuoteClick(authorName, textContent)
+                                        },
+                                        modifier = Modifier.size(22.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FormatQuote,
+                                            contentDescription = "Цитировать",
+                                            tint = primaryAccent,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    if (post.createdAt != null) {
+                                        Text(
+                                            text = "•",
+                                            fontSize = 10.sp,
+                                            color = secondaryTextColor.copy(alpha = 0.4f),
+                                            modifier = Modifier.padding(horizontal = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                post.createdAt?.let { time ->
+                                    Text(
+                                        text = formatUnixTime(time),
+                                        fontSize = 10.sp,
+                                        color = secondaryTextColor,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val allPostImages = remember(post.text, post.files) {
+                        val textImages: List<String> = post.text?.let { t ->
+                            parseHtmlToBlocks(t).filterIsInstance<ContentBlock.ImageBlock>().map { it.url }
+                        } ?: emptyList()
+                        val fileImages: List<String> = post.files.filter { isImageFile(it) }.mapNotNull { it.path }
+                        (textImages + fileImages).distinct()
+                    }
+
+                    val handlePostImageClick: (String) -> Unit = { url ->
+                        if (allPostImages.isNotEmpty() && onImagesClick != null) {
+                            val idx = allPostImages.indexOf(url).coerceAtLeast(0)
+                            onImagesClick(allPostImages, idx)
+                        } else {
+                            onImageClick(url)
+                        }
+                    }
+
+                    post.text?.let { text ->
+                        val blocks = remember(text) { parseHtmlToBlocks(text) }
+                        RenderContentBlocks(
+                            blocks = blocks,
+                            isDark = isDark,
+                            onUserClick = onUserClick,
+                            onTopicClick = onTopicClick,
+                            onNewsClick = onNewsClick,
+                            onDownClick = onDownClick,
+                            onPhotoClick = onPhotoClick,
+                            onImageClick = handlePostImageClick
+                        )
+                    }
+
+                    if (post.files.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val imageFiles = remember(post.files) { post.files.filter { isImageFile(it) } }
+                        imageFiles.forEach { file ->
+                            ImageFilePreview(file = file, onImageClick = handlePostImageClick)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

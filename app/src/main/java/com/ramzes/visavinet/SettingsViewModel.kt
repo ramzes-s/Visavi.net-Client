@@ -103,6 +103,9 @@ class SettingsViewModel : ViewModel() {
 
     fun checkAutoUpdateIfDayPassed(context: Context, currentVersion: String) {
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        if (com.ramzes.visavinet.util.SleepModeHelper.isSleepModeActive(prefs)) {
+            return
+        }
         val lastCheckTime = prefs.getLong("last_github_update_check_time", 0L)
         val now = System.currentTimeMillis()
         if (now - lastCheckTime >= UPDATE_CHECK_INTERVAL_MS) {

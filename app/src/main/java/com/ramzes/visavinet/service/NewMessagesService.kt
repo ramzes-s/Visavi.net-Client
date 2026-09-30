@@ -311,79 +311,87 @@ class NewMessagesService : Service() {
         monitorJob = serviceScope.launch {
             var lastStatsCheckTime = 0L
             while (isActive) {
-                try {
-                    val response = VisaviApi.instance.getNewMessages()
+                val prefs = getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+                val checkInterval = prefs.getLong("messages_check_interval_ms", CHECK_INTERVAL_MS)
+                    .coerceAtLeast(30_000L)
 
-                    if (response.isSuccessful) {
-                        val body = response.body()
-                        val count = body?.count ?: 0
-                        val dialogues = body?.dialogues ?: emptyList()
-
-                        val oldCount = _newMessagesCount.value
-                        android.util.Log.d(TAG, "Проверка: count=$count, oldCount=$oldCount")
-
-                        _newMessagesCount.value = count
-
-                        // Находим самое новое сообщение по времени
-                        val latestMessageTime = dialogues.maxOfOrNull { it.lastMessageAt ?: 0L } ?: 0L
-                        android.util.Log.d(TAG, "lastMessageAt=$latestMessageTime, lastNotifiedMessageTime=$lastNotifiedMessageTime")
-
-                        // Показываем уведомление если:
-                        // 1. Есть новые сообщения (count > 0)
-                        // 2. Время последнего сообщения новее последнего уведомлённого
-                        // 3. Приложение НЕ на переднем плане (иначе баннер мешает, бейдж и так виден)
-                        if (count > 0 && latestMessageTime > lastNotifiedMessageTime) {
-                            if (appInForeground) {
-                                android.util.Log.d(TAG, "Приложение открыто — баннер не показываем, обновляем только бейдж")
-                            } else {
-                                android.util.Log.d(TAG, "Показываем уведомление: $count новых, lastMessageAt=$latestMessageTime")
-                                showNotification(count, dialogues)
-                                lastNotifiedMessageTime = latestMessageTime
-                            }
-                        } else if (count == 0 && oldCount > 0) {
-                            // Убираем уведомление, если сообщений больше нет
-                            android.util.Log.d(TAG, "Убираем уведомление")
-                            val notificationManager = getSystemService(NotificationManager::class.java)
-                            notificationManager.cancel(NOTIFICATION_ID_MESSAGES)
-                            lastNotifiedMessageTime = 0
-                        } else if (count > 0 && count < oldCount) {
-                            // Количество уменьшилось (прочитали) - обновляем уведомление
-                            android.util.Log.d(TAG, "Обновляем уведомление: было $oldCount, стало $count")
-                            if (!appInForeground) {
-                                showNotification(count, dialogues)
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG, "Ошибка проверки сообщений: ${e.message}")
-                }
-
-                // Фоновая проверка статистики сайта для уведомлений об обновлениях (раз в 5 минут)
-                // Отключается настройкой «Проверка статистики» (не влияет на опрос ЛС).
-                // Пока проверка выключена — lastStatsCheckTime не двигаем, поэтому после
-                // повторного включения опрос возобновится уже на ближайшей итерации (≤30 с)
-                val now = System.currentTimeMillis()
-                val statsEnabled = getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
-                    .getBoolean("stats_check_enabled", true)
-                if (statsEnabled && now - lastStatsCheckTime >= 5 * 60 * 1000L) {
+                val isSleeping = com.ramzes.visavinet.util.SleepModeHelper.isSleepModeActive(prefs)
+                if (isSleeping) {
+                    android.util.Log.d(TAG, "Режим сна активен — опрос сообщений и статистики приостановлен")
+                } else {
                     try {
-                        val statsResponse = VisaviApi.instance.getStats()
-                        if (statsResponse.isSuccessful && statsResponse.body() != null) {
-                            val stats = statsResponse.body()!!
-                            // Единственный источник stats для UI (бейджи разделов в меню)
-                            _siteStats.value = stats
-                            com.ramzes.visavinet.util.SiteUpdatesNotificationManager.checkAndNotify(
-                                applicationContext,
-                                stats
-                            )
-                            lastStatsCheckTime = now
+                        val response = VisaviApi.instance.getNewMessages()
+
+                        if (response.isSuccessful) {
+                            val body = response.body()
+                            val count = body?.count ?: 0
+                            val dialogues = body?.dialogues ?: emptyList()
+
+                            val oldCount = _newMessagesCount.value
+                            android.util.Log.d(TAG, "Проверка: count=$count, oldCount=$oldCount")
+
+                            _newMessagesCount.value = count
+
+                            // Находим самое новое сообщение по времени
+                            val latestMessageTime = dialogues.maxOfOrNull { it.lastMessageAt ?: 0L } ?: 0L
+                            android.util.Log.d(TAG, "lastMessageAt=$latestMessageTime, lastNotifiedMessageTime=$lastNotifiedMessageTime")
+
+                            // Показываем уведомление если:
+                            // 1. Есть новые сообщения (count > 0)
+                            // 2. Время последнего сообщения новее последнего уведомлённого
+                            // 3. Приложение НЕ на переднем плане (иначе баннер мешает, бейдж и так виден)
+                            if (count > 0 && latestMessageTime > lastNotifiedMessageTime) {
+                                if (appInForeground) {
+                                    android.util.Log.d(TAG, "Приложение открыто — баннер не показываем, обновляем только бейдж")
+                                } else {
+                                    android.util.Log.d(TAG, "Показываем уведомление: $count новых, lastMessageAt=$latestMessageTime")
+                                    showNotification(count, dialogues)
+                                    lastNotifiedMessageTime = latestMessageTime
+                                }
+                            } else if (count == 0 && oldCount > 0) {
+                                // Убираем уведомление, если сообщений больше нет
+                                android.util.Log.d(TAG, "Убираем уведомление")
+                                val notificationManager = getSystemService(NotificationManager::class.java)
+                                notificationManager.cancel(NOTIFICATION_ID_MESSAGES)
+                                lastNotifiedMessageTime = 0
+                            } else if (count > 0 && count < oldCount) {
+                                // Количество уменьшилось (прочитали) - обновляем уведомление
+                                android.util.Log.d(TAG, "Обновляем уведомление: было $oldCount, стало $count")
+                                if (!appInForeground) {
+                                    showNotification(count, dialogues)
+                                }
+                            }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e(TAG, "Ошибка проверки stats: ${e.message}")
+                        android.util.Log.e(TAG, "Ошибка проверки сообщений: ${e.message}")
+                    }
+
+                    // Фоновая проверка статистики сайта для уведомлений об обновлениях (раз в 5 минут)
+                    // Отключается настройкой «Проверка статистики» (не влияет на опрос ЛС).
+                    // Пока проверка выключена — lastStatsCheckTime не двигаем, поэтому после
+                    // повторного включения опрос возобновится уже на ближайшей итерации (≤30 с)
+                    val now = System.currentTimeMillis()
+                    val statsEnabled = prefs.getBoolean("stats_check_enabled", true)
+                    if (statsEnabled && now - lastStatsCheckTime >= 5 * 60 * 1000L) {
+                        try {
+                            val statsResponse = VisaviApi.instance.getStats()
+                            if (statsResponse.isSuccessful && statsResponse.body() != null) {
+                                val stats = statsResponse.body()!!
+                                // Единственный источник stats для UI (бейджи разделов в меню)
+                                _siteStats.value = stats
+                                com.ramzes.visavinet.util.SiteUpdatesNotificationManager.checkAndNotify(
+                                    applicationContext,
+                                    stats
+                                )
+                                lastStatsCheckTime = now
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e(TAG, "Ошибка проверки stats: ${e.message}")
+                        }
                     }
                 }
 
-                delay(CHECK_INTERVAL_MS)
+                delay(checkInterval)
             }
         }
     }

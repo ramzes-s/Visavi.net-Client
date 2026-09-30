@@ -60,6 +60,9 @@ class ForumViewModel : ViewModel() {
     var posts by mutableStateOf<List<ForumPost>>(emptyList())
         private set
 
+    var firstTopicPost by mutableStateOf<ForumPost?>(null)
+        private set
+
     var navigationState by mutableStateOf(ForumNavigationState())
         private set
 
@@ -126,6 +129,7 @@ class ForumViewModel : ViewModel() {
         topics = emptyList()
         currentTopic = null
         posts = emptyList()
+        firstTopicPost = null
         navigationState = ForumNavigationState(level = ForumNavigationLevel.SECTIONS)
         loadRootSections(context)
     }
@@ -245,6 +249,7 @@ class ForumViewModel : ViewModel() {
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
                     currentTopic = body.topic
+                    firstTopicPost = body.data?.firstOrNull()
 
                     val forum = body.topic?.forum
                     val forumId = forum?.id ?: body.forum?.id ?: body.topic?.realForumId
@@ -682,6 +687,7 @@ class ForumViewModel : ViewModel() {
         topics = emptyList()
         currentTopic = null
         posts = emptyList()
+        firstTopicPost = null
         navigationState = ForumNavigationState()
         errorMessage = null
         backStack.clear()
