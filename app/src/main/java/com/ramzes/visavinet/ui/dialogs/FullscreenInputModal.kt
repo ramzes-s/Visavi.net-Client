@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -112,10 +113,6 @@ fun FullscreenInputModal(
             }
         }
 
-        // Окно редактора поднимается над клавиатурой: карточка заканчивается
-        // ровно на её верхней кромке, поле ввода не уходит под клавиатуру
-        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-
         var blurModifier = Modifier
             .fillMaxSize()
             .background(backdropColor)
@@ -134,13 +131,7 @@ fun FullscreenInputModal(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .imePadding()
-                    .padding(
-                        start = 12.dp,
-                        top = 12.dp,
-                        end = 12.dp,
-                        bottom = if (imeVisible) 0.dp else 12.dp
-                    ),
+                    .padding(12.dp),
                 contentAlignment = Alignment.Center
             ) {
                 GlassCard(
@@ -149,263 +140,294 @@ fun FullscreenInputModal(
                     shape = RoundedCornerShape(8.dp),
                     glowColor = primaryAccent.copy(alpha = 0.35f)
                 ) {
-                    Column(
+                    val density = LocalDensity.current
+                    val imeBottomDp = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+                    val imeVisible = imeBottomDp > 0.dp
+                    var bottomBarHeightDp by remember { mutableStateOf(56.dp) }
+
+                    // 12.dp (внешний padding карточки) + 14.dp (внутренний padding GlassCard) = 26.dp
+                    val keyboardOverlap = (imeBottomDp - 26.dp).coerceAtLeast(0.dp)
+                    val inputBottomPadding = if (imeVisible) {
+                        maxOf(bottomBarHeightDp + 8.dp, keyboardOverlap + 6.dp)
+                    } else {
+                        bottomBarHeightDp + 8.dp
+                    }
+
+                    Box(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Верх редактора: панель тегов и кнопка сворачивания окна
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        // 1. Нижняя часть функционала (остаётся на месте внизу и уходит под клавиатуру)
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .onGloballyPositioned { coordinates ->
+                                    val heightDp = with(density) { coordinates.size.height.toDp() }
+                                    if (heightDp > 0.dp && bottomBarHeightDp != heightDp) {
+                                        bottomBarHeightDp = heightDp
+                                    }
+                                }
                         ) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                FormattingToolbar(
-                                    textFieldValue = textFieldValue,
-                                    onInsertTag = { tagStart, tagEnd ->
-                                        val newValue = applyTagToTextFieldValue(textFieldValue, tagStart, tagEnd)
-                                        textFieldValue = newValue
-                                        onTextChanged(newValue.text)
-                                        try {
-                                            focusRequester.requestFocus()
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
-                                    },
-                                    onExpandFullscreen = null,
-                                    isDark = isDark
-                                )
+                            if (selectedFiles.isNotEmpty()) {
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp)
+                                ) {
+                                    items(selectedFiles) { uri ->
+                                        AssistChip(
+                                            onClick = { onFilesChanged(selectedFiles - uri) },
+                                            label = { Text("Файл", fontSize = 11.sp) },
+                                            trailingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Удалить",
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
                             }
 
-                            IconButton(onClick = onDismiss) {
-                                Icon(
-                                    imageVector = Icons.Default.FullscreenExit,
-                                    contentDescription = "Свернуть",
-                                    tint = primaryAccent,
-                                    modifier = Modifier.size(22.dp)
+                            val isTextValid = textFieldValue.text.trim().length in textMin..textMax
+
+                            // Управление
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.AttachFile,
+                                        contentDescription = null,
+                                        tint = primaryAccent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Прикрепить файл",
+                                        color = primaryAccent,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                GlassButton(
+                                    onClick = {
+                                        val formatted = ensureParagraphTags(textFieldValue.text)
+                                        onTextChanged(formatted)
+                                        onSend()
+                                    },
+                                    enabled = isTextValid && !isSending,
+                                    isDark = isDark,
+                                    accentColor = primaryAccent
+                                ) {
+                                    if (isSending) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Send,
+                                            contentDescription = "Отправить",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Отправить", color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            // Низ редактора: заголовок темы / контекст вставки
+                            if (title.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = title,
+                                    fontSize = 11.5.sp,
+                                    color = if (isDark) TextLightGray else LightTextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // Блок бейджей обращения и цитирования
-                        if (!replyToUser.isNullOrBlank() || quoteInfo != null) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 6.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                        // 2. Верхняя часть: тулбар, цитаты и поле ввода текста
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = inputBottomPadding)
+                        ) {
+                            // Верх редактора: панель тегов и кнопка сворачивания окна
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Бейдж обращения к пользователю
-                                if (!replyToUser.isNullOrBlank()) {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = if (isDark) Color(0x3300E5FF) else Color(0x2200E5FF),
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            width = 1.dp,
-                                            color = primaryAccent.copy(alpha = 0.4f)
-                                        )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                Box(modifier = Modifier.weight(1f)) {
+                                    FormattingToolbar(
+                                        textFieldValue = textFieldValue,
+                                        onInsertTag = { tagStart, tagEnd ->
+                                            val newValue = applyTagToTextFieldValue(textFieldValue, tagStart, tagEnd)
+                                            textFieldValue = newValue
+                                            onTextChanged(newValue.text)
+                                            try {
+                                                focusRequester.requestFocus()
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        },
+                                        onExpandFullscreen = null,
+                                        isDark = isDark
+                                    )
+                                }
+
+                                IconButton(onClick = onDismiss) {
+                                    Icon(
+                                        imageVector = Icons.Default.FullscreenExit,
+                                        contentDescription = "Свернуть",
+                                        tint = primaryAccent,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Блок бейджей обращения и цитирования
+                            if (!replyToUser.isNullOrBlank() || quoteInfo != null) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    // Бейдж обращения к пользователю
+                                    if (!replyToUser.isNullOrBlank()) {
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = if (isDark) Color(0x3300E5FF) else Color(0x2200E5FF),
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                width = 1.dp,
+                                                color = primaryAccent.copy(alpha = 0.4f)
+                                            )
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.AlternateEmail,
-                                                contentDescription = null,
-                                                tint = primaryAccent,
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = replyToUser,
-                                                color = primaryAccent,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            if (onRemoveReplyToUser != null) {
-                                                Spacer(modifier = Modifier.width(6.dp))
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
                                                 Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = "Удалить обращение",
-                                                    tint = primaryAccent.copy(alpha = 0.8f),
-                                                    modifier = Modifier
-                                                        .size(14.dp)
-                                                        .clickable { onRemoveReplyToUser() }
+                                                    imageVector = Icons.Default.AlternateEmail,
+                                                    contentDescription = null,
+                                                    tint = primaryAccent,
+                                                    modifier = Modifier.size(13.dp)
                                                 )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = replyToUser,
+                                                    color = primaryAccent,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                if (onRemoveReplyToUser != null) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Удалить обращение",
+                                                        tint = primaryAccent.copy(alpha = 0.8f),
+                                                        modifier = Modifier
+                                                            .size(14.dp)
+                                                            .clickable { onRemoveReplyToUser() }
+                                                    )
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                // Бейдж цитаты
-                                if (quoteInfo != null) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = if (isDark) Color(0x20FFFFFF) else Color(0x15000000),
-                                        border = androidx.compose.foundation.BorderStroke(
-                                            width = 1.dp,
-                                            color = if (isDark) Color(0x30FFFFFF) else Color(0x25000000)
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.Top
+                                    // Бейдж цитаты
+                                    if (quoteInfo != null) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = if (isDark) Color(0x20FFFFFF) else Color(0x15000000),
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                width = 1.dp,
+                                                color = if (isDark) Color(0x30FFFFFF) else Color(0x25000000)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.FormatQuote,
-                                                contentDescription = null,
-                                                tint = primaryAccent,
+                                            Row(
                                                 modifier = Modifier
-                                                    .size(16.dp)
-                                                    .padding(top = 1.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = quoteInfo.author,
-                                                    color = primaryAccent,
-                                                    fontSize = 11.5.sp,
-                                                    fontWeight = FontWeight.Bold
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.Top
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.FormatQuote,
+                                                    contentDescription = null,
+                                                    tint = primaryAccent,
+                                                    modifier = Modifier
+                                                        .size(16.dp)
+                                                        .padding(top = 1.dp)
                                                 )
-                                                Text(
-                                                    text = quoteInfo.text,
-                                                    color = if (isDark) TextLightGray else LightTextSecondary,
-                                                    fontSize = 11.sp,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                            if (onRemoveQuote != null) {
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                IconButton(
-                                                    onClick = onRemoveQuote,
-                                                    modifier = Modifier.size(18.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = "Удалить цитату",
-                                                        tint = if (isDark) TextLightGray else LightTextSecondary,
-                                                        modifier = Modifier.size(14.dp)
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = quoteInfo.author,
+                                                        color = primaryAccent,
+                                                        fontSize = 11.5.sp,
+                                                        fontWeight = FontWeight.Bold
                                                     )
+                                                    Text(
+                                                        text = quoteInfo.text,
+                                                        color = if (isDark) TextLightGray else LightTextSecondary,
+                                                        fontSize = 11.sp,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                                if (onRemoveQuote != null) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    IconButton(
+                                                        onClick = onRemoveQuote,
+                                                        modifier = Modifier.size(18.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close,
+                                                            contentDescription = "Удалить цитату",
+                                                            tint = if (isDark) TextLightGray else LightTextSecondary,
+                                                            modifier = Modifier.size(14.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        // Поле ввода: теги скрыты VisualTransformation, сохраняется курсор и фокус
-                        GlassTextField(
-                            value = textFieldValue,
-                            onValueChange = { newValue ->
-                                if (newValue.text.length <= textMax) {
-                                    textFieldValue = newValue
-                                    onTextChanged(newValue.text)
-                                }
-                            },
-                            placeholderText = "Текст сообщения...",
-                            singleLine = false,
-                            maxLines = 40,
-                            visualTransformation = htmlTransformation,
-                            focusRequester = focusRequester,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            isDark = isDark
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        if (selectedFiles.isNotEmpty()) {
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            // Поле ввода: теги скрыты VisualTransformation, сохраняется курсор и фокус
+                            GlassTextField(
+                                value = textFieldValue,
+                                onValueChange = { newValue ->
+                                    if (newValue.text.length <= textMax) {
+                                        textFieldValue = newValue
+                                        onTextChanged(newValue.text)
+                                    }
+                                },
+                                placeholderText = "Текст сообщения...",
+                                singleLine = false,
+                                maxLines = 40,
+                                visualTransformation = htmlTransformation,
+                                focusRequester = focusRequester,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 8.dp)
-                            ) {
-                                items(selectedFiles) { uri ->
-                                    AssistChip(
-                                        onClick = { onFilesChanged(selectedFiles - uri) },
-                                        label = { Text("Файл", fontSize = 11.sp) },
-                                        trailingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Удалить",
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        val isTextValid = textFieldValue.text.trim().length in textMin..textMax
-
-                        // Управление
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                                Icon(
-                                    imageVector = Icons.Default.AttachFile,
-                                    contentDescription = null,
-                                    tint = primaryAccent,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Прикрепить файл",
-                                    color = primaryAccent,
-                                    fontSize = 13.sp
-                                )
-                            }
-
-                            GlassButton(
-                                onClick = {
-                                    val formatted = ensureParagraphTags(textFieldValue.text)
-                                    onTextChanged(formatted)
-                                    onSend()
-                                },
-                                enabled = isTextValid && !isSending,
-                                isDark = isDark,
-                                accentColor = primaryAccent
-                            ) {
-                                if (isSending) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Send,
-                                        contentDescription = "Отправить",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Отправить", color = Color.White, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-
-                        // Низ редактора: заголовок темы / контекст вставки
-                        if (title.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = title,
-                                fontSize = 11.5.sp,
-                                color = if (isDark) TextLightGray else LightTextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
+                                    .weight(1f),
+                                isDark = isDark
                             )
                         }
                     }
