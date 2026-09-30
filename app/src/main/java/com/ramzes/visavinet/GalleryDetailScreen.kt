@@ -54,6 +54,7 @@ import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VideoFullscreenDialog
 import com.ramzes.visavinet.ui.components.VideoPlayerView
 import com.ramzes.visavinet.ui.components.VoteDualButton
+import com.ramzes.visavinet.ui.dialogs.EditPhotoDialog
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.theme.*
@@ -91,6 +92,7 @@ fun GalleryDetailScreen(
     var highlightedCommentId by remember { mutableStateOf<Int?>(null) }
     var attachedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
+    var showEditPhotoDialog by remember { mutableStateOf(false) }
     var lightboxImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var lightboxInitialIndex by remember { mutableIntStateOf(0) }
     var activeFullscreenPlayer by remember { mutableStateOf<ExoPlayer?>(null) }
@@ -211,6 +213,20 @@ fun GalleryDetailScreen(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
+
+                    val isAuthor = currentLogin != null && displayPhoto.user?.authorLogin == currentLogin
+                    if (isAuthor) {
+                        IconButton(onClick = {
+                            viewModel.clearUpdateError()
+                            showEditPhotoDialog = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Редактировать",
+                                tint = getPrimaryAccentColor()
+                            )
+                        }
+                    }
                 }
             }
 
@@ -517,6 +533,35 @@ fun GalleryDetailScreen(
             VideoFullscreenDialog(
                 player = player,
                 onDismiss = { activeFullscreenPlayer = null }
+            )
+        }
+
+        // Диалог редактирования фотографии
+        if (showEditPhotoDialog) {
+            EditPhotoDialog(
+                photo = displayPhoto,
+                onDismiss = {
+                    viewModel.clearUpdateError()
+                    showEditPhotoDialog = false
+                },
+                onSubmit = { newTitle, newText, closed ->
+                    viewModel.updatePhoto(
+                        context = context.applicationContext,
+                        photoId = displayPhoto.id,
+                        title = newTitle,
+                        text = newText,
+                        closed = closed,
+                        onSuccess = {
+                            Toast.makeText(context, "Фотография обновлена", Toast.LENGTH_SHORT).show()
+                            showEditPhotoDialog = false
+                        },
+                        onError = {
+                            // Ошибка сохраняется в viewModel.updatePhotoError
+                        }
+                    )
+                },
+                isSubmitting = viewModel.isUpdatingPhoto,
+                errorMessage = viewModel.updatePhotoError
             )
         }
     }

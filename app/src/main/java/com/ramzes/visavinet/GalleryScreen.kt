@@ -12,12 +12,15 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Videocam
+import com.ramzes.visavinet.ui.dialogs.EditPhotoDialog
 import com.ramzes.visavinet.ui.dialogs.UploadPhotoDialog
 import com.ramzes.visavinet.util.DraftsManager
 import androidx.compose.material3.*
@@ -51,6 +54,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun GalleryScreen(
     viewModel: GalleryViewModel,
     isAuthorized: Boolean = false,
+    currentLogin: String? = null,
     onPhotoClick: (PhotoItem) -> Unit,
     onUserClick: (String) -> Unit = {}
 ) {
@@ -59,6 +63,7 @@ fun GalleryScreen(
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
     var showUploadDialog by remember { mutableStateOf(false) }
+    var editingPhoto by remember { mutableStateOf<PhotoItem?>(null) }
     val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = viewModel.scrollItemIndex,
         initialFirstVisibleItemScrollOffset = viewModel.scrollOffset
@@ -182,8 +187,13 @@ fun GalleryScreen(
                                 GalleryGridItem(
                                     photo = photo,
                                     isDark = isDark,
+                                    currentLogin = currentLogin,
                                     onClick = { onPhotoClick(photo) },
-                                    onUserClick = onUserClick
+                                    onUserClick = onUserClick,
+                                    onEditClick = { photoToEdit ->
+                                        viewModel.clearUpdateError()
+                                        editingPhoto = photoToEdit
+                                    }
                                 )
                             }
 
@@ -255,14 +265,44 @@ fun GalleryScreen(
             errorMessage = viewModel.uploadPhotoError
         )
     }
+
+    editingPhoto?.let { photoToEdit ->
+        EditPhotoDialog(
+            photo = photoToEdit,
+            onDismiss = {
+                viewModel.clearUpdateError()
+                editingPhoto = null
+            },
+            onSubmit = { newTitle, newText, closed ->
+                viewModel.updatePhoto(
+                    context = context.applicationContext,
+                    photoId = photoToEdit.id,
+                    title = newTitle,
+                    text = newText,
+                    closed = closed,
+                    onSuccess = {
+                        Toast.makeText(context, "Фотография обновлена", Toast.LENGTH_SHORT).show()
+                        editingPhoto = null
+                    },
+                    onError = {
+                        // Ошибка сохраняется в viewModel.updatePhotoError
+                    }
+                )
+            },
+            isSubmitting = viewModel.isUpdatingPhoto,
+            errorMessage = viewModel.updatePhotoError
+        )
+    }
 }
 
 @Composable
 fun GalleryGridItem(
     photo: PhotoItem,
     isDark: Boolean,
+    currentLogin: String? = null,
     onClick: () -> Unit,
-    onUserClick: (String) -> Unit
+    onUserClick: (String) -> Unit,
+    onEditClick: ((PhotoItem) -> Unit)? = null
 ) {
     val textColor = if (isDark) Color.White else LightText
     val context = LocalContext.current
@@ -307,6 +347,27 @@ fun GalleryGridItem(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                }
+
+                val isAuthor = currentLogin != null && photo.user?.authorLogin == currentLogin
+                if (isAuthor && onEditClick != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x99000000))
+                            .clickable { onEditClick(photo) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Редактировать",
+                            tint = Color.White,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
                 }
             }
 

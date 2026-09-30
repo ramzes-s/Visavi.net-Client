@@ -88,6 +88,17 @@ class GalleryViewModel : ViewModel() {
         uploadPhotoError = null
     }
 
+    // --- Редактирование фотографии ---
+    var isUpdatingPhoto by mutableStateOf(false)
+        private set
+
+    var updatePhotoError by mutableStateOf<String?>(null)
+        private set
+
+    fun clearUpdateError() {
+        updatePhotoError = null
+    }
+
     /**
      * Загрузка первой страницы галереи
      */
@@ -464,6 +475,79 @@ class GalleryViewModel : ViewModel() {
             } finally {
                 isUploadingPhoto = false
                 uploadPhotoProgress = null
+            }
+        }
+    }
+
+    /**
+     * Редактирование своей фотографии (название, описание, статус комментариев)
+     */
+    fun updatePhoto(
+        context: Context,
+        photoId: Int,
+        title: String,
+        text: String?,
+        closed: Boolean,
+        onSuccess: (PhotoItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (isUpdatingPhoto) return
+        val trimmedTitle = title.trim()
+        if (trimmedTitle.isBlank()) {
+            onError("Введите название фотографии")
+            return
+        }
+
+        viewModelScope.launch {
+            isUpdatingPhoto = true
+            updatePhotoError = null
+
+            try {
+                val request = UpdatePhotoRequest(
+                    title = trimmedTitle,
+                    text = text?.trim()?.ifBlank { null },
+                    closed = closed
+                )
+
+                val response = VisaviApi.instance.updatePhoto(photoId, request)
+                if (response.isSuccessful) {
+                    val updatedPhoto = response.body()?.photo
+
+                    // Обновляем текущее выбранное фото
+                    if (currentPhoto?.id == photoId) {
+                        currentPhoto = updatedPhoto ?: currentPhoto?.copy(
+                            title = trimmedTitle,
+                            text = text?.trim()?.ifBlank { null },
+                            closed = closed
+                        )
+                    }
+
+                    // Обновляем в списке photosList
+                    photosList = photosList.map { item ->
+                        if (item.id == photoId) {
+                            updatedPhoto ?: item.copy(
+                                title = trimmedTitle,
+                                text = text?.trim()?.ifBlank { null },
+                                closed = closed
+                            )
+                        } else {
+                            item
+                        }
+                    }
+
+                    val resultPhoto = updatedPhoto ?: currentPhoto ?: PhotoItem(id = photoId, title = trimmedTitle)
+                    onSuccess(resultPhoto)
+                } else {
+                    val errorMsg = response.extractErrorMessage("Ошибка обновления фотографии")
+                    updatePhotoError = errorMsg
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                val msg = e.localizedMessage ?: "Не удалось обновить фотографию"
+                updatePhotoError = msg
+                onError(msg)
+            } finally {
+                isUpdatingPhoto = false
             }
         }
     }

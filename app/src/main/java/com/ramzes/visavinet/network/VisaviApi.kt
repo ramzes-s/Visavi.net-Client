@@ -673,6 +673,17 @@ data class CreatePhotoResponse(
     @SerializedName("photo") val photo: PhotoItem? = null
 )
 
+data class UpdatePhotoRequest(
+    @SerializedName("title") val title: String,
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("closed") val closed: Boolean = false
+)
+
+data class UpdatePhotoResponse(
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("photo") val photo: PhotoItem? = null
+)
+
 data class UploadFileResponse(
     @SerializedName("message") val message: String? = null,
     @SerializedName("file") val file: FileData? = null
@@ -1115,6 +1126,12 @@ interface VisaviApiService {
     suspend fun createPhoto(
         @Body request: CreatePhotoRequest
     ): Response<CreatePhotoResponse>
+
+    @PATCH("api/photos/{id}")
+    suspend fun updatePhoto(
+        @Path("id") id: Int,
+        @Body request: UpdatePhotoRequest
+    ): Response<UpdatePhotoResponse>
 
     @Multipart
     @POST("api/files")
