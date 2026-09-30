@@ -544,13 +544,6 @@ fun PinnedFirstPostCard(
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
     val isMyPost = currentLogin != null && (post.authorLogin == currentLogin || post.authorName == currentLogin)
 
-    val cleanPreview = remember(post.text) {
-        (post.text ?: "")
-            .replace(Regex("<[^>]*>"), " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-    }
-
     GlassCard(
         modifier = modifier
             .fillMaxWidth()
@@ -561,47 +554,85 @@ fun PinnedFirstPostCard(
         glowColor = primaryAccent.copy(alpha = 0.22f)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
+            // Верхняя строка: заголовок темы на всю ширину
+            val topicTitle = topic.title ?: topicInfo?.title ?: "Тема"
+            Text(
+                text = topicTitle,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onToggleExpand() }
-                    .padding(horizontal = 2.dp, vertical = 4.dp),
+                    .padding(horizontal = 2.dp, vertical = 2.dp)
+            )
+
+            // Вторая строка: единый стилизованный бейдж статистики + иконка разворачивания
+            val topicCreatedTime = topicInfo?.createdAt ?: topic.createdAt ?: post.createdAt
+            val formattedTopicDate = topicCreatedTime?.let { formatUnixTime(it) }?.ifBlank { null }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Единый стилизованный бейдж со статистикой постов, просмотров и датой создания темы
+                Surface(
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x0E000000),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (isDark) Color(0x20FFFFFF) else Color(0x12000000)
+                    ),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clickable { onToggleExpand() }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PushPin,
-                        contentDescription = "Закреплено",
-                        tint = primaryAccent,
-                        modifier = Modifier.size(16.dp)
-                    )
-
-                    val topicTitle = topic.title ?: topicInfo?.title ?: "Тема"
-
-                    Text(
-                        text = topicTitle,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-
                     Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        InfoChip(text = "💬 ${topicInfo?.postsCount ?: topic.postsCount}", isDark = isDark)
-                        InfoChip(text = "👁 ${topicInfo?.visits ?: topic.visits}", isDark = isDark)
+                        Text(
+                            text = "💬 ${topicInfo?.postsCount ?: topic.postsCount}",
+                            fontSize = 11.sp,
+                            color = if (isDark) TextLightGray else LightTextSecondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "•",
+                            fontSize = 10.sp,
+                            color = (if (isDark) TextLightGray else LightTextSecondary).copy(alpha = 0.4f)
+                        )
+                        Text(
+                            text = "👁 ${topicInfo?.visits ?: topic.visits}",
+                            fontSize = 11.sp,
+                            color = if (isDark) TextLightGray else LightTextSecondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (formattedTopicDate != null) {
+                            Text(
+                                text = "•",
+                                fontSize = 10.sp,
+                                color = (if (isDark) TextLightGray else LightTextSecondary).copy(alpha = 0.4f)
+                            )
+                            Text(
+                                text = formattedTopicDate,
+                                fontSize = 11.sp,
+                                color = if (isDark) TextLightGray else LightTextSecondary,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
+                // Иконка разворачивания/сворачивания поста полностью
                 IconButton(
                     onClick = onToggleExpand,
                     modifier = Modifier.size(28.dp)
@@ -613,22 +644,6 @@ fun PinnedFirstPostCard(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-            }
-
-            if (!isExpanded && cleanPreview.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = cleanPreview,
-                    fontSize = 11.sp,
-                    color = secondaryTextColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 14.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onToggleExpand() }
-                        .padding(horizontal = 2.dp, vertical = 2.dp)
-                )
             }
 
             if (isExpanded) {
