@@ -123,7 +123,7 @@ data class ConfigData(
 )
 
 /**
- * Модель данных пользователя Visavi.net
+ * Модель данных пользователя Visavi.net (соответствует схеме UserProfile из официального OpenAPI)
  */
 data class UserData(
     @SerializedName("login") val login: String? = null,
@@ -134,33 +134,28 @@ data class UserData(
     @SerializedName("site") val site: String? = null,
     @SerializedName("gender") val gender: String? = null,
     @SerializedName("birthday") val birthday: String? = null,
-    @SerializedName("newwall") val newWall: Int = 0,
+    @SerializedName("themes") val themes: String? = null,
     @SerializedName("point") val point: Int = 0,
     @SerializedName("money") val money: Long = 0,
-    @SerializedName("ban") val ban: Int = 0,
-    @SerializedName("allprivat") val allPrivat: Int = 0,
-    @SerializedName("newprivat") val newPrivat: Int = 0,
     @SerializedName("status") val status: String? = null,
-    @SerializedName("info") val info: String? = null,
+    @SerializedName("color") val color: String? = null,
     @SerializedName("avatar") val avatar: String? = null,
     @SerializedName("picture") val picture: String? = null,
     @SerializedName("rating") val rating: Int = 0,
+    @SerializedName("language") val language: String? = null,
+    @SerializedName("timezone") val timezone: String? = null,
     @SerializedName("lastlogin") val lastloginRaw: String? = null,
     @SerializedName("level") val level: String? = null,
-    @SerializedName("visits") val visitsRaw: Int? = null,
-    @SerializedName("visit") val visitRaw: Int? = null,
-    @SerializedName("logins") val loginsRaw: Int? = null,
-    @SerializedName("conttime") val conttimeRaw: Int? = null,
-    @SerializedName("allvisit") val allvisitRaw: Int? = null
+    @SerializedName("phone") val phone: String? = null,
+    @SerializedName("info") val info: String? = null,
+    @SerializedName("allprivat") val allPrivat: Int = 0,
+    @SerializedName("newprivat") val newPrivat: Int = 0
 ) {
     val userLogin: String?
         get() = login?.ifBlank { null }
 
     val displayName: String
         get() = name?.ifBlank { null } ?: userLogin ?: "Пользователь"
-
-    val visits: Int
-        get() = visitsRaw ?: visitRaw ?: loginsRaw ?: conttimeRaw ?: allvisitRaw ?: 0
 
     val lastLogin: Long?
         get() = lastloginRaw?.let { parseIsoDateTime(it) }

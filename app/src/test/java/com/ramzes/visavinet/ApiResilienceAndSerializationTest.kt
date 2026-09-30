@@ -145,6 +145,66 @@ class ApiResilienceAndSerializationTest {
     }
 
     @Test
+    fun testUserDataSerialization() {
+        // Проверяем полную сериализацию по реальной схеме UserProfile из OpenAPI
+        val json = """
+            {
+                "login": "test_user",
+                "name": "Тестовый Юзер",
+                "level": "admin",
+                "country": "Россия",
+                "city": "Москва",
+                "info": "О себе",
+                "site": "https://example.com",
+                "gender": "male",
+                "birthday": "15.05.1990",
+                "themes": "dark",
+                "point": 1500,
+                "money": 250000,
+                "status": "Работаю",
+                "color": "#FF5500",
+                "avatar": "https://example.com/avatar.png",
+                "picture": "https://example.com/picture.png",
+                "rating": 42,
+                "language": "ru",
+                "timezone": "Europe/Moscow",
+                "lastlogin": "2026-09-30T22:00:00Z",
+                "email": "user@example.com",
+                "phone": "+79991234567",
+                "allprivat": 50,
+                "newprivat": 3
+            }
+        """.trimIndent()
+
+        val user = gson.fromJson(json, UserData::class.java)
+        assertNotNull(user)
+        assertEquals("test_user", user.login)
+        assertEquals("Тестовый Юзер", user.displayName)
+        assertEquals("admin", user.level)
+        assertEquals("#FF5500", user.color)
+        assertEquals("dark", user.themes)
+        assertEquals("ru", user.language)
+        assertEquals("Europe/Moscow", user.timezone)
+        assertEquals("+79991234567", user.phone)
+        assertEquals(1500, user.point)
+        assertEquals(250000L, user.money)
+        assertEquals(42, user.rating)
+        assertEquals(50, user.allPrivat)
+        assertEquals(3, user.newPrivat)
+        assertNotNull(user.lastLogin)
+
+        // Проверяем устойчивость при пустом JSON
+        val emptyUser = gson.fromJson("{}", UserData::class.java)
+        assertNotNull(emptyUser)
+        assertEquals("Пользователь", emptyUser.displayName)
+        assertEquals(0, emptyUser.point)
+        assertEquals(0L, emptyUser.money)
+        assertEquals(0, emptyUser.allPrivat)
+        assertEquals(0, emptyUser.newPrivat)
+        assertNull(emptyUser.color)
+    }
+
+    @Test
     fun testApiErrorResponseValidationArray() {
         val validationJson = """
             {
