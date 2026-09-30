@@ -17,9 +17,15 @@ data class GitHubRelease(
     @SerializedName("published_at") val publishedAt: String? = null,
     @SerializedName("assets") val assets: List<GitHubAsset>? = null
 ) {
+    val apkAsset: GitHubAsset?
+        get() = assets?.firstOrNull { it.name?.endsWith(".apk", ignoreCase = true) == true }
+            ?: assets?.firstOrNull()
+
     val apkDownloadUrl: String?
-        get() = assets?.firstOrNull { it.name?.endsWith(".apk", ignoreCase = true) == true }?.downloadUrl
-            ?: assets?.firstOrNull()?.downloadUrl
+        get() = apkAsset?.downloadUrl
+
+    val apkSize: Long
+        get() = apkAsset?.size ?: 0L
 }
 
 /**

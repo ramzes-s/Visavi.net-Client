@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,9 +29,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.AntifloodManager
@@ -93,7 +96,8 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
-        viewModel.checkAutoUpdateIfWeekPassed(context.applicationContext, versionName)
+        viewModel.updateRemainingCheckTime(context.applicationContext)
+        viewModel.checkAutoUpdateIfDayPassed(context.applicationContext, versionName)
     }
 
     Column(
@@ -684,6 +688,8 @@ fun SettingsScreen(
                 )
 
                 // Обновление приложения
+                val isCheckAvailable = viewModel.remainingCheckSeconds <= 0L && viewModel.updateCheckState !is UpdateCheckState.Checking
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -702,6 +708,14 @@ fun SettingsScreen(
                             fontSize = 12.sp,
                             color = secondaryTextColor
                         )
+                        if (viewModel.remainingCheckSeconds > 0L) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Повторная проверка через ${SettingsViewModel.formatRemainingTime(viewModel.remainingCheckSeconds)}",
+                                fontSize = 11.sp,
+                                color = secondaryTextColor.copy(alpha = 0.75f)
+                            )
+                        }
                     }
 
                     if (viewModel.updateCheckState is UpdateCheckState.Checking) {
@@ -714,12 +728,13 @@ fun SettingsScreen(
                         IconButton(
                             onClick = {
                                 viewModel.checkForUpdates(context.applicationContext, versionName)
-                            }
+                            },
+                            enabled = isCheckAvailable
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Проверить обновление",
-                                tint = currentAccent
+                                tint = if (isCheckAvailable) currentAccent else secondaryTextColor.copy(alpha = 0.3f)
                             )
                         }
                     }
@@ -745,19 +760,50 @@ fun SettingsScreen(
                         )
                     }
                     is UpdateCheckState.UpdateAvailable -> {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        val targetUrl = state.downloadUrl ?: state.releaseUrl
-                        Text(
-                            text = "Скачать ${state.newVersion}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = currentAccent,
-                            textDecoration = TextDecoration.Underline,
-                            modifier = Modifier.clickable {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
-                                context.startActivity(intent)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Доступна версия ${state.newVersion}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = currentAccent
+                                )
+                                if (!state.releaseName.isNullOrBlank() && state.releaseName != state.newVersion) {
+                                    Text(
+                                        text = state.releaseName,
+                                        fontSize = 12.sp,
+                                        color = secondaryTextColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
-                        )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            GlassButton(
+                                onClick = { viewModel.openUpdateDialog() },
+                                accentColor = currentAccent,
+                                isDark = isDark
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Обновить",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
                     }
                     is UpdateCheckState.Throttled -> {
                         Spacer(modifier = Modifier.height(8.dp))

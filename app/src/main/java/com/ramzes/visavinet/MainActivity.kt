@@ -5,6 +5,7 @@ package com.ramzes.visavinet
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -52,6 +53,8 @@ import com.ramzes.visavinet.network.ForumTopic
 import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.service.NewMessagesService
 import com.ramzes.visavinet.ui.components.*
+import com.ramzes.visavinet.UpdateCheckState
+import com.ramzes.visavinet.ui.dialogs.AppUpdateDialog
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.theme.*
 import kotlinx.coroutines.launch
@@ -375,6 +378,10 @@ fun MainNavigation(
 
     LaunchedEffect(Unit) {
         viewModel.checkAutoLogin(context.applicationContext)
+        settingsViewModel.checkAutoUpdateIfDayPassed(
+            context = context.applicationContext,
+            currentVersion = BuildConfig.VERSION_NAME
+        )
     }
 
     LaunchedEffect(intent) {
@@ -1353,6 +1360,42 @@ fun MainNavigation(
                     initialPage = selectedImageIndexForLightbox,
                     onDismiss = { selectedImagesForLightbox = emptyList() }
                 )
+            }
+
+            if (settingsViewModel.showUpdateDialog) {
+                val updateState = settingsViewModel.updateCheckState as? UpdateCheckState.UpdateAvailable
+                if (updateState != null) {
+                    AppUpdateDialog(
+                        updateState = updateState,
+                        downloadState = settingsViewModel.updateDownloadState,
+                        onDownloadClick = {
+                            val url = updateState.downloadUrl
+                            if (!url.isNullOrBlank()) {
+                                settingsViewModel.startDownloadAndInstall(
+                                    context = context.applicationContext,
+                                    downloadUrl = url,
+                                    newVersion = updateState.newVersion
+                                )
+                            } else {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateState.releaseUrl))
+                                context.startActivity(intent)
+                            }
+                        },
+                        onCancelDownloadClick = {
+                            settingsViewModel.cancelDownload()
+                        },
+                        onInstallClick = { apkFile ->
+                            settingsViewModel.installApk(context, apkFile)
+                        },
+                        onOpenBrowserClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateState.releaseUrl))
+                            context.startActivity(intent)
+                        },
+                        onDismiss = {
+                            settingsViewModel.dismissUpdateDialog()
+                        }
+                    )
+                }
             }
         }
     }
