@@ -256,6 +256,34 @@ class NewFeaturesTest {
         assertEquals(listOf("https://example.com/img1.jpg", "https://example.com/img2.png"), allUrls)
     }
 
+    @Test
+    fun testImageLightboxCyclicPagingCalculation() {
+        val images = listOf("img0.jpg", "img1.jpg", "img2.jpg")
+        val size = images.size
+        val loopMultiplier = 1000
+        val safeInitialPage = 0
+        val startPage = (loopMultiplier / 2) * size + safeInitialPage
+
+        fun actualIndex(page: Int): Int = (page % size + size) % size
+
+        // Начальная страница
+        assertEquals(0, actualIndex(startPage))
+        assertEquals("img0.jpg", images[actualIndex(startPage)])
+
+        // Листание вперед: 0 -> 1 -> 2 -> 0 -> 1
+        assertEquals(1, actualIndex(startPage + 1))
+        assertEquals(2, actualIndex(startPage + 2))
+        assertEquals(0, actualIndex(startPage + 3))
+        assertEquals("img0.jpg", images[actualIndex(startPage + 3)])
+        assertEquals(1, actualIndex(startPage + 4))
+
+        // Листание назад: 0 -> 2 -> 1 -> 0
+        assertEquals(2, actualIndex(startPage - 1))
+        assertEquals("img2.jpg", images[actualIndex(startPage - 1)])
+        assertEquals(1, actualIndex(startPage - 2))
+        assertEquals(0, actualIndex(startPage - 3))
+    }
+
     // =========================================================================
     // 5. User Search & New Dialogue Tests
     // =========================================================================

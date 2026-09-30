@@ -254,8 +254,8 @@ class TodayFeaturesAndStatsTest {
 
     @Test
     fun testUpdateCheckThrottleAndFormatting() {
-        // Проверка константы интервала: 7 дней в миллисекундах
-        assertEquals(7L * 24 * 60 * 60 * 1000L, SettingsViewModel.UPDATE_CHECK_INTERVAL_MS)
+        // Проверка константы интервала: 24 часа в миллисекундах
+        assertEquals(24L * 60 * 60 * 1000L, SettingsViewModel.UPDATE_CHECK_INTERVAL_MS)
 
         // Проверка человекопонятного форматирования оставшегося времени
         assertEquals("5 ч. 42 мин.", SettingsViewModel.formatRemainingTime(5 * 3600 + 42 * 60 + 15))
