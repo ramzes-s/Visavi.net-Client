@@ -74,6 +74,20 @@ class GalleryViewModel : ViewModel() {
     var votingPhotoIds by mutableStateOf<Set<Int>>(emptySet())
         private set
 
+    // --- Добавление новой фотографии ---
+    var isUploadingPhoto by mutableStateOf(false)
+        private set
+
+    var uploadPhotoProgress by mutableStateOf<String?>(null)
+        private set
+
+    var uploadPhotoError by mutableStateOf<String?>(null)
+        private set
+
+    fun clearUploadError() {
+        uploadPhotoError = null
+    }
+
     /**
      * Загрузка первой страницы галереи
      */
@@ -347,6 +361,109 @@ class GalleryViewModel : ViewModel() {
                 onError?.invoke("Ошибка сети: ${e.localizedMessage ?: "не удалось отправить голос"}")
             } finally {
                 votingPhotoIds = votingPhotoIds - photoId
+            }
+        }
+    }
+
+    /**
+     * Загрузка и публикация фотографии в галерее
+     */
+    fun uploadPhoto(
+        context: Context,
+        title: String,
+        text: String?,
+        closed: Boolean,
+        imageUris: List<Uri>,
+        onSuccess: (PhotoItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (isUploadingPhoto) return
+        val trimmedTitle = title.trim()
+        if (trimmedTitle.isBlank()) {
+            onError("Введите название фотографии")
+            return
+        }
+        if (imageUris.isEmpty()) {
+            onError("Выберите хотя бы одну фотографию")
+            return
+        }
+
+        viewModelScope.launch {
+            isUploadingPhoto = true
+            uploadPhotoProgress = "Подготовка файлов..."
+            uploadPhotoError = null
+
+            try {
+                // Очистим старые «висящие» вложения type=photos id=0, если такие были с прошлых неудачных попыток
+                try {
+                    val existingFilesResp = VisaviApi.instance.getUserFiles(type = "photos", id = 0)
+                    if (existingFilesResp.isSuccessful) {
+                        val orphanFiles = existingFilesResp.body()?.data ?: emptyList()
+                        for (orphan in orphanFiles) {
+                            VisaviApi.instance.deleteFile(
+                                id = orphan.id,
+                                request = DeleteFileRequest(type = "photos")
+                            )
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Игнорируем ошибку предварительной очистки
+                }
+
+                // Загружаем выбранные файлы по очереди через POST /files
+                val totalFiles = imageUris.size
+                for ((index, uri) in imageUris.withIndex()) {
+                    uploadPhotoProgress = if (totalFiles > 1) {
+                        "Загрузка файла ${index + 1} из $totalFiles..."
+                    } else {
+                        "Загрузка фотографии..."
+                    }
+
+                    val typePart = "photos".toRequestBody("text/plain".toMediaTypeOrNull())
+                    val idPart = "0".toRequestBody("text/plain".toMediaTypeOrNull())
+                    val filePart = FileUtils.uriToMultipartBodyPart(context, uri, partName = "file")
+                        ?: throw IllegalStateException("Не удалось прочитать выбранный файл")
+
+                    val uploadResp = VisaviApi.instance.uploadFile(
+                        type = typePart,
+                        id = idPart,
+                        file = filePart
+                    )
+                    if (!uploadResp.isSuccessful) {
+                        val errorMsg = uploadResp.extractErrorMessage("Ошибка загрузки файла на сервер")
+                        throw IllegalStateException(errorMsg)
+                    }
+                }
+
+                // Создаем запись фотографии в галерее через POST /photos
+                uploadPhotoProgress = "Публикация в галерее..."
+                val createRequest = CreatePhotoRequest(
+                    title = trimmedTitle,
+                    text = text?.trim()?.ifBlank { null },
+                    closed = closed
+                )
+
+                val createResp = VisaviApi.instance.createPhoto(createRequest)
+                if (createResp.isSuccessful) {
+                    val createdPhoto = createResp.body()?.photo
+                    loadPhotosList(context, refresh = true)
+                    uploadPhotoProgress = null
+                    if (createdPhoto != null) {
+                        onSuccess(createdPhoto)
+                    } else {
+                        onSuccess(PhotoItem(id = 0, title = trimmedTitle))
+                    }
+                } else {
+                    val errorMsg = createResp.extractErrorMessage("Ошибка публикации в галерее")
+                    throw IllegalStateException(errorMsg)
+                }
+            } catch (e: Exception) {
+                val msg = e.localizedMessage ?: "Не удалось опубликовать фотографию"
+                uploadPhotoError = msg
+                onError(msg)
+            } finally {
+                isUploadingPhoto = false
+                uploadPhotoProgress = null
             }
         }
     }

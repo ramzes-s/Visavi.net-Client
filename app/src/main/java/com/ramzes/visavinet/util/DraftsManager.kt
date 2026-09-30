@@ -32,6 +32,8 @@ object DraftsManager {
     fun forumCreateTopicKey(forumId: Int): String = "forum_create_topic_$forumId"
     fun newsCommentKey(newsId: Int): String = "news_comment_$newsId"
     fun galleryCommentKey(photoId: Int): String = "gallery_comment_$photoId"
+    fun galleryUploadTitleKey(): String = "gallery_upload_title"
+    fun galleryUploadTextKey(): String = "gallery_upload_text"
     fun downCommentKey(downId: Int): String = "down_comment_$downId"
     fun dialogueKey(dialogueKey: String): String = "dialogue_$dialogueKey"
 }

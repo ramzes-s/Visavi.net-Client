@@ -989,6 +989,7 @@ fun MainNavigation(
                                     } else {
                                         GalleryScreen(
                                             viewModel = galleryViewModel,
+                                            isAuthorized = viewModel.currentUser != null,
                                             onPhotoClick = { photoItem ->
                                                 selectedPhoto = photoItem
                                                 showGalleryDetailScreen = true

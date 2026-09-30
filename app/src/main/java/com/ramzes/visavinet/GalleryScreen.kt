@@ -13,10 +13,13 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Videocam
+import com.ramzes.visavinet.ui.dialogs.UploadPhotoDialog
+import com.ramzes.visavinet.util.DraftsManager
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +50,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @Composable
 fun GalleryScreen(
     viewModel: GalleryViewModel,
+    isAuthorized: Boolean = false,
     onPhotoClick: (PhotoItem) -> Unit,
     onUserClick: (String) -> Unit = {}
 ) {
@@ -54,6 +58,7 @@ fun GalleryScreen(
     val isDark = isDarkTheme()
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
+    var showUploadDialog by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = viewModel.scrollItemIndex,
         initialFirstVisibleItemScrollOffset = viewModel.scrollOffset
@@ -203,6 +208,52 @@ fun GalleryScreen(
                 }
             }
         }
+
+        if (isAuthorized) {
+            FloatingActionButton(
+                onClick = {
+                    viewModel.clearUploadError()
+                    showUploadDialog = true
+                },
+                shape = CircleShape,
+                containerColor = getPrimaryAccentColor(),
+                contentColor = if (isDark) Color.Black else Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Добавить фото")
+            }
+        }
+    }
+
+    if (showUploadDialog) {
+        UploadPhotoDialog(
+            onDismiss = {
+                viewModel.clearUploadError()
+                showUploadDialog = false
+            },
+            onSubmit = { title, text, closed, imageUris ->
+                viewModel.uploadPhoto(
+                    context = context.applicationContext,
+                    title = title,
+                    text = text,
+                    closed = closed,
+                    imageUris = imageUris,
+                    onSuccess = {
+                        DraftsManager.clearDraft(context, DraftsManager.galleryUploadTitleKey())
+                        DraftsManager.clearDraft(context, DraftsManager.galleryUploadTextKey())
+                        showUploadDialog = false
+                    },
+                    onError = {
+                        // Сообщение сохраняется в viewModel.uploadPhotoError
+                    }
+                )
+            },
+            isSubmitting = viewModel.isUploadingPhoto,
+            progressText = viewModel.uploadPhotoProgress,
+            errorMessage = viewModel.uploadPhotoError
+        )
     }
 }
 

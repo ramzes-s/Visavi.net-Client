@@ -662,6 +662,34 @@ data class PhotoDetailResponse(
     @SerializedName("comments") val comments: NewsCommentsWrapper? = null
 )
 
+data class CreatePhotoRequest(
+    @SerializedName("title") val title: String,
+    @SerializedName("text") val text: String? = null,
+    @SerializedName("closed") val closed: Boolean = false
+)
+
+data class CreatePhotoResponse(
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("photo") val photo: PhotoItem? = null
+)
+
+data class UploadFileResponse(
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("file") val file: FileData? = null
+)
+
+data class UserFilesResponse(
+    @SerializedName("data") val data: List<FileData>? = null
+)
+
+data class DeleteFileRequest(
+    @SerializedName("type") val type: String
+)
+
+data class DeleteFileResponse(
+    @SerializedName("message") val message: String? = null
+)
+
 data class CategoryItem(
     @SerializedName("id") val id: Int = 0,
     @SerializedName("parent_id") val parentId: Int? = null,
@@ -1082,6 +1110,31 @@ interface VisaviApiService {
         @Query("per_page") perPage: Int = 20,
         @Query("order") order: String = "asc"
     ): Response<PhotoDetailResponse>
+
+    @POST("api/photos")
+    suspend fun createPhoto(
+        @Body request: CreatePhotoRequest
+    ): Response<CreatePhotoResponse>
+
+    @Multipart
+    @POST("api/files")
+    suspend fun uploadFile(
+        @Part("type") type: okhttp3.RequestBody,
+        @Part("id") id: okhttp3.RequestBody,
+        @Part file: MultipartBody.Part
+    ): Response<UploadFileResponse>
+
+    @GET("api/files")
+    suspend fun getUserFiles(
+        @Query("type") type: String,
+        @Query("id") id: Int = 0
+    ): Response<UserFilesResponse>
+
+    @HTTP(method = "DELETE", path = "api/files/{id}", hasBody = true)
+    suspend fun deleteFile(
+        @Path("id") id: Int,
+        @Body request: DeleteFileRequest
+    ): Response<DeleteFileResponse>
 
     @GET("api/loads")
     suspend fun getLoadCategories(): Response<LoadsCategoriesResponse>
