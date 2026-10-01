@@ -648,18 +648,6 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
-                        label = { Text(text = "ЛЕНТА", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
-                        selected = currentScreen == Screen.Feed,
-                        shape = RectangleShape,
-                        modifier = Modifier.fillMaxWidth().height(itemHeight),
-                        onClick = {
-                            navigateTo(Screen.Feed)
-                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
-                        },
-                        colors = itemColors
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    NavigationDrawerItem(
                         label = {
                             DrawerItemLabel(
                                 title = "ДИАЛОГИ",
@@ -673,6 +661,18 @@ fun MainNavigation(
                         onClick = {
                             navigateTo(Screen.Private)
                             dialoguesViewModel.resetNewMessagesCount()
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
+                        label = { Text(text = "ЛЕНТА", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Feed,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            navigateTo(Screen.Feed)
                             if (!showPermanentDrawer) scope.launch { drawerState.close() }
                         },
                         colors = itemColors
