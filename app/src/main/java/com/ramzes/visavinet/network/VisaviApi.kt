@@ -1191,6 +1191,7 @@ interface VisaviApiService {
 object VisaviApi {
     const val BASE_HOST = "visavi.net"
     const val BASE_URL = "https://$BASE_HOST/"
+    val USER_AGENT = "VisaviClient/${com.ramzes.visavinet.BuildConfig.VERSION_NAME}"
 
     private var apiToken: String? = null
 
@@ -1217,7 +1218,7 @@ object VisaviApi {
             val original = chain.request()
             val requestBuilder = original.newBuilder()
                 .header("Accept", "application/json")
-                .header("User-Agent", "VisaviClient")
+                .header("User-Agent", USER_AGENT)
 
             apiToken?.let { token ->
                 requestBuilder.header("Authorization", "Bearer $token")

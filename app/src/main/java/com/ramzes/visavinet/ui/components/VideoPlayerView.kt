@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ramzes.visavinet.network.VisaviApi
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -49,7 +50,7 @@ fun createConfiguredExoPlayer(context: Context): ExoPlayer {
         .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
 
     val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-        .setUserAgent("VisaviClient/1.0 (Android)")
+        .setUserAgent("${VisaviApi.USER_AGENT} (Android)")
         .setAllowCrossProtocolRedirects(true)
         .setConnectTimeoutMs(15_000)
         .setReadTimeoutMs(15_000)

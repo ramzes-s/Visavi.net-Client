@@ -24,7 +24,7 @@ class VisaviApp : Application(), ImageLoaderFactory {
             .addInterceptor { chain ->
                 val original = chain.request()
                 val requestBuilder = original.newBuilder()
-                    .header("User-Agent", "VisaviClient")
+                    .header("User-Agent", VisaviApi.USER_AGENT)
 
                 VisaviApi.getToken()?.let { token ->
                     requestBuilder.header("Authorization", "Bearer $token")

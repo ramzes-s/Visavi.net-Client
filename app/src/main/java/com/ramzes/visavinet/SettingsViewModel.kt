@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.ramzes.visavinet.network.GitHubRelease
+import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.isNewerVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -155,7 +156,7 @@ class SettingsViewModel : ViewModel() {
 
                     val request = Request.Builder()
                         .url("https://api.github.com/repos/ramzes-s/Visavi.net-Client/releases/latest")
-                        .header("User-Agent", "VisaviClient")
+                        .header("User-Agent", VisaviApi.USER_AGENT)
                         .header("Accept", "application/vnd.github.v3+json")
                         .build()
 
@@ -251,7 +252,7 @@ class SettingsViewModel : ViewModel() {
 
                 val request = Request.Builder()
                     .url(downloadUrl)
-                    .header("User-Agent", "VisaviClient")
+                    .header("User-Agent", VisaviApi.USER_AGENT)
                     .header("Accept", "application/octet-stream")
                     .build()
 

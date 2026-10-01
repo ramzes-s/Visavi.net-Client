@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
+import com.ramzes.visavinet.network.VisaviApi
 
 object DownloaderHelper {
 
@@ -42,8 +43,8 @@ object DownloaderHelper {
                 setDescription("Загрузка с Visavi.net")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, effectiveFileName)
-                addRequestHeader("User-Agent", "VisaviClient")
-                com.ramzes.visavinet.network.VisaviApi.getToken()?.let { token ->
+                addRequestHeader("User-Agent", VisaviApi.USER_AGENT)
+                VisaviApi.getToken()?.let { token ->
                     addRequestHeader("Authorization", "Bearer $token")
                 }
                 if (!mimeType.isNullOrBlank()) {
