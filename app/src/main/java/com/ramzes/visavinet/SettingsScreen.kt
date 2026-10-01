@@ -1150,7 +1150,7 @@ fun SettingsScreen(
 
                     GlassButton(
                         onClick = { showLogoutDialog = true },
-                        accentColor = Color(0xFFE53935),
+                        accentColor = currentAccent,
                         isDark = isDark
                     ) {
                         Icon(
@@ -1249,7 +1249,7 @@ fun SettingsScreen(
                         onLogout?.invoke()
                     }
                 ) {
-                    Text("Выйти", color = Color(0xFFE53935), fontWeight = FontWeight.Bold)
+                    Text("Выйти", color = currentAccent, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
