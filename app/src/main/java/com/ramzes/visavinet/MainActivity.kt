@@ -1100,13 +1100,13 @@ fun MainNavigation(
                                             onNewsClick = onOpenNews,
                                             onDownClick = onOpenDown,
                                             onPhotoClick = onOpenPhoto,
-                                            onSendMessage = { text, files ->
+                                            onSendMessage = { text, files, onSuccess ->
                                                 dialoguesViewModel.sendMessage(
                                                     context = context.applicationContext,
                                                     text = text,
                                                     fileUris = files,
                                                     userRating = viewModel.currentUser?.rating ?: 0,
-                                                    onSuccess = { },
+                                                    onSuccess = onSuccess,
                                                     onError = { error ->
                                                         dialoguesViewModel.sendErrorMessage = error
                                                     }

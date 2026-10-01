@@ -4,12 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.view.inputmethod.InputMethodManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +17,6 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,8 +34,8 @@ import coil.request.ImageRequest
 import com.ramzes.visavinet.network.DialogueData
 import com.ramzes.visavinet.network.FileData
 import com.ramzes.visavinet.network.MessageData
+import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
-import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.theme.*
@@ -63,7 +60,7 @@ fun MessagesScreen(
     onLoadMore: () -> Unit,
     onBackClick: () -> Unit = {},
     onUserClick: (String) -> Unit = {},
-    onSendMessage: (text: String, files: List<Uri>) -> Unit = { _, _ -> },
+    onSendMessage: (text: String, files: List<Uri>, onSuccess: () -> Unit) -> Unit = { _, _, _ -> },
     isSendingMessage: Boolean = false,
     sendErrorMessage: String? = null,
     onClearError: () -> Unit = {},
@@ -92,14 +89,6 @@ fun MessagesScreen(
     val primaryAccent = getPrimaryAccentColor()
 
     val canReply = dialogue.canReply != false
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            selectedFiles = selectedFiles + uris
-        }
-    }
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull()?.index }
@@ -246,110 +235,38 @@ fun MessagesScreen(
         }
 
         if (canReply) {
-            Column(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                color = Color.Transparent
             ) {
-                if (selectedFiles.isNotEmpty()) {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 6.dp)
-                    ) {
-                        items(selectedFiles) { uri ->
-                            AssistChip(
-                                onClick = { selectedFiles = selectedFiles - uri },
-                                label = { Text("Файл", fontSize = 11.sp) },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Удалить",
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Row(
+                GlassButton(
+                    onClick = { showFullscreenInput = true },
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    isDark = isDark,
+                    accentColor = primaryAccent
                 ) {
-                    IconButton(
-                        onClick = { filePickerLauncher.launch("*/*") },
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AttachFile,
-                            contentDescription = "Прикрепить файл",
-                            tint = primaryAccent
-                        )
-                    }
-
-                    val isTextValid = messageText.trim().length in textMin..textMax
-
-                    GlassTextField(
-                        value = messageText,
-                        onValueChange = {
-                            if (it.length <= textMax) {
-                                messageText = it
-                                com.ramzes.visavinet.util.DraftsManager.saveDraft(context, draftKey, it)
-                            }
-                        },
-                        placeholderText = "Сообщение...",
-                        isDark = isDark,
-                        modifier = Modifier.weight(1f),
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Fullscreen,
-                                contentDescription = "Развернуть",
-                                tint = primaryAccent,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clickable { showFullscreenInput = true }
-                            )
-                        }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
                     )
-
-                    IconButton(
-                        onClick = {
-                            if (isTextValid && !isSendingMessage) {
-                                val formatted = com.ramzes.visavinet.util.ensureParagraphTags(messageText)
-                                onSendMessage(formatted, selectedFiles)
-                                messageText = ""
-                                com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
-                                selectedFiles = emptyList()
-                                hideKeyboard()
-                            }
-                        },
-                        enabled = isTextValid && !isSendingMessage,
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        if (isSendingMessage) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = primaryAccent,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Отправить",
-                                tint = if (isTextValid && !isSendingMessage) primaryAccent else primaryAccent.copy(alpha = 0.35f)
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (messageText.isNotBlank()) "Написать сообщение (черновик)" else "Написать сообщение",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
     }
 
     if (showFullscreenInput) {
-        val dialogueName = dialogue.name?.ifBlank { null } ?: dialogue.login ?: ""
+        val dialogueName = dialogue.name?.ifBlank { null } ?: dialogue.login ?: "Диалог"
         FullscreenInputModal(
             text = messageText,
             onTextChanged = {
@@ -358,14 +275,19 @@ fun MessagesScreen(
             },
             selectedFiles = selectedFiles,
             onFilesChanged = { selectedFiles = it },
+            textMin = textMin,
+            textMax = textMax,
             onSend = {
-                if (messageText.isNotBlank() && !isSendingMessage) {
-                    onSendMessage(messageText, selectedFiles)
-                    messageText = ""
-                    com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
-                    selectedFiles = emptyList()
-                    showFullscreenInput = false
-                    hideKeyboard()
+                val isMessageValid = messageText.trim().length in textMin..textMax
+                if (isMessageValid && !isSendingMessage) {
+                    val formatted = com.ramzes.visavinet.util.ensureParagraphTags(messageText.trim())
+                    onSendMessage(formatted, selectedFiles) {
+                        messageText = ""
+                        com.ramzes.visavinet.util.DraftsManager.clearDraft(context, draftKey)
+                        selectedFiles = emptyList()
+                        showFullscreenInput = false
+                        hideKeyboard()
+                    }
                 }
             },
             onDismiss = { showFullscreenInput = false },
@@ -386,6 +308,7 @@ fun MessagesScreen(
 
     sendErrorMessage?.let { error ->
         LaunchedEffect(error) {
+            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
             delay(3000)
             onClearError()
         }
