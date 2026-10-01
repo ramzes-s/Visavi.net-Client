@@ -146,4 +146,45 @@ class FormatAndUtilityTest {
         assertEquals("Темно-серый", darkGray?.name)
         assertEquals(com.ramzes.visavinet.ui.theme.DarkGrayAccent, darkGray?.color)
     }
+
+    @Test
+    fun testStripMarkdownRemovesFormatting() {
+        val input = """
+            ## 🚀 Релиз 1.2.0
+            ### Список изменений:
+            - **Новая функция**: добавлены крутые фичи
+              - Подробность в коде `version_code` и `versionName`
+            * *Курсивный пункт* с [ссылкой](https://github.com)
+            + Обычный пункт
+
+            > Важное замечание
+            ---
+            **Full Changelog**: https://github.com/ramzes-s/Visavi.net-Client/compare/v1.0...v1.2
+        """.trimIndent()
+
+        val cleaned = com.ramzes.visavinet.ui.dialogs.stripMarkdown(input)
+
+        assertFalse("Не должно быть заголовков ##", cleaned.contains("##"))
+        assertFalse("Не должно быть заголовков ###", cleaned.contains("###"))
+        assertFalse("Не должно быть двойных звездочек", cleaned.contains("**"))
+        assertFalse("Не должно быть одинарных звездочек", cleaned.contains("*"))
+        assertFalse("Не должно быть обратных кавычек", cleaned.contains("`"))
+        assertFalse("Не должно быть markdown ссылок [..](..)", cleaned.contains("[ссылкой]"))
+        assertFalse("Не должно быть цитаты >", cleaned.startsWith(">") || cleaned.contains("\n>"))
+        assertFalse("Не должно быть разделителя ---", cleaned.contains("---"))
+
+        assertTrue("Должен остаться заголовок с эмодзи", cleaned.contains("🚀 Релиз 1.2.0"))
+        assertTrue("Должен быть маркер списка •", cleaned.contains("• Новая функция: добавлены крутые фичи"))
+        assertTrue("Должен быть вложенный маркер списка", cleaned.contains("  • Подробность в коде version_code и versionName"))
+        assertTrue("Должен остаться текст ссылки", cleaned.contains("ссылкой"))
+        assertTrue("Должна остаться ссылка на changelog", cleaned.contains("Full Changelog: https://github.com/ramzes-s/Visavi.net-Client/compare/v1.0...v1.2"))
+    }
+
+    @Test
+    fun testStripMarkdownEmptyAndNull() {
+        assertEquals("", com.ramzes.visavinet.ui.dialogs.stripMarkdown(null))
+        assertEquals("", com.ramzes.visavinet.ui.dialogs.stripMarkdown(""))
+        assertEquals("", com.ramzes.visavinet.ui.dialogs.stripMarkdown("    \n\n  "))
+    }
 }
+

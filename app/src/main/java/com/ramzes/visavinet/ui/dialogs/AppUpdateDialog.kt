@@ -189,8 +189,8 @@ fun AppUpdateDialog(
                     }
 
                     // Список изменений (если есть)
-                    val notes = updateState.releaseNotes?.trim()
-                    if (!notes.isNullOrBlank()) {
+                    val notes = stripMarkdown(updateState.releaseNotes)
+                    if (notes.isNotBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Что нового:",
@@ -208,7 +208,7 @@ fun AppUpdateDialog(
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 140.dp)
+                                .heightIn(max = 210.dp)
                         ) {
                             Column(
                                 modifier = Modifier
@@ -508,4 +508,81 @@ private fun formatBytes(bytes: Long): String {
         val kb = bytes / 1024.0
         String.format(Locale.US, "%.1f КБ", kb)
     }
+}
+
+/**
+ * Очищает текст от символов и тегов Markdown / HTML, возвращая чистый читаемый текст.
+ */
+fun stripMarkdown(markdown: String?): String {
+    if (markdown.isNullOrBlank()) return ""
+
+    var result = markdown.replace("\r\n", "\n").replace('\r', '\n')
+
+    // Удаление HTML-комментариев <!-- ... -->
+    result = result.replace(Regex("<!--[\\s\\S]*?-->"), "")
+
+    // Обработка переносов строк HTML и удаление остальных HTML-тегов
+    result = result.replace(Regex("(?i)<br\\s*/?>"), "\n")
+    result = result.replace(Regex("(?i)</p>"), "\n\n")
+    result = result.replace(Regex("<[^>]+>"), "")
+
+    // HTML-сущности
+    result = result
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+
+    // Блоки кода ```code``` -> оставляем только содержимое
+    result = result.replace(Regex("```[^\n]*\n([\\s\\S]*?)```"), "$1")
+    result = result.replace(Regex("```([\\s\\S]*?)```"), "$1")
+
+    // Встроенный код `code` -> code
+    result = result.replace(Regex("`([^`\n]+)`"), "$1")
+
+    // Изображения ![alt](url) -> alt
+    result = result.replace(Regex("!\\[([^\\]]*)\\]\\([^)]*\\)"), "$1")
+
+    // Ссылки в формате [текст](url) -> текст
+    result = result.replace(Regex("\\[([^\\]]+)\\]\\([^)]+\\)"), "$1")
+    // Авто-ссылки <https://...> -> https://...
+    result = result.replace(Regex("<(https?://[^>]+)>"), "$1")
+
+    // Заголовки: # Заголовок -> Заголовок
+    result = result.replace(Regex("(?m)^[ \\t]*#{1,6}[ \\t]+(.*?)(?:[ \\t]*#+)?$"), "$1")
+
+    // Цитаты: > цитата -> цитата
+    result = result.replace(Regex("(?m)^[ \\t]*>[ \\t]?"), "")
+
+    // Горизонтальные разделители: ---, ***, ___
+    result = result.replace(Regex("(?m)^[ \\t]*([-*_]){3,}[ \\t]*$"), "")
+
+    // Чекбоксы списков задач: [ ] -> ☐, [x] -> ☑
+    result = result.replace(Regex("(?i)\\[ \\] "), "☐ ").replace(Regex("(?i)\\[x\\] "), "☑ ")
+
+    // Маркеры списков: *, +, - в начале строки -> аккуратный маркер •
+    result = result.replace(Regex("(?m)^([ \\t]*)[*+-][ \\t]+"), "$1• ")
+
+    // Полужирный и курсив:
+    // ***текст*** или ___текст___
+    result = result.replace(Regex("\\*\\*\\*(.*?)\\*\\*\\*"), "$1")
+    result = result.replace(Regex("___(.*?)___"), "$1")
+    // **текст** или __текст__
+    result = result.replace(Regex("\\*\\*(.*?)\\*\\*"), "$1")
+    result = result.replace(Regex("__(.*?)__"), "$1")
+    // *текст*
+    result = result.replace(Regex("(?<!\\*)\\*(?!\\s)(.*?)(?<!\\s)\\*(?!\\*)"), "$1")
+    // _текст_ (не затрагивая snake_case внутри слов)
+    result = result.replace(Regex("(?<=^|\\s|[\"'(])_(?!\\s)(.*?)(?<!\\s)_(?=$|\\s|[\"')!?,.:;])"), "$1")
+
+    // Зачёркнутый текст ~~текст~~
+    result = result.replace(Regex("~~(.*?)~~"), "$1")
+
+    // Удаление концевых пробелов и избыточных пустых строк
+    result = result.lines().joinToString("\n") { it.trimEnd() }
+    result = result.replace(Regex("\n{3,}"), "\n\n")
+
+    return result.trim()
 }
