@@ -23,7 +23,7 @@ val PrimaryBlue = Color(0xFF2563EB)        // Королевский синий
 val DarkNavyBlue = Color(0xFF1E3A8A)       // Глубокий тёмно-синий
 val BlueGlow = Color(0xFF3B82F6)           // Синее свечение
 
-// 14 Вариантов пользовательского акцентного цвета (Primary Accent)
+// 16 Вариантов пользовательского акцентного цвета (Primary Accent)
 val FieryRed = Color(0xFFEF4444)           // 1. Огненно-красный
 val RubyCrimson = Color(0xFFE11D48)        // 2. Малиновый
 val NeonPink = Color(0xFFFF2A85)           // 3. Неоново-розовый
@@ -38,6 +38,8 @@ val LimeNeon = Color(0xFF84CC16)           // 11. Салатовый
 val SunYellow = Color(0xFFFACC15)          // 12. Солнечно-желтый
 val AmberGold = Color(0xFFF59E0B)          // 13. Янтарный
 val VibrantOrange = Color(0xFFFF5C00)      // 14. Насыщенный оранжевый
+val LightGrayAccent = Color(0xFF94A3B8)    // 15. Светло-серый
+val DarkGrayAccent = Color(0xFF475569)     // 16. Темно-серый
 
 data class AccentThemeColor(
     val id: Int,
@@ -59,7 +61,9 @@ val AvailableAccentColors = listOf(
     AccentThemeColor(10, "Салатовый", LimeNeon),
     AccentThemeColor(11, "Желтый", SunYellow),
     AccentThemeColor(12, "Янтарный", AmberGold),
-    AccentThemeColor(13, "Оранжевый", VibrantOrange)
+    AccentThemeColor(13, "Оранжевый", VibrantOrange),
+    AccentThemeColor(14, "Светло-серый", LightGrayAccent),
+    AccentThemeColor(15, "Темно-серый", DarkGrayAccent)
 )
 
 // Стеклянные подложки (Строгие без лишних цветных пятен)

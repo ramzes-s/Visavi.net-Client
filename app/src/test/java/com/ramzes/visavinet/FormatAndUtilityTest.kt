@@ -129,4 +129,21 @@ class FormatAndUtilityTest {
         assertFalse(voteOwn.canVote)
         assertFalse(voteOwn.hasVoted)
     }
+
+    @Test
+    fun testAvailableAccentColorsContainsGrayShades() {
+        assertEquals(16, com.ramzes.visavinet.ui.theme.AvailableAccentColors.size)
+        val ids = com.ramzes.visavinet.ui.theme.AvailableAccentColors.map { it.id }
+        assertEquals((0..15).toList(), ids)
+
+        val lightGray = com.ramzes.visavinet.ui.theme.AvailableAccentColors.find { it.id == 14 }
+        assertNotNull(lightGray)
+        assertEquals("Светло-серый", lightGray?.name)
+        assertEquals(com.ramzes.visavinet.ui.theme.LightGrayAccent, lightGray?.color)
+
+        val darkGray = com.ramzes.visavinet.ui.theme.AvailableAccentColors.find { it.id == 15 }
+        assertNotNull(darkGray)
+        assertEquals("Темно-серый", darkGray?.name)
+        assertEquals(com.ramzes.visavinet.ui.theme.DarkGrayAccent, darkGray?.color)
+    }
 }

@@ -244,13 +244,13 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Ряд 1 (варианты 0-6)
+                // Ряд 1 (варианты 0-7)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AvailableAccentColors.take(7).forEach { accentTheme ->
+                    AvailableAccentColors.take(8).forEach { accentTheme ->
                         val isSelected = accentTheme.color == currentAccent
                         Box(
                             modifier = Modifier
@@ -273,13 +273,13 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Ряд 2 (варианты 7-13)
+                // Ряд 2 (варианты 8-15)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AvailableAccentColors.drop(7).forEach { accentTheme ->
+                    AvailableAccentColors.drop(8).forEach { accentTheme ->
                         val isSelected = accentTheme.color == currentAccent
                         Box(
                             modifier = Modifier
