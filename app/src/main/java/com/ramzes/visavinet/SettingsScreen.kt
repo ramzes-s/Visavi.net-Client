@@ -42,6 +42,7 @@ import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.AntifloodManager
 import com.ramzes.visavinet.util.SleepModeHelper
 import com.ramzes.visavinet.util.TextRenderPrefs
+import kotlinx.coroutines.delay
 import java.io.File
 
 @Composable
@@ -52,7 +53,8 @@ fun SettingsScreen(
     onForumSortByNewestChange: ((Boolean) -> Unit)? = null,
     onLogout: (() -> Unit)? = null,
     isTabletMode: Boolean = false,
-    userRating: Int = 0
+    userRating: Int = 0,
+    currentUserLogin: String? = null
 ) {
     val context = LocalContext.current
     val isDark = isDarkTheme()
@@ -99,6 +101,15 @@ fun SettingsScreen(
     var pinFirstTopicPost by remember { mutableStateOf(prefs.getBoolean("pin_first_topic_post", false)) }
     var notifySiteUpdates by remember { mutableStateOf(prefs.getBoolean("notify_site_updates", false)) }
     var statsCheckEnabled by remember { mutableStateOf(prefs.getBoolean("stats_check_enabled", true)) }
+    var lastStatsCheckTime by remember {
+        mutableLongStateOf(prefs.getLong("last_stats_check_time", 0L))
+    }
+    var lastStatsResponseCode by remember {
+        mutableIntStateOf(prefs.getInt("last_stats_response_code", 200))
+    }
+    var currentTimeMillis by remember {
+        mutableLongStateOf(System.currentTimeMillis())
+    }
     var ignoreColoredText by remember { mutableStateOf(prefs.getBoolean("ignore_colored_text", false)) }
     var messagesCheckIntervalMs by remember {
         mutableLongStateOf(prefs.getLong("messages_check_interval_ms", 30_000L))
@@ -125,6 +136,21 @@ fun SettingsScreen(
     LaunchedEffect(Unit) {
         viewModel.updateRemainingCheckTime(context.applicationContext)
         viewModel.checkAutoUpdateIfDayPassed(context.applicationContext, versionName)
+        if (prefs.getLong("last_stats_check_time", 0L) <= 0L && com.ramzes.visavinet.service.NewMessagesService.siteStats.value != null) {
+            val now = System.currentTimeMillis()
+            prefs.edit()
+                .putLong("last_stats_check_time", now)
+                .putInt("last_stats_response_code", 200)
+                .apply()
+            lastStatsCheckTime = now
+            lastStatsResponseCode = 200
+        }
+        while (true) {
+            currentTimeMillis = System.currentTimeMillis()
+            lastStatsCheckTime = prefs.getLong("last_stats_check_time", 0L)
+            lastStatsResponseCode = prefs.getInt("last_stats_response_code", 200)
+            delay(10_000L)
+        }
     }
 
     Column(
@@ -648,11 +674,11 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (statsCheckEnabled) {
-                                "Счётчики разделов и уведомления об обновлениях, раз в 5 минут"
-                            } else {
-                                "Выключено. Счётчики обновятся при открытии приложения"
-                            },
+                            text = formatStatsSubtitle(
+                                lastTime = lastStatsCheckTime,
+                                code = lastStatsResponseCode,
+                                currentTime = currentTimeMillis
+                            ),
                             fontSize = 12.sp,
                             color = secondaryTextColor
                         )
@@ -1140,7 +1166,11 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Выход из аккаунта на этом устройстве",
+                            text = if (!currentUserLogin.isNullOrBlank()) {
+                                "Вы вошли как $currentUserLogin"
+                            } else {
+                                "Выход из аккаунта на этом устройстве"
+                            },
                             fontSize = 12.sp,
                             color = secondaryTextColor
                         )
@@ -1325,4 +1355,66 @@ private fun formatCacheSize(size: Long): String {
         size < 1024 * 1024 * 1024 -> "${size / (1024 * 1024)} МБ"
         else -> "${size / (1024 * 1024 * 1024)} ГБ"
     }
+}
+
+/**
+ * Форматирует прошедшее время на естественном русском языке:
+ * "только что", "1 минуту назад", "3 минуты назад", "5 минут назад", "2 часа назад", "1 день назад" и т.д.
+ */
+fun formatStatsElapsedTime(elapsedMillis: Long): String {
+    if (elapsedMillis < 0L) return "только что"
+    val seconds = elapsedMillis / 1000L
+    if (seconds < 60L) return "только что"
+
+    val minutes = (seconds / 60L).toInt()
+    if (minutes < 60) {
+        val mod10 = minutes % 10
+        val mod100 = minutes % 100
+        val suffix = when {
+            mod10 == 1 && mod100 != 11 -> "минуту назад"
+            mod10 in 2..4 && mod100 !in 12..14 -> "минуты назад"
+            else -> "минут назад"
+        }
+        return "$minutes $suffix"
+    }
+
+    val hours = minutes / 60
+    if (hours < 24) {
+        val mod10 = hours % 10
+        val mod100 = hours % 100
+        val suffix = when {
+            mod10 == 1 && mod100 != 11 -> "час назад"
+            mod10 in 2..4 && mod100 !in 12..14 -> "часа назад"
+            else -> "часов назад"
+        }
+        return "$hours $suffix"
+    }
+
+    val days = hours / 24
+    val mod10 = days % 10
+    val mod100 = days % 100
+    val suffix = when {
+        mod10 == 1 && mod100 != 11 -> "день назад"
+        mod10 in 2..4 && mod100 !in 12..14 -> "дня назад"
+        else -> "дней назад"
+    }
+    return "$days $suffix"
+}
+
+/**
+ * Формирует строку описания статуса проверки статистики:
+ * "Последнее обновление: 3 минуты назад • 200"
+ */
+fun formatStatsSubtitle(
+    lastTime: Long,
+    code: Int,
+    currentTime: Long = System.currentTimeMillis()
+): String {
+    if (lastTime <= 0L) {
+        return "Последнее обновление: ещё не выполнялось"
+    }
+    val elapsed = (currentTime - lastTime).coerceAtLeast(0L)
+    val timeText = formatStatsElapsedTime(elapsed)
+    val codeText = if (code > 0) code.toString() else "ошибка"
+    return "Последнее обновление: $timeText • $codeText"
 }

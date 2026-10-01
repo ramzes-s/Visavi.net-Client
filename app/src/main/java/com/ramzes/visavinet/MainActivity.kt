@@ -1279,7 +1279,8 @@ fun MainNavigation(
                                         currentScreen = getStartScreen()
                                     },
                                     isTabletMode = isTabletMode,
-                                    userRating = viewModel.currentUser?.rating ?: 0
+                                    userRating = viewModel.currentUser?.rating ?: 0,
+                                    currentUserLogin = viewModel.currentUser?.login
                                 )
                             }
                         }

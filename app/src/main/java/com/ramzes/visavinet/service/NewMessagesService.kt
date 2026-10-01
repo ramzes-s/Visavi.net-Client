@@ -375,6 +375,11 @@ class NewMessagesService : Service() {
                     if (statsEnabled && now - lastStatsCheckTime >= 5 * 60 * 1000L) {
                         try {
                             val statsResponse = VisaviApi.instance.getStats()
+                            val code = statsResponse.code()
+                            prefs.edit()
+                                .putLong("last_stats_check_time", now)
+                                .putInt("last_stats_response_code", code)
+                                .apply()
                             if (statsResponse.isSuccessful && statsResponse.body() != null) {
                                 val stats = statsResponse.body()!!
                                 // Единственный источник stats для UI (бейджи разделов в меню)
@@ -387,6 +392,10 @@ class NewMessagesService : Service() {
                             }
                         } catch (e: Exception) {
                             android.util.Log.e(TAG, "Ошибка проверки stats: ${e.message}")
+                            prefs.edit()
+                                .putLong("last_stats_check_time", now)
+                                .putInt("last_stats_response_code", 0)
+                                .apply()
                         }
                     }
                 }

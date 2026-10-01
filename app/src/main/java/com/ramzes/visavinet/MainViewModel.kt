@@ -233,13 +233,23 @@ class MainViewModel : ViewModel() {
      */
     fun fetchStats(context: Context) {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
             try {
                 val response = VisaviApi.instance.getStats()
+                val code = response.code()
+                prefs.edit()
+                    .putLong("last_stats_check_time", now)
+                    .putInt("last_stats_response_code", code)
+                    .apply()
                 if (response.isSuccessful && response.body() != null) {
                     siteStats = response.body()!!
                 }
             } catch (e: Exception) {
-                // Игнорируем сетевые ошибки периодического опроса
+                prefs.edit()
+                    .putLong("last_stats_check_time", now)
+                    .putInt("last_stats_response_code", 0)
+                    .apply()
             }
         }
     }

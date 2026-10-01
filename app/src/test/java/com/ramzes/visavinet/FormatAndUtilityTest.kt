@@ -186,5 +186,50 @@ class FormatAndUtilityTest {
         assertEquals("", com.ramzes.visavinet.ui.dialogs.stripMarkdown(""))
         assertEquals("", com.ramzes.visavinet.ui.dialogs.stripMarkdown("    \n\n  "))
     }
+
+    @Test
+    fun testFormatStatsElapsedTimeAndSubtitle() {
+        // Тест прошедшего времени
+        assertEquals("только что", formatStatsElapsedTime(-100L))
+        assertEquals("только что", formatStatsElapsedTime(0L))
+        assertEquals("только что", formatStatsElapsedTime(30_000L))
+        assertEquals("1 минуту назад", formatStatsElapsedTime(60_000L))
+        assertEquals("2 минуты назад", formatStatsElapsedTime(2 * 60_000L))
+        assertEquals("3 минуты назад", formatStatsElapsedTime(3 * 60_000L))
+        assertEquals("4 минуты назад", formatStatsElapsedTime(4 * 60_000L))
+        assertEquals("5 минут назад", formatStatsElapsedTime(5 * 60_000L))
+        assertEquals("11 минут назад", formatStatsElapsedTime(11 * 60_000L))
+        assertEquals("21 минуту назад", formatStatsElapsedTime(21 * 60_000L))
+        assertEquals("22 минуты назад", formatStatsElapsedTime(22 * 60_000L))
+        assertEquals("1 час назад", formatStatsElapsedTime(60 * 60_000L))
+        assertEquals("2 часа назад", formatStatsElapsedTime(2 * 60 * 60_000L))
+        assertEquals("5 часов назад", formatStatsElapsedTime(5 * 60 * 60_000L))
+        assertEquals("1 день назад", formatStatsElapsedTime(24 * 60 * 60_000L))
+        assertEquals("2 дня назад", formatStatsElapsedTime(48 * 60 * 60_000L))
+        assertEquals("5 дней назад", formatStatsElapsedTime(5 * 24 * 60 * 60_000L))
+
+        // Тест формирования строки описания
+        val now = 1_000_000_000L
+        assertEquals(
+            "Последнее обновление: ещё не выполнялось",
+            formatStatsSubtitle(lastTime = 0L, code = 200, currentTime = now)
+        )
+        assertEquals(
+            "Последнее обновление: только что • 200",
+            formatStatsSubtitle(lastTime = now - 15_000L, code = 200, currentTime = now)
+        )
+        assertEquals(
+            "Последнее обновление: 3 минуты назад • 200",
+            formatStatsSubtitle(lastTime = now - 3 * 60_000L, code = 200, currentTime = now)
+        )
+        assertEquals(
+            "Последнее обновление: 5 минут назад • 200",
+            formatStatsSubtitle(lastTime = now - 5 * 60_000L, code = 200, currentTime = now)
+        )
+        assertEquals(
+            "Последнее обновление: 10 минут назад • ошибка",
+            formatStatsSubtitle(lastTime = now - 10 * 60_000L, code = 0, currentTime = now)
+        )
+    }
 }
 
