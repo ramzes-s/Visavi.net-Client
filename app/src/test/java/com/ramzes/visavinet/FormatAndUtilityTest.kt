@@ -253,5 +253,46 @@ class FormatAndUtilityTest {
             formatStatsServerResponse(lastTime = now, code = 500)
         )
     }
+
+    @Test
+    fun testIsTabletConfiguration() {
+        // Смартфон: sw = 360-411dp, NORMAL layout
+        assertFalse(
+            com.ramzes.visavinet.util.DeviceUtils.isTabletConfiguration(
+                smallestScreenWidthDp = 392,
+                screenLayout = android.content.res.Configuration.SCREENLAYOUT_SIZE_NORMAL
+            )
+        )
+        assertFalse(
+            com.ramzes.visavinet.util.DeviceUtils.isTabletConfiguration(
+                smallestScreenWidthDp = 411,
+                screenLayout = android.content.res.Configuration.SCREENLAYOUT_SIZE_NORMAL
+            )
+        )
+
+        // 7-дюймовый планшет: sw = 600dp
+        assertTrue(
+            com.ramzes.visavinet.util.DeviceUtils.isTabletConfiguration(
+                smallestScreenWidthDp = 600,
+                screenLayout = android.content.res.Configuration.SCREENLAYOUT_SIZE_LARGE
+            )
+        )
+
+        // 10-дюймовый планшет: sw = 720-800dp, XLARGE layout
+        assertTrue(
+            com.ramzes.visavinet.util.DeviceUtils.isTabletConfiguration(
+                smallestScreenWidthDp = 800,
+                screenLayout = android.content.res.Configuration.SCREENLAYOUT_SIZE_XLARGE
+            )
+        )
+
+        // Устройство с флагом LARGE даже при пограничной ширине
+        assertTrue(
+            com.ramzes.visavinet.util.DeviceUtils.isTabletConfiguration(
+                smallestScreenWidthDp = 590,
+                screenLayout = android.content.res.Configuration.SCREENLAYOUT_SIZE_LARGE
+            )
+        )
+    }
 }
 

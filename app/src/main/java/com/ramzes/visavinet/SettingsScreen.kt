@@ -26,9 +26,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.ramzes.visavinet.util.DeviceUtils
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -54,7 +56,8 @@ fun SettingsScreen(
     onLogout: (() -> Unit)? = null,
     isTabletMode: Boolean = false,
     userRating: Int = 0,
-    currentUserLogin: String? = null
+    currentUserLogin: String? = null,
+    isTabletDevice: Boolean = DeviceUtils.isTablet(LocalContext.current)
 ) {
     val context = LocalContext.current
     val isDark = isDarkTheme()
@@ -397,7 +400,9 @@ fun SettingsScreen(
 
                 // Переключатель планшетного режима
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(if (isTabletDevice) 1f else 0.5f),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -410,23 +415,33 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (tabletMode) "Включено" else "Выключено",
+                            text = if (isTabletDevice) {
+                                if (tabletMode) "Включено" else "Выключено"
+                            } else {
+                                "Доступно только на планшетах"
+                            },
                             fontSize = 12.sp,
                             color = secondaryTextColor
                         )
                     }
 
                     Switch(
-                        checked = tabletMode,
-                        onCheckedChange = { newValue ->
-                            tabletMode = newValue
-                            onTabletModeChange(newValue)
-                        },
+                        checked = if (isTabletDevice) tabletMode else false,
+                        onCheckedChange = if (isTabletDevice) {
+                            { newValue ->
+                                tabletMode = newValue
+                                onTabletModeChange(newValue)
+                            }
+                        } else null,
+                        enabled = isTabletDevice,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = currentAccent,
                             uncheckedThumbColor = LightTextSecondary,
-                            uncheckedTrackColor = LightGray.copy(0.5f)
+                            uncheckedTrackColor = LightGray.copy(0.5f),
+                            disabledCheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                            disabledUncheckedThumbColor = LightTextSecondary.copy(alpha = 0.4f),
+                            disabledUncheckedTrackColor = LightGray.copy(0.25f)
                         )
                     )
                 }

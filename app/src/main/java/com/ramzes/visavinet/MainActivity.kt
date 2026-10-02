@@ -189,7 +189,8 @@ fun MainNavigation(
         if (prefs.getBoolean("feed_as_start_screen", false)) Screen.Feed else Screen.Profile
     }
     var currentScreen by remember { mutableStateOf(getStartScreen()) }
-    var isTabletMode by remember { mutableStateOf(prefs.getBoolean("tablet_mode", false)) }
+    val isTabletDevice = remember { com.ramzes.visavinet.util.DeviceUtils.isTablet(context) }
+    var isTabletMode by remember { mutableStateOf(if (isTabletDevice) prefs.getBoolean("tablet_mode", false) else false) }
 
     var showMessagesScreen by remember { mutableStateOf(false) }
     var showForumTopicScreen by remember { mutableStateOf(false) }
@@ -483,7 +484,7 @@ fun MainNavigation(
             val configuration = androidx.compose.ui.platform.LocalConfiguration.current
             val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             val isTabletScreen = configuration.screenWidthDp >= 600
-            val showPermanentDrawer = isTabletMode || isLandscape || isTabletScreen
+            val showPermanentDrawer = isTabletDevice && (isTabletMode || isLandscape || isTabletScreen)
             val isDark = isDarkTheme()
             val isAmoled = isAmoledTheme()
             val drawerBgColor = when {
@@ -1280,7 +1281,8 @@ fun MainNavigation(
                                     },
                                     isTabletMode = isTabletMode,
                                     userRating = viewModel.currentUser?.rating ?: 0,
-                                    currentUserLogin = viewModel.currentUser?.login
+                                    currentUserLogin = viewModel.currentUser?.login,
+                                    isTabletDevice = isTabletDevice
                                 )
                             }
                         }
