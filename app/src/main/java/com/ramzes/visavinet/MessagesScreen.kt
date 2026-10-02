@@ -382,7 +382,7 @@ fun GlassMessageItem(
         horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
     ) {
         GlassCard(
-            modifier = Modifier.widthIn(max = 300.dp),
+            modifier = Modifier.fillMaxWidth(0.8f),
             isDark = isDark,
             shape = RoundedCornerShape(6.dp),
             glowColor = Color.Transparent
