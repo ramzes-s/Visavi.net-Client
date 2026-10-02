@@ -283,17 +283,21 @@ fun SettingsScreen(
                                 .size(28.dp)
                                 .clip(CircleShape)
                                 .background(accentTheme.color)
-                                .border(
-                                    width = if (isSelected) 2.5.dp else 0.dp,
-                                    color = if (isSelected) Color.White else Color.Transparent,
-                                    shape = CircleShape
-                                )
                                 .clickable {
                                     setPrimaryAccentColor(accentTheme.color)
                                     prefs.edit().putInt("accent_color_index", accentTheme.id).apply()
                                 },
                             contentAlignment = Alignment.Center
-                        ) {}
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Выбран",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -312,17 +316,21 @@ fun SettingsScreen(
                                 .size(28.dp)
                                 .clip(CircleShape)
                                 .background(accentTheme.color)
-                                .border(
-                                    width = if (isSelected) 2.5.dp else 0.dp,
-                                    color = if (isSelected) Color.White else Color.Transparent,
-                                    shape = CircleShape
-                                )
                                 .clickable {
                                     setPrimaryAccentColor(accentTheme.color)
                                     prefs.edit().putInt("accent_color_index", accentTheme.id).apply()
                                 },
                             contentAlignment = Alignment.Center
-                        ) {}
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Выбран",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -676,7 +684,6 @@ fun SettingsScreen(
                         Text(
                             text = formatStatsSubtitle(
                                 lastTime = lastStatsCheckTime,
-                                code = lastStatsResponseCode,
                                 currentTime = currentTimeMillis
                             ),
                             fontSize = 12.sp,
@@ -684,7 +691,10 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Проверка личных сообщений от этого не зависит",
+                            text = formatStatsServerResponse(
+                                lastTime = lastStatsCheckTime,
+                                code = lastStatsResponseCode
+                            ),
                             fontSize = 11.sp,
                             color = secondaryTextColor
                         )
@@ -1403,11 +1413,10 @@ fun formatStatsElapsedTime(elapsedMillis: Long): String {
 
 /**
  * Формирует строку описания статуса проверки статистики:
- * "Последнее обновление: 3 минуты назад • 200"
+ * "Последнее обновление: 3 минуты назад"
  */
 fun formatStatsSubtitle(
     lastTime: Long,
-    code: Int,
     currentTime: Long = System.currentTimeMillis()
 ): String {
     if (lastTime <= 0L) {
@@ -1415,6 +1424,38 @@ fun formatStatsSubtitle(
     }
     val elapsed = (currentTime - lastTime).coerceAtLeast(0L)
     val timeText = formatStatsElapsedTime(elapsed)
-    val codeText = if (code > 0) code.toString() else "ошибка"
-    return "Последнее обновление: $timeText • $codeText"
+    return "Последнее обновление: $timeText"
+}
+
+/**
+ * Формирует строку статуса ответа сервера:
+ * "Ответ сервера: 200 (OK)"
+ */
+fun formatStatsServerResponse(
+    lastTime: Long,
+    code: Int
+): String {
+    if (lastTime <= 0L) {
+        return "Ответ сервера: ещё не получен"
+    }
+    val statusText = when (code) {
+        200 -> "200 (OK)"
+        201 -> "201 (Created)"
+        204 -> "204 (No Content)"
+        301 -> "301 (Moved Permanently)"
+        302 -> "302 (Found)"
+        304 -> "304 (Not Modified)"
+        400 -> "400 (Bad Request)"
+        401 -> "401 (Unauthorized)"
+        403 -> "403 (Forbidden)"
+        404 -> "404 (Not Found)"
+        429 -> "429 (Too Many Requests)"
+        500 -> "500 (Internal Server Error)"
+        502 -> "502 (Bad Gateway)"
+        503 -> "503 (Service Unavailable)"
+        504 -> "504 (Gateway Timeout)"
+        0 -> "ошибка подключения"
+        else -> if (code > 0) "$code" else "ошибка"
+    }
+    return "Ответ сервера: $statusText"
 }

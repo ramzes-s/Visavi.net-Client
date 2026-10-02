@@ -212,23 +212,45 @@ class FormatAndUtilityTest {
         val now = 1_000_000_000L
         assertEquals(
             "Последнее обновление: ещё не выполнялось",
-            formatStatsSubtitle(lastTime = 0L, code = 200, currentTime = now)
+            formatStatsSubtitle(lastTime = 0L, currentTime = now)
         )
         assertEquals(
-            "Последнее обновление: только что • 200",
-            formatStatsSubtitle(lastTime = now - 15_000L, code = 200, currentTime = now)
+            "Последнее обновление: только что",
+            formatStatsSubtitle(lastTime = now - 15_000L, currentTime = now)
         )
         assertEquals(
-            "Последнее обновление: 3 минуты назад • 200",
-            formatStatsSubtitle(lastTime = now - 3 * 60_000L, code = 200, currentTime = now)
+            "Последнее обновление: 3 минуты назад",
+            formatStatsSubtitle(lastTime = now - 3 * 60_000L, currentTime = now)
         )
         assertEquals(
-            "Последнее обновление: 5 минут назад • 200",
-            formatStatsSubtitle(lastTime = now - 5 * 60_000L, code = 200, currentTime = now)
+            "Последнее обновление: 5 минут назад",
+            formatStatsSubtitle(lastTime = now - 5 * 60_000L, currentTime = now)
         )
         assertEquals(
-            "Последнее обновление: 10 минут назад • ошибка",
-            formatStatsSubtitle(lastTime = now - 10 * 60_000L, code = 0, currentTime = now)
+            "Последнее обновление: 10 минут назад",
+            formatStatsSubtitle(lastTime = now - 10 * 60_000L, currentTime = now)
+        )
+
+        // Тест формирования строки статуса ответа сервера
+        assertEquals(
+            "Ответ сервера: ещё не получен",
+            formatStatsServerResponse(lastTime = 0L, code = 200)
+        )
+        assertEquals(
+            "Ответ сервера: 200 (OK)",
+            formatStatsServerResponse(lastTime = now, code = 200)
+        )
+        assertEquals(
+            "Ответ сервера: ошибка подключения",
+            formatStatsServerResponse(lastTime = now, code = 0)
+        )
+        assertEquals(
+            "Ответ сервера: 403 (Forbidden)",
+            formatStatsServerResponse(lastTime = now, code = 403)
+        )
+        assertEquals(
+            "Ответ сервера: 500 (Internal Server Error)",
+            formatStatsServerResponse(lastTime = now, code = 500)
         )
     }
 }
