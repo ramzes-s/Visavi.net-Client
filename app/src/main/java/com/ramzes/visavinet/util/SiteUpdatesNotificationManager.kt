@@ -8,9 +8,12 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.google.gson.Gson
 import com.ramzes.visavinet.MainActivity
 import com.ramzes.visavinet.R
+import com.ramzes.visavinet.network.ConfigData
 import com.ramzes.visavinet.network.StatsResponse
+import com.ramzes.visavinet.network.VisaviApi
 
 data class TotalStatsSnapshot(
     val postsTotal: Long = 0L,
@@ -104,6 +107,27 @@ object SiteUpdatesNotificationManager {
         }
     }
 
+    fun getSiteTitle(context: Context): String {
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val directTitle = prefs.getString("site_title", null)?.ifBlank { null }
+        if (directTitle != null) return directTitle
+
+        val json = prefs.getString("site_config_json", null)
+        if (!json.isNullOrBlank()) {
+            try {
+                val config = Gson().fromJson(json, ConfigData::class.java)
+                val configTitle = config.site?.title?.ifBlank { null }
+                if (configTitle != null) {
+                    prefs.edit().putString("site_title", configTitle).apply()
+                    return configTitle
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        return VisaviApi.BASE_HOST.replaceFirstChar { it.uppercase() }
+    }
+
     private fun showNotification(context: Context, updates: List<String>) {
         createNotificationChannel(context)
 
@@ -119,11 +143,13 @@ object SiteUpdatesNotificationManager {
         )
 
         val text = updates.joinToString(", ")
+        val title = getSiteTitle(context)
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_name)
-            .setContentTitle(text)
+            .setContentTitle(title)
             .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setStyle(NotificationCompat.BigTextStyle().setBigContentTitle(title).bigText(text))
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)

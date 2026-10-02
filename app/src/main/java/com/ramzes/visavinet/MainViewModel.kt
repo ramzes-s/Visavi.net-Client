@@ -131,7 +131,13 @@ class MainViewModel : ViewModel() {
             val json = prefs.getString("site_config_json", null)
             if (!json.isNullOrBlank()) {
                 val gson = com.google.gson.Gson()
-                siteConfig = gson.fromJson(json, ConfigData::class.java)
+                val parsed = gson.fromJson(json, ConfigData::class.java)
+                siteConfig = parsed
+                parsed.site?.title?.ifBlank { null }?.let { title ->
+                    if (!prefs.contains("site_title")) {
+                        prefs.edit().putString("site_title", title).apply()
+                    }
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -172,10 +178,13 @@ class MainViewModel : ViewModel() {
             val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
             val gson = com.google.gson.Gson()
             val json = gson.toJson(config)
-            prefs.edit()
+            val editor = prefs.edit()
                 .putString("site_config_json", json)
                 .putLong("site_config_updated_at", System.currentTimeMillis())
-                .apply()
+            config.site?.title?.ifBlank { null }?.let { title ->
+                editor.putString("site_title", title)
+            }
+            editor.apply()
         } catch (e: Exception) {
             e.printStackTrace()
         }

@@ -488,6 +488,20 @@ class TodayFeaturesAndStatsTest {
         val older = now - 13 * hour
         assertEquals(formatUnixTime(older), formatRelativeTime(older))
     }
+
+    @Test
+    fun testSiteConfigTitleParsing() {
+        val json = """
+            {
+              "site": {
+                "title": "Visavi Test Site",
+                "site_closed": false
+              }
+            }
+        """.trimIndent()
+        val config = gson.fromJson(json, com.ramzes.visavinet.network.ConfigData::class.java)
+        assertEquals("Visavi Test Site", config.site?.title)
+    }
 }
 
 
