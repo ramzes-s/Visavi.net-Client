@@ -40,6 +40,7 @@ import com.ramzes.visavinet.network.ForumTopic
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.dialogs.CreateTopicDialog
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.ensureParagraphTags
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.isDateRecent
 import com.ramzes.visavinet.util.isDateToday
@@ -194,7 +195,7 @@ fun ForumScreen(
                     context = context.applicationContext,
                     sectionId = sectionId,
                     title = title,
-                    text = text,
+                    text = ensureParagraphTags(text.trim()),
                     fileUris = files,
                     userRating = userRating,
                     onSuccess = { newTopic ->

@@ -45,7 +45,6 @@ import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.DeviceUtils
 import com.ramzes.visavinet.util.HtmlVisualTransformation
 import com.ramzes.visavinet.util.TextRenderPrefs
-import com.ramzes.visavinet.util.ensureParagraphTags
 
 data class QuoteInfo(
     val author: String,
@@ -104,8 +103,12 @@ fun FullscreenInputModal(
     }
 
     Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        onDismissRequest = { if (!isSending) onDismiss() },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = !isSending,
+            dismissOnClickOutside = !isSending
+        )
     ) {
         LaunchedEffect(Unit) {
             kotlinx.coroutines.delay(100)
@@ -120,7 +123,7 @@ fun FullscreenInputModal(
         var blurModifier = Modifier
             .fillMaxSize()
             .background(backdropColor)
-            .clickable(onClick = onDismiss)
+            .clickable(enabled = !isSending, onClick = onDismiss)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             blurModifier = blurModifier.blur(24.dp)
@@ -227,11 +230,7 @@ fun FullscreenInputModal(
                                 }
 
                                 GlassButton(
-                                    onClick = {
-                                        val formatted = ensureParagraphTags(textFieldValue.text)
-                                        onTextChanged(formatted)
-                                        onSend()
-                                    },
+                                    onClick = onSend,
                                     enabled = isTextValid && !isSending,
                                     isDark = isDark,
                                     accentColor = primaryAccent
@@ -299,13 +298,26 @@ fun FullscreenInputModal(
                                     )
                                 }
 
-                                IconButton(onClick = onDismiss) {
-                                    Icon(
-                                        imageVector = Icons.Default.FullscreenExit,
-                                        contentDescription = "Свернуть",
-                                        tint = primaryAccent,
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                if (isSending) {
+                                    Box(
+                                        modifier = Modifier.size(48.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = primaryAccent,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+                                } else {
+                                    IconButton(onClick = onDismiss) {
+                                        Icon(
+                                            imageVector = Icons.Default.FullscreenExit,
+                                            contentDescription = "Свернуть",
+                                            tint = primaryAccent,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                             }
 
