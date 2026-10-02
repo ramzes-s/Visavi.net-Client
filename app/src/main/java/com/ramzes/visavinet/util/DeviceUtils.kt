@@ -9,6 +9,11 @@ import android.content.res.Configuration
 object DeviceUtils {
 
     /**
+     * Коэффициент масштабирования элементов интерфейса в планшетном режиме (+20%)
+     */
+    const val TABLET_UI_SCALE = 1.20f
+
+    /**
      * Проверяет параметры конфигурации экрана на принадлежность к планшету:
      * smallestScreenWidthDp >= 600 (sw600dp) или SCREENLAYOUT_SIZE_LARGE / SCREENLAYOUT_SIZE_XLARGE.
      */

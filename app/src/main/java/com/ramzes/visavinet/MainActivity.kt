@@ -38,6 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import com.ramzes.visavinet.util.DeviceUtils
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -473,7 +476,21 @@ fun MainNavigation(
         }
     }
 
-    GlassBackground {
+    val currentDensity = LocalDensity.current
+    val tabletScale = if (isTabletDevice && isTabletMode) DeviceUtils.TABLET_UI_SCALE else 1.0f
+    val effectiveDensity = remember(currentDensity, tabletScale) {
+        if (tabletScale == 1.0f) {
+            currentDensity
+        } else {
+            Density(
+                density = currentDensity.density * tabletScale,
+                fontScale = currentDensity.fontScale
+            )
+        }
+    }
+
+    CompositionLocalProvider(LocalDensity provides effectiveDensity) {
+        GlassBackground {
         if (viewModel.isInitialChecking) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = primaryAccent)
@@ -1394,6 +1411,7 @@ fun MainNavigation(
             }
         }
     }
+}
 }
 
 /**
