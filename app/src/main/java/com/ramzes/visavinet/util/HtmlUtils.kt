@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
@@ -757,9 +758,26 @@ fun parseColorString(colorStr: String?): Color? {
  * Извлекает цвет из тега <span style="color: ...">
  */
 fun parseColorFromSpanTag(fullTag: String): Color? {
-    val styleRegex = Regex("style\\s*=\\s*\"[^\"]*color\\s*:\\s*([^;\"]+)[;\"]?", RegexOption.IGNORE_CASE)
+    val styleRegex = Regex("style\\s*=\\s*['\"][^'\"]*color\\s*:\\s*([^;'\"]+)[;'\"]?", RegexOption.IGNORE_CASE)
     val colorMatch = styleRegex.find(fullTag) ?: return null
     return parseColorString(colorMatch.groupValues[1])
+}
+
+/**
+ * Извлекает размер шрифта из тега <span style="font-size: 1.3em;">
+ */
+fun parseFontSizeFromSpanTag(fullTag: String): TextUnit? {
+    val styleRegex = Regex("style\\s*=\\s*['\"][^'\"]*font-size\\s*:\\s*([0-9.]+)\\s*(em|%|px)?[;'\"]?", RegexOption.IGNORE_CASE)
+    val match = styleRegex.find(fullTag) ?: return null
+    val numValue = match.groupValues[1].toFloatOrNull() ?: return null
+    val unit = match.groupValues[2].lowercase()
+
+    val emFactor = when (unit) {
+        "%" -> numValue / 100f
+        "px" -> numValue / 16f
+        else -> numValue
+    }
+    return emFactor.coerceIn(0.5f, 3.0f).em
 }
 
 private fun parseNestedTags(
@@ -877,7 +895,13 @@ private fun parseNestedTags(
                 } else {
                     parseColorFromSpanTag(match.value)
                 }
-                if (spanColor != null) SpanStyle(color = spanColor) else null
+                val spanFontSize = parseFontSizeFromSpanTag(match.value)
+                if (spanColor != null || spanFontSize != null) {
+                    SpanStyle(
+                        color = spanColor ?: Color.Unspecified,
+                        fontSize = spanFontSize ?: TextUnit.Unspecified
+                    )
+                } else null
             }
             "a" -> SpanStyle(
                 color = if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2),

@@ -11,6 +11,8 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.em
 import java.util.regex.Pattern
 
 /**
@@ -71,7 +73,7 @@ private fun parseAndStripHtmlTags(rawText: String, codeBgColor: Color, ignoreCol
     markTagsAndStyles(rawText, "u", underlineStyle, isTagMask, charStyles)
     markTagsAndStyles(rawText, "s", strikethroughStyle, isTagMask, charStyles)
     markCodeBlockTagsAndStyles(rawText, codeStyle, isTagMask, charStyles)
-    markSpanColorTagsAndStyles(rawText, isTagMask, charStyles, ignoreColorTags)
+    markSpanTagsAndStyles(rawText, isTagMask, charStyles, ignoreColorTags)
 
     val cleanBuilder = StringBuilder()
     val origToTrans = IntArray(origLen + 1)
@@ -176,22 +178,23 @@ private fun markCodeBlockTagsAndStyles(
     }
 }
 
-private fun markSpanColorTagsAndStyles(
+private fun markSpanTagsAndStyles(
     text: String,
     isTagMask: BooleanArray,
     charStyles: Array<MutableList<SpanStyle>>,
     ignoreColor: Boolean = false
 ) {
-    val pattern = Pattern.compile("<span[^>]*style=\\s*\"[^\"]*color\\s*:\\s*([^;\"]+)[;\"]?\"[^>]*>(.*?)</span>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
+    val pattern = Pattern.compile("<span[^>]*style=\\s*['\"]([^'\"]*)['\"][^>]*>(.*?)</span>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
     val matcher = pattern.matcher(text)
     while (matcher.find()) {
         val openTagStart = matcher.start()
-        val colorStr = matcher.group(1)
+        val styleAttr = matcher.group(1) ?: ""
         val contentStart = matcher.start(2)
         val contentEnd = matcher.end(2)
         val closeTagEnd = matcher.end()
 
-        val parsedColor = parseColorString(colorStr)
+        val parsedColor = parseColorFromStyle(styleAttr)
+        val parsedFontSize = parseFontSizeFromStyle(styleAttr)
 
         for (i in openTagStart until contentStart) {
             if (i in isTagMask.indices) isTagMask[i] = true
@@ -200,9 +203,11 @@ private fun markSpanColorTagsAndStyles(
             if (i in isTagMask.indices) isTagMask[i] = true
         }
 
-        // При включённой настройке «Игнорировать цветной текст» тег скрываем, но не окрашиваем текст
-        if (!ignoreColor && parsedColor != null) {
-            val spanStyle = SpanStyle(color = parsedColor)
+        val appliedColor = if (!ignoreColor && parsedColor != null) parsedColor else Color.Unspecified
+        val appliedFontSize = parsedFontSize ?: TextUnit.Unspecified
+
+        if (appliedColor != Color.Unspecified || appliedFontSize != TextUnit.Unspecified) {
+            val spanStyle = SpanStyle(color = appliedColor, fontSize = appliedFontSize)
             for (i in contentStart until contentEnd) {
                 if (i in charStyles.indices) {
                     charStyles[i].add(spanStyle)
@@ -210,6 +215,25 @@ private fun markSpanColorTagsAndStyles(
             }
         }
     }
+}
+
+private fun parseColorFromStyle(styleAttr: String): Color? {
+    val colorRegex = Regex("color\\s*:\\s*([^;'\"]+)[;'\"]?", RegexOption.IGNORE_CASE)
+    val colorMatch = colorRegex.find(styleAttr) ?: return null
+    return parseColorString(colorMatch.groupValues[1])
+}
+
+private fun parseFontSizeFromStyle(styleAttr: String): TextUnit? {
+    val sizeRegex = Regex("font-size\\s*:\\s*([0-9.]+)\\s*(em|%|px)?[;'\"]?", RegexOption.IGNORE_CASE)
+    val sizeMatch = sizeRegex.find(styleAttr) ?: return null
+    val numValue = sizeMatch.groupValues[1].toFloatOrNull() ?: return null
+    val unit = sizeMatch.groupValues[2].lowercase()
+    val emFactor = when (unit) {
+        "%" -> numValue / 100f
+        "px" -> numValue / 16f
+        else -> numValue
+    }
+    return emFactor.coerceIn(0.5f, 3.0f).em
 }
 
 /**

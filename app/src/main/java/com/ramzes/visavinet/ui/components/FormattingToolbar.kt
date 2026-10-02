@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.FormatStrikethrough
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material.icons.filled.Fullscreen
@@ -41,6 +42,7 @@ fun FormattingToolbar(
     val isItalicActive = isTagActiveAtCursor(text, cursor, "i")
     val isUnderlineActive = isTagActiveAtCursor(text, cursor, "u")
     val isStrikethroughActive = isTagActiveAtCursor(text, cursor, "s")
+    val isFontSizeActive = isSpanFontSizeActiveAtCursor(text, cursor)
     val isCodeActive = isTagActiveAtCursor(text, cursor, "code") || isTagActiveAtCursor(text, cursor, "pre")
 
     Row(
@@ -110,6 +112,21 @@ fun FormattingToolbar(
                     imageVector = Icons.Default.FormatStrikethrough,
                     contentDescription = "Зачеркнутый <s>",
                     tint = if (isStrikethroughActive) Color.White else iconDefaultColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // <span style="font-size: 1.3em;"> Крупный текст
+            ToolbarButton(
+                onClick = { onInsertTag("<span style=\"font-size: 1.3em;\">", "</span>") },
+                isActive = isFontSizeActive,
+                primaryAccent = primaryAccent,
+                isDark = isDark
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FormatSize,
+                    contentDescription = "Крупный текст <span style=\"font-size: 1.3em;\">",
+                    tint = if (isFontSizeActive) Color.White else iconDefaultColor,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -196,6 +213,34 @@ fun isTagActiveAtCursor(
 
     val openPattern = Pattern.compile("<$tagName[^>]*>", Pattern.CASE_INSENSITIVE)
     val closePattern = Pattern.compile("</$tagName>", Pattern.CASE_INSENSITIVE)
+
+    var openCount = 0
+    val openMatcher = openPattern.matcher(textBefore)
+    while (openMatcher.find()) openCount++
+
+    var closeCount = 0
+    val closeMatcher = closePattern.matcher(textBefore)
+    while (closeMatcher.find()) closeCount++
+
+    val hasCloseAfter = closePattern.matcher(textAfter).find()
+
+    return openCount > closeCount && hasCloseAfter
+}
+
+/**
+ * Проверка, находится ли каретка внутри тега <span style="...font-size...">
+ */
+fun isSpanFontSizeActiveAtCursor(
+    text: String,
+    cursor: Int
+): Boolean {
+    if (text.isEmpty() || cursor < 0 || cursor > text.length) return false
+
+    val textBefore = text.substring(0, cursor)
+    val textAfter = text.substring(cursor)
+
+    val openPattern = Pattern.compile("<span[^>]*style=\\s*['\"][^'\"]*font-size[^'\"]*['\"][^>]*>", Pattern.CASE_INSENSITIVE)
+    val closePattern = Pattern.compile("</span>", Pattern.CASE_INSENSITIVE)
 
     var openCount = 0
     val openMatcher = openPattern.matcher(textBefore)
