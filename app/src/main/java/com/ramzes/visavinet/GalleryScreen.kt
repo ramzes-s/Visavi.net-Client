@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Videocam
 import com.ramzes.visavinet.ui.dialogs.EditPhotoDialog
 import com.ramzes.visavinet.ui.dialogs.UploadPhotoDialog
+import com.ramzes.visavinet.util.DeviceUtils
 import com.ramzes.visavinet.util.DraftsManager
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -59,6 +60,7 @@ fun GalleryScreen(
     onUserClick: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val isTablet = remember { DeviceUtils.isTablet(context) }
     val isDark = isDarkTheme()
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
@@ -176,7 +178,7 @@ fun GalleryScreen(
                     }
                     else -> {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
+                            columns = if (isTablet) GridCells.Adaptive(minSize = 260.dp) else GridCells.Fixed(2),
                             state = gridState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(10.dp),
@@ -198,7 +200,7 @@ fun GalleryScreen(
                             }
 
                             if (viewModel.isLoadingMorePhotos) {
-                                item(span = { GridItemSpan(2) }) {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()

@@ -108,9 +108,10 @@ fun UploadPhotoDialog(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.94f)
-                    .fillMaxHeight(0.92f)
-                    .padding(vertical = 16.dp),
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.92f),
                 contentAlignment = Alignment.Center
             ) {
                 GlassProfileCard(

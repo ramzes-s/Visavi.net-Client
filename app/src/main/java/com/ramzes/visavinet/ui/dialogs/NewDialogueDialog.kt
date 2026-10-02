@@ -147,7 +147,9 @@ fun NewDialogueDialog(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+                    .widthIn(max = 520.dp)
+                    .fillMaxWidth()
                     .fillMaxHeight(0.82f)
                     .clickable(enabled = false) {}, // блокируем клик на подложку
                 contentAlignment = Alignment.Center

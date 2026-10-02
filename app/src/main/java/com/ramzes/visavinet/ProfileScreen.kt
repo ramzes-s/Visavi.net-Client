@@ -54,7 +54,9 @@ fun ProfileScreen(user: UserData, statusMessage: String?) {
         contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .widthIn(max = 560.dp)
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             statusMessage?.let { msg ->

@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +42,7 @@ import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.applyTagToTextFieldValue
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.DeviceUtils
 import com.ramzes.visavinet.util.HtmlVisualTransformation
 import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.ensureParagraphTags
@@ -67,6 +69,8 @@ fun FullscreenInputModal(
     isSending: Boolean = false,
     title: String = ""
 ) {
+    val context = LocalContext.current
+    val isTabletDevice = remember { DeviceUtils.isTablet(context) }
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xF5090B10) else Color(0xF5F0F4F8)
@@ -128,16 +132,24 @@ fun FullscreenInputModal(
         ) {
             Box(modifier = blurModifier)
 
-            Box(
-                modifier = Modifier
+            val contentModifier = if (isTabletDevice) {
+                Modifier
+                    .fillMaxWidth(0.80f)
+                    .fillMaxHeight(0.90f)
+            } else {
+                Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .padding(12.dp)
+            }
+
+            Box(
+                modifier = contentModifier,
                 contentAlignment = Alignment.Center
             ) {
                 GlassCard(
                     modifier = Modifier.fillMaxSize(),
                     isDark = isDark,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(if (isTabletDevice) 16.dp else 8.dp),
                     glowColor = primaryAccent.copy(alpha = 0.35f)
                 ) {
                     val density = LocalDensity.current

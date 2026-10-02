@@ -93,7 +93,9 @@ fun CreateTopicDialog(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+                    .widthIn(max = 520.dp)
+                    .fillMaxWidth()
                     .wrapContentHeight(),
                 contentAlignment = Alignment.Center
             ) {

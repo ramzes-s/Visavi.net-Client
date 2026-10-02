@@ -75,7 +75,10 @@ fun UserProfileDialog(
             Box(modifier = blurModifier)
 
             Box(
-                modifier = Modifier.fillMaxWidth(0.90f),
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 GlassProfileCard(
