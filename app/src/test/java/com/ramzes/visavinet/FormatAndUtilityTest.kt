@@ -1,6 +1,7 @@
 package com.ramzes.visavinet
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.ramzes.visavinet.network.parseIsoDateTime
 import com.ramzes.visavinet.util.formatFileSize
 import com.ramzes.visavinet.util.parseColorString
@@ -293,6 +294,12 @@ class FormatAndUtilityTest {
                 screenLayout = android.content.res.Configuration.SCREENLAYOUT_SIZE_LARGE
             )
         )
+    }
+
+    @Test
+    fun testTabletDialogMaxWidthConstants() {
+        assertEquals(630.dp, com.ramzes.visavinet.util.DeviceUtils.TABLET_DIALOG_MAX_WIDTH)
+        assertEquals(420.dp, com.ramzes.visavinet.util.DeviceUtils.DEFAULT_DIALOG_MAX_WIDTH)
     }
 }
 

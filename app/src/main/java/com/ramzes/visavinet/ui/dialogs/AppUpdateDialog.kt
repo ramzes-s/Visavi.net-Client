@@ -33,6 +33,7 @@ import com.ramzes.visavinet.UpdateDownloadState
 import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassProfileCard
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.DeviceUtils
 import java.io.File
 import java.util.Locale
 
@@ -51,6 +52,7 @@ fun AppUpdateDialog(
     val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray else LightTextSecondary
+    val dialogMaxWidth = DeviceUtils.dialogMaxWidth(defaultWidth = 480.dp)
 
     Dialog(
         onDismissRequest = {
@@ -81,7 +83,7 @@ fun AppUpdateDialog(
             Box(
                 modifier = Modifier
                     .padding(horizontal = 20.dp, vertical = 24.dp)
-                    .widthIn(max = 520.dp)
+                    .widthIn(max = dialogMaxWidth)
                     .fillMaxWidth()
                     .wrapContentHeight(),
                 contentAlignment = Alignment.Center

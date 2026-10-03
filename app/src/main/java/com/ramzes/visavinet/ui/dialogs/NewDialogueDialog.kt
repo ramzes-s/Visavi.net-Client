@@ -42,6 +42,7 @@ import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.extractErrorMessage
 import com.ramzes.visavinet.ui.components.GlassProfileCard
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.DeviceUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -58,6 +59,7 @@ fun NewDialogueDialog(
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
+    val dialogMaxWidth = DeviceUtils.dialogMaxWidth(defaultWidth = 480.dp)
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
 
@@ -148,7 +150,7 @@ fun NewDialogueDialog(
             Box(
                 modifier = Modifier
                     .padding(horizontal = 20.dp, vertical = 24.dp)
-                    .widthIn(max = 520.dp)
+                    .widthIn(max = dialogMaxWidth)
                     .fillMaxWidth()
                     .fillMaxHeight(0.82f)
                     .clickable(enabled = false) {}, // блокируем клик на подложку

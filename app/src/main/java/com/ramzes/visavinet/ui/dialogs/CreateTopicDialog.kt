@@ -32,6 +32,7 @@ import com.ramzes.visavinet.ui.components.GlassProfileCard
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.insertBbTag
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.DeviceUtils
 
 @Composable
 fun CreateTopicDialog(
@@ -49,6 +50,7 @@ fun CreateTopicDialog(
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
+    val dialogMaxWidth = DeviceUtils.dialogMaxWidth(defaultWidth = 480.dp)
 
     val titleDraftKey = remember(forumId) { "create_topic_title_$forumId" }
     val contentDraftKey = remember(forumId) { com.ramzes.visavinet.util.DraftsManager.forumCreateTopicKey(forumId) }
@@ -94,7 +96,7 @@ fun CreateTopicDialog(
             Box(
                 modifier = Modifier
                     .padding(horizontal = 20.dp, vertical = 24.dp)
-                    .widthIn(max = 520.dp)
+                    .widthIn(max = dialogMaxWidth)
                     .fillMaxWidth()
                     .wrapContentHeight(),
                 contentAlignment = Alignment.Center

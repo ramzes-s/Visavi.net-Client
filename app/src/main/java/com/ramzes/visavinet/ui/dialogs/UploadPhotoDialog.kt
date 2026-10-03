@@ -43,6 +43,7 @@ import com.ramzes.visavinet.ui.components.GlassProfileCard
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.insertBbTag
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.DeviceUtils
 import com.ramzes.visavinet.util.DraftsManager
 
 @Composable
@@ -60,6 +61,7 @@ fun UploadPhotoDialog(
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
+    val dialogMaxWidth = DeviceUtils.dialogMaxWidth(defaultWidth = 500.dp)
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
 
@@ -109,7 +111,7 @@ fun UploadPhotoDialog(
             Box(
                 modifier = Modifier
                     .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .widthIn(max = 560.dp)
+                    .widthIn(max = dialogMaxWidth)
                     .fillMaxWidth()
                     .fillMaxHeight(0.92f),
                 contentAlignment = Alignment.Center

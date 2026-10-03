@@ -34,6 +34,7 @@ import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.components.insertBbTag
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.DeviceUtils
 
 @Composable
 fun EditPhotoDialog(
@@ -50,6 +51,7 @@ fun EditPhotoDialog(
     val isDark = isDarkTheme()
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
+    val dialogMaxWidth = DeviceUtils.dialogMaxWidth(defaultWidth = 500.dp)
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
 
@@ -88,7 +90,7 @@ fun EditPhotoDialog(
             Box(
                 modifier = Modifier
                     .padding(horizontal = 20.dp, vertical = 16.dp)
-                    .widthIn(max = 560.dp)
+                    .widthIn(max = dialogMaxWidth)
                     .fillMaxWidth()
                     .fillMaxHeight(0.92f),
                 contentAlignment = Alignment.Center

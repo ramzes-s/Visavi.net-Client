@@ -57,12 +57,7 @@ fun ItemVoteDialog(
     onVoteDown: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val configuration = LocalConfiguration.current
-    val isTabletMode = isTablet || remember(configuration) {
-        DeviceUtils.isTablet(context) || configuration.screenWidthDp >= 600
-    }
-    val dialogMaxWidth = if (isTabletMode) 630.dp else 420.dp
+    val dialogMaxWidth = DeviceUtils.dialogMaxWidth(isTabletExplicit = isTablet)
 
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xD0090B10) else Color(0xD0E2E8F0)
