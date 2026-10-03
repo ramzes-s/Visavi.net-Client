@@ -1,10 +1,16 @@
 package com.ramzes.visavinet
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.ramzes.visavinet.network.parseIsoDateTime
+import com.ramzes.visavinet.ui.components.applyTagToTextFieldValue
+import com.ramzes.visavinet.ui.components.findEnclosingCodeBlock
 import com.ramzes.visavinet.util.formatFileSize
 import com.ramzes.visavinet.util.parseColorString
+import androidx.compose.ui.text.font.FontFamily
+import com.ramzes.visavinet.util.HtmlVisualTransformation
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -412,6 +418,107 @@ class FormatAndUtilityTest {
         assertEquals("https://visavi.net/uploads/avatars/1.png", searchUser?.avatarUrl)
         assertEquals("Online status", searchUser?.status)
     }
+
+    @Test
+    fun testCodeTagRemovalWhenCursorInsideCodeBlock() {
+        val tagStart = "<pre class=\"code\"><code>"
+        val tagEnd = "</code></pre>"
+        val originalText = "Prefix <pre class=\"code\"><code>val x = 10</code></pre> Suffix"
+        // Курсор находится внутри кода (на символах '10')
+        val cursor = originalText.indexOf("10")
+        assertTrue(cursor > 0)
+
+        val initialValue = TextFieldValue(text = originalText, selection = TextRange(cursor))
+        val result = applyTagToTextFieldValue(initialValue, tagStart, tagEnd)
+
+        // Тег кода должен исчезнуть, оставив содержимое нетронутым
+        assertEquals("Prefix val x = 10 Suffix", result.text)
+        // Курсор должен остаться на том же месте относительно текста ("10")
+        assertEquals(result.text.indexOf("10"), result.selection.start)
+    }
+
+    @Test
+    fun testCodeTagRemovalWhenCursorInsideEmptyCodeBlock() {
+        val tagStart = "<pre class=\"code\"><code>"
+        val tagEnd = "</code></pre>"
+        val originalText = "<pre class=\"code\"><code></code></pre>"
+        val cursor = tagStart.length // курсор прямо между тегами
+        val initialValue = TextFieldValue(text = originalText, selection = TextRange(cursor))
+        val result = applyTagToTextFieldValue(initialValue, tagStart, tagEnd)
+
+        assertEquals("", result.text)
+        assertEquals(0, result.selection.start)
+    }
+
+    @Test
+    fun testMultipleCodeBlocksOnlyRemovesEnclosingOne() {
+        val tagStart = "<pre class=\"code\"><code>"
+        val tagEnd = "</code></pre>"
+        val block1 = "<pre class=\"code\"><code>block 1</code></pre>"
+        val block2 = "<pre class=\"code\"><code>block 2</code></pre>"
+        val fullText = "$block1 and $block2"
+
+        // Курсор внутри block 2
+        val cursorInBlock2 = fullText.indexOf("block 2")
+        val initialValue = TextFieldValue(text = fullText, selection = TextRange(cursorInBlock2))
+        val result = applyTagToTextFieldValue(initialValue, tagStart, tagEnd)
+
+        // block 1 остался неизменным, а block 2 лишился тега
+        assertEquals("$block1 and block 2", result.text)
+    }
+
+    @Test
+    fun testCodeTagInsertedWhenCursorOutsideCodeBlock() {
+        val tagStart = "<pre class=\"code\"><code>"
+        val tagEnd = "</code></pre>"
+        val text = "some normal text"
+        val initialValue = TextFieldValue(text = text, selection = TextRange(4))
+        val result = applyTagToTextFieldValue(initialValue, tagStart, tagEnd)
+
+        assertEquals("some<pre class=\"code\"><code></code></pre> normal text", result.text)
+        assertEquals(4 + tagStart.length, result.selection.start)
+    }
+
+    @Test
+    fun testStandaloneCodeTagRemovedWhenCursorInside() {
+        val tagStart = "<pre class=\"code\"><code>"
+        val tagEnd = "</code></pre>"
+        val text = "text with <code>inline code</code> test"
+        val cursor = text.indexOf("inline")
+        val initialValue = TextFieldValue(text = text, selection = TextRange(cursor))
+        val result = applyTagToTextFieldValue(initialValue, tagStart, tagEnd)
+
+        assertEquals("text with inline code test", result.text)
+        assertEquals(result.text.indexOf("inline"), result.selection.start)
+    }
+
+    @Test
+    fun testHtmlVisualTransformationCodeStylePreservesTextColorAndSetsDarkBackground() {
+        val testBgColor = Color(0x55000000)
+        val transformation = HtmlVisualTransformation(codeBgColor = testBgColor)
+        val raw = "Hello <pre class=\"code\"><code>val x = 1</code></pre> World"
+        val transformed = transformation.filter(androidx.compose.ui.text.AnnotatedString(raw))
+
+        // Теги должны быть вырезаны из видимого текста
+        assertEquals("Hello val x = 1 World", transformed.text.text)
+
+        // Проверяем стиль для фрагмента "val x = 1"
+        val codeStart = transformed.text.text.indexOf("val x = 1")
+        val codeEnd = codeStart + "val x = 1".length
+        val spanStyles = transformed.text.spanStyles.filter { it.start >= codeStart && it.end <= codeEnd }
+
+        assertTrue(spanStyles.isNotEmpty())
+        for (range in spanStyles) {
+            val codeStyle = range.item
+            // Шрифт должен быть моноширинным
+            assertEquals(FontFamily.Monospace, codeStyle.fontFamily)
+            // Фон должен быть заданным полупрозрачным
+            assertEquals(testBgColor, codeStyle.background)
+            // Цвет текста НЕ должен быть переопределен (Unspecified), сохраняя цвет редактора
+            assertEquals(Color.Unspecified, codeStyle.color)
+        }
+    }
 }
+
 
 

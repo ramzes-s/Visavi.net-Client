@@ -74,8 +74,11 @@ fun FullscreenInputModal(
     val primaryAccent = getPrimaryAccentColor()
     val backdropColor = if (isDark) Color(0xF5090B10) else Color(0xF5F0F4F8)
 
-    val htmlTransformation = remember(primaryAccent, TextRenderPrefs.ignoreColoredText) {
-        HtmlVisualTransformation(ignoreColorTags = TextRenderPrefs.ignoreColoredText)
+    val htmlTransformation = remember(isDark, TextRenderPrefs.ignoreColoredText) {
+        HtmlVisualTransformation(
+            codeBgColor = if (isDark) Color(0x55000000) else Color(0x1F000000),
+            ignoreColorTags = TextRenderPrefs.ignoreColoredText
+        )
     }
 
     var textFieldValue by remember {

@@ -43,7 +43,7 @@ fun FormattingToolbar(
     val isUnderlineActive = isTagActiveAtCursor(text, cursor, "u")
     val isStrikethroughActive = isTagActiveAtCursor(text, cursor, "s")
     val isFontSizeActive = isSpanFontSizeActiveAtCursor(text, cursor)
-    val isCodeActive = isTagActiveAtCursor(text, cursor, "code") || isTagActiveAtCursor(text, cursor, "pre")
+    val isCodeActive = findEnclosingCodeBlock(text, cursor) != null
 
     Row(
         modifier = Modifier
@@ -255,6 +255,123 @@ fun isSpanFontSizeActiveAtCursor(
     return openCount > closeCount && hasCloseAfter
 }
 
+data class EnclosingCodeBlock(
+    val openStart: Int,
+    val openEnd: Int,
+    val closeStart: Int,
+    val closeEnd: Int
+)
+
+fun isCodeTag(tagStart: String, tagEnd: String): Boolean {
+    return tagStart.contains("code", ignoreCase = true) ||
+           tagStart.contains("pre", ignoreCase = true) ||
+           tagEnd.contains("code", ignoreCase = true) ||
+           tagEnd.contains("pre", ignoreCase = true)
+}
+
+/**
+ * Находит блок кода (code / pre), внутри которого находится курсор.
+ * Корректно учитывает как составные теги (<pre class="code"><code>...</code></pre>),
+ * так и одиночные (<pre>...</pre>, <code>...</code>).
+ * Если в тексте несколько блоков кода — возвращает именно тот конкретный блок, внутри которого курсор.
+ */
+fun findEnclosingCodeBlock(text: String, cursor: Int): EnclosingCodeBlock? {
+    if (text.isEmpty() || cursor < 0 || cursor > text.length) return null
+
+    val tagTokenRegex = Regex(
+        "(<pre\\b[^>]*>\\s*<code\\b[^>]*>|<pre\\b[^>]*>|<code\\b[^>]*>)|(</code\\s*>\\s*</pre\\s*>|</pre\\s*>|</code\\s*>)",
+        RegexOption.IGNORE_CASE
+    )
+
+    data class OpenMatch(val start: Int, val end: Int)
+    val openStack = ArrayDeque<OpenMatch>()
+    val matchedBlocks = mutableListOf<EnclosingCodeBlock>()
+
+    for (match in tagTokenRegex.findAll(text)) {
+        val isOpen = match.groups[1] != null
+        if (isOpen) {
+            openStack.addLast(OpenMatch(match.range.first, match.range.last + 1))
+        } else {
+            if (openStack.isNotEmpty()) {
+                val open = openStack.removeLast()
+                matchedBlocks.add(
+                    EnclosingCodeBlock(
+                        openStart = open.start,
+                        openEnd = open.end,
+                        closeStart = match.range.first,
+                        closeEnd = match.range.last + 1
+                    )
+                )
+            }
+        }
+    }
+
+    // Если остались незакрытые теги в стеке, дополняем их до конца текста
+    while (openStack.isNotEmpty()) {
+        val open = openStack.removeLast()
+        matchedBlocks.add(
+            EnclosingCodeBlock(
+                openStart = open.start,
+                openEnd = open.end,
+                closeStart = text.length,
+                closeEnd = text.length
+            )
+        )
+    }
+
+    // Фильтруем блоки, внутри которых находится курсор (строго между началом открытия и концом закрытия)
+    val candidates = matchedBlocks.filter { block ->
+        cursor > block.openStart && cursor < block.closeEnd
+    }
+
+    if (candidates.isEmpty()) return null
+
+    // Если есть вложенные блоки, выбираем самый внутренний (наименьшая длина)
+    return candidates.minByOrNull { it.closeEnd - it.openStart }
+}
+
+fun removeCodeTagBlock(value: TextFieldValue, block: EnclosingCodeBlock): TextFieldValue {
+    val text = value.text
+    val cursor = value.selection.start
+    val selection = value.selection
+
+    val openTagLen = block.openEnd - block.openStart
+
+    val newText = text.substring(0, block.openStart) +
+            text.substring(block.openEnd, block.closeStart) +
+            text.substring(block.closeEnd)
+
+    return if (selection.collapsed) {
+        val newCursor = when {
+            cursor <= block.openEnd -> block.openStart
+            cursor >= block.closeStart -> block.openStart + (block.closeStart - block.openEnd)
+            else -> cursor - openTagLen
+        }.coerceIn(0, newText.length)
+
+        TextFieldValue(
+            text = newText,
+            selection = TextRange(newCursor)
+        )
+    } else {
+        val newSelStart = when {
+            selection.start <= block.openEnd -> block.openStart
+            selection.start >= block.closeStart -> block.openStart + (block.closeStart - block.openEnd)
+            else -> selection.start - openTagLen
+        }.coerceIn(0, newText.length)
+
+        val newSelEnd = when {
+            selection.end <= block.openEnd -> block.openStart
+            selection.end >= block.closeStart -> block.openStart + (block.closeStart - block.openEnd)
+            else -> selection.end - openTagLen
+        }.coerceIn(0, newText.length)
+
+        TextFieldValue(
+            text = newText,
+            selection = TextRange(newSelStart, newSelEnd)
+        )
+    }
+}
+
 /**
  * Вставка или отмена дальнейшего применения тега при повторном клике по активной кнопке
  */
@@ -267,7 +384,17 @@ fun applyTagToTextFieldValue(
     val selection = value.selection
     val cursor = selection.start
 
-    val tagCleanName = tagEnd.replace("</", "").replace(">", "").trim()
+    // 1. Специальная обработка для тегов кода:
+    // если курсор находится внутри любого блока кода (составного или одиночного),
+    // удаляем именно этот тег кода, оставляя всё содержимое нетронутым.
+    if (isCodeTag(tagStart, tagEnd)) {
+        val codeBlock = findEnclosingCodeBlock(text, cursor)
+        if (codeBlock != null) {
+            return removeCodeTagBlock(value, codeBlock)
+        }
+    }
+
+    val tagCleanName = tagEnd.substringAfter("</").substringBefore(">").trim()
 
     // Если тег активен в текущей позиции курсора и нет выделения
     if (selection.collapsed && isTagActiveAtCursor(text, cursor, tagCleanName)) {
@@ -330,5 +457,14 @@ fun applyTagToTextFieldValue(
     }
 }
 
-fun insertHtmlTag(currentText: String, tagStart: String, tagEnd: String): String = "$currentText $tagStart$tagEnd"
+fun insertHtmlTag(currentText: String, tagStart: String, tagEnd: String): String {
+    if (isCodeTag(tagStart, tagEnd)) {
+        val trimmed = currentText.trimEnd()
+        val emptyCode = "<pre class=\"code\"><code></code></pre>"
+        if (trimmed.endsWith(emptyCode)) {
+            return trimmed.removeSuffix(emptyCode).trimEnd()
+        }
+    }
+    return "$currentText $tagStart$tagEnd"
+}
 fun insertBbTag(currentText: String, tagStart: String, tagEnd: String): String = insertHtmlTag(currentText, tagStart, tagEnd)

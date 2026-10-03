@@ -20,7 +20,7 @@ import java.util.regex.Pattern
  * отображая только чистый текст с наложенными стилями (жирный, курсив, код и т.д.).
  */
 class HtmlVisualTransformation(
-    private val codeBgColor: Color = Color(0x401E3A8A),
+    private val codeBgColor: Color = Color(0x33000000),
     private val ignoreColorTags: Boolean = false
 ) : VisualTransformation {
 
@@ -64,7 +64,7 @@ private fun parseAndStripHtmlTags(rawText: String, codeBgColor: Color, ignoreCol
     val italicStyle = SpanStyle(fontStyle = FontStyle.Italic)
     val underlineStyle = SpanStyle(textDecoration = TextDecoration.Underline)
     val strikethroughStyle = SpanStyle(textDecoration = TextDecoration.LineThrough)
-    val codeStyle = SpanStyle(fontFamily = FontFamily.Monospace, background = codeBgColor, color = Color(0xFF93C5FD))
+    val codeStyle = SpanStyle(fontFamily = FontFamily.Monospace, background = codeBgColor)
 
     // Находим теги и размечаем маску удаляемых символов тегов и стили содержимого
     markTagsAndStyles(rawText, "strong", strongStyle, isTagMask, charStyles)
@@ -155,24 +155,35 @@ private fun markCodeBlockTagsAndStyles(
     isTagMask: BooleanArray,
     charStyles: Array<MutableList<SpanStyle>>
 ) {
-    val pattern = Pattern.compile("<pre[^>]*><code[^>]*>(.*?)</code></pre>", Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
+    val pattern = Pattern.compile(
+        "(?:<pre[^>]*><code[^>]*>(.*?)</code></pre>)|(?:<pre[^>]*>(.*?)</pre>)|(?:<code[^>]*>(.*?)</code>)",
+        Pattern.CASE_INSENSITIVE or Pattern.DOTALL
+    )
     val matcher = pattern.matcher(text)
     while (matcher.find()) {
-        val openTagStart = matcher.start()
-        val contentStart = matcher.start(1)
-        val contentEnd = matcher.end(1)
-        val closeTagEnd = matcher.end()
-
-        for (i in openTagStart until contentStart) {
-            if (i in isTagMask.indices) isTagMask[i] = true
+        val groupIdx = when {
+            matcher.group(1) != null -> 1
+            matcher.group(2) != null -> 2
+            matcher.group(3) != null -> 3
+            else -> 0
         }
-        for (i in contentEnd until closeTagEnd) {
-            if (i in isTagMask.indices) isTagMask[i] = true
-        }
+        if (groupIdx > 0) {
+            val openTagStart = matcher.start()
+            val contentStart = matcher.start(groupIdx)
+            val contentEnd = matcher.end(groupIdx)
+            val closeTagEnd = matcher.end()
 
-        for (i in contentStart until contentEnd) {
-            if (i in charStyles.indices) {
-                charStyles[i].add(style)
+            for (i in openTagStart until contentStart) {
+                if (i in isTagMask.indices) isTagMask[i] = true
+            }
+            for (i in contentEnd until closeTagEnd) {
+                if (i in isTagMask.indices) isTagMask[i] = true
+            }
+
+            for (i in contentStart until contentEnd) {
+                if (i in charStyles.indices) {
+                    charStyles[i].add(style)
+                }
             }
         }
     }
