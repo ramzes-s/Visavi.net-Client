@@ -82,8 +82,8 @@ class SettingsViewModel : ViewModel() {
             return
         }
         val elapsed = System.currentTimeMillis() - lastCheckTime
-        remainingCheckSeconds = if (elapsed < UPDATE_CHECK_INTERVAL_MS) {
-            ((UPDATE_CHECK_INTERVAL_MS - elapsed) / 1000L).coerceAtLeast(1L)
+        remainingCheckSeconds = if (elapsed < MANUAL_UPDATE_CHECK_INTERVAL_MS) {
+            ((MANUAL_UPDATE_CHECK_INTERVAL_MS - elapsed) / 1000L).coerceAtLeast(1L)
         } else {
             0L
         }
@@ -109,7 +109,7 @@ class SettingsViewModel : ViewModel() {
         }
         val lastCheckTime = prefs.getLong("last_github_update_check_time", 0L)
         val now = System.currentTimeMillis()
-        if (now - lastCheckTime >= UPDATE_CHECK_INTERVAL_MS) {
+        if (now - lastCheckTime >= AUTO_UPDATE_CHECK_INTERVAL_MS) {
             checkForUpdates(context, currentVersion, isAutoCheck = true)
         }
     }
@@ -128,7 +128,7 @@ class SettingsViewModel : ViewModel() {
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
         val lastCheckTime = prefs.getLong("last_github_update_check_time", 0L)
         val now = System.currentTimeMillis()
-        val intervalMs = UPDATE_CHECK_INTERVAL_MS
+        val intervalMs = if (isAutoCheck) AUTO_UPDATE_CHECK_INTERVAL_MS else MANUAL_UPDATE_CHECK_INTERVAL_MS
         val elapsed = now - lastCheckTime
 
         if (lastCheckTime > 0 && elapsed < intervalMs) {
@@ -377,7 +377,9 @@ class SettingsViewModel : ViewModel() {
     }
 
     companion object {
-        const val UPDATE_CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000L // 24 часа
+        const val AUTO_UPDATE_CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000L // 24 часа для автоматической проверки
+        const val MANUAL_UPDATE_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000L // 6 часов для ручной проверки
+        const val UPDATE_CHECK_INTERVAL_MS = AUTO_UPDATE_CHECK_INTERVAL_MS // Для обратной совместимости
 
         fun formatRemainingTime(remainingSec: Long): String {
             val hours = remainingSec / 3600
