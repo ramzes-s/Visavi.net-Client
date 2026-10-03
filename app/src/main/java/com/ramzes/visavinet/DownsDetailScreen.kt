@@ -53,6 +53,8 @@ import com.ramzes.visavinet.ui.components.VideoFullscreenDialog
 import com.ramzes.visavinet.ui.components.VideoPlaceholder
 import com.ramzes.visavinet.ui.components.VideoPlayerView
 import com.ramzes.visavinet.ui.components.VoteDualButton
+import com.ramzes.visavinet.ui.components.getRatingStarColor
+import com.ramzes.visavinet.ui.components.getRatingTextColor
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.dialogs.ItemVoteDialog
@@ -1133,30 +1135,29 @@ fun DownCommentCard(
                                 }
                             )
 
-                            if (comment.rating != 0) {
-                                val ratingColor = if (comment.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .padding(start = 6.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .clickable { onVoteClick(comment) }
-                                        .padding(horizontal = 3.dp, vertical = 1.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = "Рейтинг",
-                                        tint = ratingColor,
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Text(
-                                        text = if (comment.rating > 0) "+${comment.rating}" else "${comment.rating}",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ratingColor
-                                    )
-                                }
+                            val starColor = getRatingStarColor(comment.rating, isDark)
+                            val ratingTextColor = getRatingTextColor(comment.rating, isDark)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .padding(start = 6.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable { onVoteClick(comment) }
+                                    .padding(horizontal = 3.dp, vertical = 1.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Рейтинг",
+                                    tint = starColor,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = if (comment.rating > 0) "+${comment.rating}" else "${comment.rating}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ratingTextColor
+                                )
                             }
                         }
 

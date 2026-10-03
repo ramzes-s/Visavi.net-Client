@@ -41,6 +41,8 @@ import com.ramzes.visavinet.network.FileData
 import com.ramzes.visavinet.ui.components.GlassBadge
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.VideoPlaceholder
+import com.ramzes.visavinet.ui.components.getRatingStarColor
+import com.ramzes.visavinet.ui.components.getRatingTextColor
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.RenderFeedPreview
 import com.ramzes.visavinet.util.buildFeedPreviewBlocks
@@ -473,7 +475,9 @@ fun FeedCardItem(
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            // Рейтинг (золотая звезда, значение акцентное)
+                            // Рейтинг (единый стандарт: золотая звезда при > 0, серая при 0, красная при < 0)
+                            val starColor = getRatingStarColor(item.rating, isDark)
+                            val ratingTextColor = getRatingTextColor(item.rating, isDark)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -481,13 +485,13 @@ fun FeedCardItem(
                                 Icon(
                                     imageVector = Icons.Default.Star,
                                     contentDescription = "Рейтинг",
-                                    tint = AmberGold,
+                                    tint = starColor,
                                     modifier = Modifier.size(11.dp)
                                 )
                                 Text(
                                     text = if (item.rating > 0) "+${item.rating}" else "${item.rating}",
                                     fontSize = 11.sp,
-                                    color = primaryAccent,
+                                    color = ratingTextColor,
                                     fontWeight = FontWeight.Medium
                                 )
                             }

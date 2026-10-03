@@ -70,6 +70,8 @@ import com.ramzes.visavinet.ui.components.GlassButton
 import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VoteDualButton
+import com.ramzes.visavinet.ui.components.getRatingStarColor
+import com.ramzes.visavinet.ui.components.getRatingTextColor
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
 import com.ramzes.visavinet.ui.dialogs.ItemVoteDialog
@@ -740,29 +742,28 @@ fun PinnedFirstPostCard(
                                 }
                             )
 
-                            if (post.rating != 0) {
-                                val ratingColor = if (post.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .clickable { onVoteClick(post) }
-                                        .padding(horizontal = 3.dp, vertical = 1.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = "Рейтинг",
-                                        tint = ratingColor,
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(2.dp))
-                                    Text(
-                                        text = if (post.rating > 0) "+${post.rating}" else "${post.rating}",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ratingColor
-                                    )
-                                }
+                            val starColor = getRatingStarColor(post.rating, isDark)
+                            val ratingTextColor = getRatingTextColor(post.rating, isDark)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable { onVoteClick(post) }
+                                    .padding(horizontal = 3.dp, vertical = 1.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Рейтинг",
+                                    tint = starColor,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = if (post.rating > 0) "+${post.rating}" else "${post.rating}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ratingTextColor
+                                )
                             }
                         }
 
@@ -1071,29 +1072,28 @@ fun ForumPostItem(
                         }
                     )
 
-                    if (post.rating != 0) {
-                        val ratingColor = if (post.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { onVoteClick(post) }
-                                .padding(horizontal = 3.dp, vertical = 1.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Рейтинг",
-                                tint = ratingColor,
-                                modifier = Modifier.size(11.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = if (post.rating > 0) "+${post.rating}" else "${post.rating}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ratingColor
-                            )
-                        }
+                    val starColor = getRatingStarColor(post.rating, isDark)
+                    val ratingTextColor = getRatingTextColor(post.rating, isDark)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onVoteClick(post) }
+                            .padding(horizontal = 3.dp, vertical = 1.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Рейтинг",
+                            tint = starColor,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = if (post.rating > 0) "+${post.rating}" else "${post.rating}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ratingTextColor
+                        )
                     }
                 }
 

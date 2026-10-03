@@ -977,7 +977,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Кэш изображений и Обновление приложения
+        // Кэш изображений, Обновление приложения и Пинг сервера API
         GlassCard(
             modifier = Modifier.fillMaxWidth(),
             isDark = isDark,
@@ -1169,6 +1169,92 @@ fun SettingsScreen(
                         )
                     }
                 }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
+                )
+
+                // Проверка пинга до сервера API (/api/stats)
+                val isPingAvailable = viewModel.remainingPingCooldownSeconds <= 0L && viewModel.pingState !is PingState.Pinging
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Пинг сервера API",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        when (val state = viewModel.pingState) {
+                            is PingState.Idle -> {
+                                Text(
+                                    text = "Запрос к /api/stats для проверки задержки",
+                                    fontSize = 12.sp,
+                                    color = secondaryTextColor
+                                )
+                            }
+                            is PingState.Pinging -> {
+                                Text(
+                                    text = "Измерение отклика...",
+                                    fontSize = 12.sp,
+                                    color = currentAccent
+                                )
+                            }
+                            is PingState.Success -> {
+                                val latencyColor = when {
+                                    state.latencyMs < 200 -> Color(0xFF10B981)
+                                    state.latencyMs < 500 -> Color(0xFFF59E0B)
+                                    else -> Color(0xFFEF4444)
+                                }
+                                Text(
+                                    text = "Пинг: ${state.latencyMs} мс • Ответ: ${state.statusCode} OK",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = latencyColor
+                                )
+                            }
+                            is PingState.Error -> {
+                                Text(
+                                    text = "Ошибка: ${state.message}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFCF6679)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    if (viewModel.pingState is PingState.Pinging) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp,
+                            color = currentAccent
+                        )
+                    } else {
+                        IconButton(
+                            onClick = {
+                                viewModel.pingApi(context.applicationContext) { code, time ->
+                                    lastStatsResponseCode = code
+                                    lastStatsCheckTime = time
+                                }
+                            },
+                            enabled = isPingAvailable
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Speed,
+                                contentDescription = "Проверить пинг",
+                                tint = if (isPingAvailable) currentAccent else secondaryTextColor.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -1224,95 +1310,6 @@ fun SettingsScreen(
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Проверка пинга до сервера API (/api/stats) в самом низу настроек
-        val isPingAvailable = viewModel.remainingPingCooldownSeconds <= 0L && viewModel.pingState !is PingState.Pinging
-
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            isDark = isDark,
-            shape = RoundedCornerShape(6.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Пинг сервера API",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    when (val state = viewModel.pingState) {
-                        is PingState.Idle -> {
-                            Text(
-                                text = "Запрос к /api/stats для проверки задержки",
-                                fontSize = 12.sp,
-                                color = secondaryTextColor
-                            )
-                        }
-                        is PingState.Pinging -> {
-                            Text(
-                                text = "Измерение отклика...",
-                                fontSize = 12.sp,
-                                color = currentAccent
-                            )
-                        }
-                        is PingState.Success -> {
-                            val latencyColor = when {
-                                state.latencyMs < 200 -> Color(0xFF10B981)
-                                state.latencyMs < 500 -> Color(0xFFF59E0B)
-                                else -> Color(0xFFEF4444)
-                            }
-                            Text(
-                                text = "Пинг: ${state.latencyMs} мс • Ответ: ${state.statusCode} OK",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = latencyColor
-                            )
-                        }
-                        is PingState.Error -> {
-                            Text(
-                                text = "Ошибка: ${state.message}",
-                                fontSize = 12.sp,
-                                color = Color(0xFFCF6679)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                if (viewModel.pingState is PingState.Pinging) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.5.dp,
-                        color = currentAccent
-                    )
-                } else {
-                    IconButton(
-                        onClick = {
-                            viewModel.pingApi(context.applicationContext) { code, time ->
-                                lastStatsResponseCode = code
-                                lastStatsCheckTime = time
-                            }
-                        },
-                        enabled = isPingAvailable
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Speed,
-                            contentDescription = "Проверить пинг",
-                            tint = if (isPingAvailable) currentAccent else secondaryTextColor.copy(alpha = 0.3f)
                         )
                     }
                 }

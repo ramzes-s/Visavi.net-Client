@@ -36,6 +36,8 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.CategoryItem
 import com.ramzes.visavinet.network.DownItem
 import com.ramzes.visavinet.ui.components.GlassCard
+import com.ramzes.visavinet.ui.components.getRatingStarColor
+import com.ramzes.visavinet.ui.components.getRatingTextColor
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.sanitizeHtml
@@ -812,13 +814,13 @@ fun DownItemCard(
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "Рейтинг",
-                                tint = AmberGold,
+                                tint = getRatingStarColor(down.rating, isDark),
                                 modifier = Modifier.size(11.dp)
                             )
                             Spacer(modifier = Modifier.width(2.dp))
                             Text(
                                 text = "${if (down.rating > 0) "+" else ""}${down.rating}",
-                                color = if (down.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444),
+                                color = getRatingTextColor(down.rating, isDark),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )

@@ -304,3 +304,27 @@ fun VoteDualButton(
         }
     }
 }
+
+/**
+ * Единый стандарт цвета звезды рейтинга во всем приложении:
+ * - Золотой (AmberGold) при положительном рейтинге (> 0)
+ * - Красный (Color(0xFFEF4444)) при отрицательном рейтинге (< 0)
+ * - Серый (нейтральный) при нулевом рейтинге (== 0)
+ */
+fun getRatingStarColor(rating: Int, isDark: Boolean): Color = when {
+    rating > 0 -> AmberGold
+    rating < 0 -> Color(0xFFEF4444)
+    else -> if (isDark) TextLightGray.copy(alpha = 0.8f) else LightTextSecondary
+}
+
+/**
+ * Единый стандарт цвета текста рейтинга во всем приложении:
+ * - Зеленый (Color(0xFF10B981)) при положительном рейтинге (> 0)
+ * - Красный (Color(0xFFEF4444)) при отрицательном рейтинге (< 0)
+ * - Серый (нейтральный) при нулевом рейтинге (== 0)
+ */
+fun getRatingTextColor(rating: Int, isDark: Boolean): Color = when {
+    rating > 0 -> Color(0xFF10B981)
+    rating < 0 -> Color(0xFFEF4444)
+    else -> if (isDark) TextLightGray.copy(alpha = 0.8f) else LightTextSecondary
+}
