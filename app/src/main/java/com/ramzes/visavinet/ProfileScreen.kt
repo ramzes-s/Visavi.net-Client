@@ -118,7 +118,7 @@ fun ProfileScreen(user: UserData, statusMessage: String?) {
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
-                                .border(2.dp, primaryAccent.copy(alpha = 0.6f), CircleShape),
+                                .border(1.5.dp, primaryAccent.copy(alpha = if (isDark) 0.50f else 0.25f), CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     }

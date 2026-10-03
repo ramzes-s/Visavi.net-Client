@@ -612,7 +612,7 @@ fun PinnedFirstPostCard(
             .animateContentSize(),
         isDark = isDark,
         shape = RoundedCornerShape(8.dp),
-        glowColor = primaryAccent.copy(alpha = 0.22f)
+        glowColor = if (isDark) primaryAccent.copy(alpha = 0.22f) else primaryAccent.copy(alpha = 0.10f)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Верхняя строка: заголовок темы на всю ширину
@@ -940,7 +940,7 @@ fun TopicInfoCard(
         modifier = Modifier.fillMaxWidth(),
         isDark = isDark,
         shape = RoundedCornerShape(6.dp),
-        glowColor = getPrimaryAccentColor().copy(alpha = 0.15f)
+        glowColor = Color.Transparent
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             val forum = topicInfo?.forum ?: topic.forum

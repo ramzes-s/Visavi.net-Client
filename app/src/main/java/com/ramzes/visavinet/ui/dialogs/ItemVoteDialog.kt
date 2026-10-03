@@ -73,22 +73,33 @@ fun ItemVoteDialog(
 
     val cardGradient = Brush.linearGradient(
         colors = listOf(
-            primaryAccent.copy(alpha = if (isDark) 0.16f else 0.10f),
+            primaryAccent.copy(alpha = if (isDark) 0.16f else 0.06f),
             baseCardBg,
             baseCardBg,
-            primaryAccent.copy(alpha = if (isDark) 0.08f else 0.04f)
+            primaryAccent.copy(alpha = if (isDark) 0.08f else 0.03f)
         ),
         start = Offset(0f, 0f),
         end = Offset(800f, 800f)
     )
 
-    val borderBrush = Brush.linearGradient(
-        colors = listOf(
-            primaryAccent.copy(alpha = 0.70f),
-            primaryAccent.copy(alpha = 0.30f),
-            if (isDark) Color(0x20FFFFFF) else Color(0x18000000)
+    val borderBrush = if (isDark) {
+        Brush.linearGradient(
+            colors = listOf(
+                primaryAccent.copy(alpha = 0.50f),
+                primaryAccent.copy(alpha = 0.20f),
+                Color(0x20FFFFFF)
+            )
         )
-    )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                primaryAccent.copy(alpha = 0.18f),
+                primaryAccent.copy(alpha = 0.06f),
+                Color(0x40CBD5E1),
+                Color(0x150F172A)
+            )
+        )
+    }
 
     val effectiveVote = remember(vote, isOwn) {
         (vote ?: VoteData(own = isOwn)).copy(own = isOwn)

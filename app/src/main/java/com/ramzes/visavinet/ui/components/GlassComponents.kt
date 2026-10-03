@@ -180,24 +180,32 @@ fun GlassCard(
     val glassBg = if (isDark) GlassDarkBg else GlassLightBg
 
     val borderBrush = if (glowColor != Color.Transparent) {
-        Brush.linearGradient(
-            colors = listOf(
-                glowColor.copy(alpha = 0.85f),
-                glowColor.copy(alpha = 0.35f)
+        if (isDark) {
+            Brush.linearGradient(
+                colors = listOf(
+                    glowColor.copy(alpha = 0.50f),
+                    glowColor.copy(alpha = 0.18f),
+                    Color(0x15FFFFFF)
+                )
             )
-        )
+        } else {
+            // В светлой теме акцентные рамки делаем сильно менее заметными:
+            // вместо контрастного яркого бордюра (0.85f) используем деликатный мягкий отблеск
+            Brush.linearGradient(
+                colors = listOf(
+                    glowColor.copy(alpha = 0.16f),
+                    glowColor.copy(alpha = 0.05f),
+                    Color(0x40CBD5E1),
+                    Color(0x120F172A)
+                )
+            )
+        }
     } else {
         if (isDark) {
             GlassBorderDark
         } else {
-            Brush.linearGradient(
-                colors = listOf(
-                    Color.White,
-                    accentColor.copy(alpha = 0.22f),
-                    Color(0x50CBD5E1),
-                    Color(0x3094A3B8)
-                )
-            )
+            // В светлой теме для обычных блоков используем строгий нейтральный стеклянный контур без цветных линий
+            GlassBorderLight
         }
     }
 
@@ -244,22 +252,33 @@ fun GlassProfileCard(
 
     val gradientBrush = Brush.linearGradient(
         colors = listOf(
-            accentColor.copy(alpha = if (isDark) 0.28f else 0.18f),
+            accentColor.copy(alpha = if (isDark) 0.28f else 0.08f),
             baseBg.copy(alpha = glassAlpha * 0.85f),
             baseBg.copy(alpha = glassAlpha),
-            accentColor.copy(alpha = if (isDark) 0.16f else 0.10f)
+            accentColor.copy(alpha = if (isDark) 0.16f else 0.04f)
         ),
         start = Offset(0f, 0f),
         end = Offset(1000f, 1000f)
     )
 
-    val borderBrush = Brush.linearGradient(
-        colors = listOf(
-            accentColor.copy(alpha = 0.85f),
-            accentColor.copy(alpha = 0.35f),
-            Color.White.copy(alpha = 0.20f)
+    val borderBrush = if (isDark) {
+        Brush.linearGradient(
+            colors = listOf(
+                accentColor.copy(alpha = 0.50f),
+                accentColor.copy(alpha = 0.20f),
+                Color.White.copy(alpha = 0.20f)
+            )
         )
-    )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                accentColor.copy(alpha = 0.18f),
+                accentColor.copy(alpha = 0.06f),
+                Color(0x40CBD5E1),
+                Color(0x150F172A)
+            )
+        )
+    }
 
     Surface(
         modifier = modifier
@@ -598,7 +617,7 @@ fun GlassFileCard(
     val context = LocalContext.current
     val primaryAccent = getPrimaryAccentColor()
     val cardBg = if (isDark) Color(0x1F222938) else Color(0x0F000000)
-    val borderColor = primaryAccent.copy(alpha = 0.28f)
+    val borderColor = if (isDark) primaryAccent.copy(alpha = 0.22f) else Color(0x180F172A)
     val textColor = if (isDark) Color.White else LightText
     val subTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
 
