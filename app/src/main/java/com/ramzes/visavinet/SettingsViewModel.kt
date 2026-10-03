@@ -18,6 +18,7 @@ import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.isNewerVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Call
@@ -86,6 +87,7 @@ class SettingsViewModel : ViewModel() {
 
     private var downloadJob: Job? = null
     private var downloadCall: Call? = null
+    private var pingResetJob: Job? = null
 
     fun updateRemainingPingCooldown(context: Context) {
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
@@ -119,6 +121,8 @@ class SettingsViewModel : ViewModel() {
             return
         }
 
+        pingResetJob?.cancel()
+        pingResetJob = null
         pingState = PingState.Pinging
 
         viewModelScope.launch {
@@ -155,6 +159,7 @@ class SettingsViewModel : ViewModel() {
                 withContext(Dispatchers.Main) {
                     onComplete?.invoke(code, pingTimestamp)
                 }
+                schedulePingReset()
             } catch (e: Exception) {
                 val pingTimestamp = System.currentTimeMillis()
                 prefs.edit()
@@ -174,8 +179,23 @@ class SettingsViewModel : ViewModel() {
                 withContext(Dispatchers.Main) {
                     onComplete?.invoke(0, pingTimestamp)
                 }
+                schedulePingReset()
             }
         }
+    }
+
+    private fun schedulePingReset() {
+        pingResetJob?.cancel()
+        pingResetJob = viewModelScope.launch {
+            delay(PING_RESULT_DISPLAY_DURATION_MS)
+            pingState = PingState.Idle
+        }
+    }
+
+    fun resetPingState() {
+        pingResetJob?.cancel()
+        pingResetJob = null
+        pingState = PingState.Idle
     }
 
     fun updateRemainingCheckTime(context: Context) {
@@ -485,6 +505,7 @@ class SettingsViewModel : ViewModel() {
         const val MANUAL_UPDATE_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000L // 6 часов для ручной проверки
         const val UPDATE_CHECK_INTERVAL_MS = AUTO_UPDATE_CHECK_INTERVAL_MS // Для обратной совместимости
         const val PING_COOLDOWN_MS = 2L * 60 * 1000L // 2 минуты защиты от спама сервера API
+        const val PING_RESULT_DISPLAY_DURATION_MS = 30L * 1000L // 30 секунд показа результата пинга
 
         fun formatRemainingTime(remainingSec: Long): String {
             val hours = remainingSec / 3600
