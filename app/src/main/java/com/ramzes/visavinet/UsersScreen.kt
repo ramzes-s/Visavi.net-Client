@@ -516,14 +516,12 @@ private fun UserCardItem(
                     }
 
                     // 2. Статус (или дата визита, если статус отсутствует)
-                    if (statusText != null) {
-                        val (annotatedStatus, _) = remember(statusText, isDark, TextRenderPrefs.ignoreColoredText) {
-                            parseInlineHtmlTags(statusText, isDark)
-                        }
+                    val cleanStatus = remember(statusText) { statusText?.let { stripHtml(it) }?.trim() }
+                    if (!cleanStatus.isNullOrBlank()) {
                         Text(
-                            text = annotatedStatus,
+                            text = cleanStatus,
                             fontSize = 12.sp,
-                            color = textColor.copy(alpha = 0.85f),
+                            color = if (isDark) Color.White else Color.Black,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -583,7 +581,7 @@ private fun UserCardItem(
                         }
 
                         // Если сортировка по активности и во 2 строке отображался статус — показываем визит
-                        if (currentSort == UserSort.UPDATED && statusText != null && lastLogin != null) {
+                        if (currentSort == UserSort.UPDATED && !cleanStatus.isNullOrBlank() && lastLogin != null) {
                             UserMetricBadge(
                                 icon = Icons.Default.Schedule,
                                 text = formatUnixTime(lastLogin),

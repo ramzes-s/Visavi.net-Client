@@ -339,20 +339,16 @@ private fun OnlineUserItem(
                     )
                 }
 
-                user.status?.let { status ->
-                    if (status.isNotBlank()) {
-                        val (annotatedStatus, _) = remember(status, isDark, TextRenderPrefs.ignoreColoredText) {
-                            parseInlineHtmlTags(status, isDark)
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = annotatedStatus,
-                            fontSize = 12.sp,
-                            color = textColor.copy(alpha = 0.85f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                val cleanStatus = remember(user.status) { user.status?.let { stripHtml(it) }?.trim() }
+                if (!cleanStatus.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = cleanStatus,
+                        fontSize = 12.sp,
+                        color = if (isDark) Color.White else Color.Black,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
