@@ -545,14 +545,15 @@ fun ForumTopicScreen(
             title = "Оценка сообщения",
             author = currentVotingPost.authorName ?: currentVotingPost.authorLogin ?: "Аноним",
             createdAt = currentVotingPost.createdAt,
-            textSnippet = remember(currentVotingPost.text) {
-                currentVotingPost.text?.let { stripHtml(it).take(120).trim() }?.ifBlank { null }
+            textSnippet = remember(currentVotingPost.text, isTabletLayout) {
+                currentVotingPost.text?.let { stripHtml(it).take(if (isTabletLayout) 200 else 120).trim() }?.ifBlank { null }
             },
             rating = currentVotingPost.rating,
             vote = currentVotingPost.vote,
             isOwn = isMyPost,
             isVoting = currentVotingPost.id in viewModel.votingPostIds,
             isDark = isDark,
+            isTablet = isTabletLayout,
             onVoteUp = {
                 viewModel.votePost(
                     context = context,

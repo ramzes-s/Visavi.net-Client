@@ -2,6 +2,7 @@ package com.ramzes.visavinet.ui.dialogs
 
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,7 +19,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,9 +33,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.ramzes.visavinet.network.VoteData
-import com.ramzes.visavinet.ui.components.GlassCard
 import com.ramzes.visavinet.ui.components.VoteDualButton
 import com.ramzes.visavinet.ui.theme.*
+import com.ramzes.visavinet.util.DeviceUtils
 import com.ramzes.visavinet.util.formatUnixTime
 
 /**
@@ -46,14 +52,48 @@ fun ItemVoteDialog(
     isOwn: Boolean = false,
     isVoting: Boolean = false,
     isDark: Boolean = isDarkTheme(),
+    isTablet: Boolean = false,
     onVoteUp: () -> Unit,
     onVoteDown: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isTabletMode = isTablet || remember(configuration) {
+        DeviceUtils.isTablet(context) || configuration.screenWidthDp >= 600
+    }
+    val dialogMaxWidth = if (isTabletMode) 630.dp else 420.dp
+
     val primaryAccent = getPrimaryAccentColor()
-    val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
+    val backdropColor = if (isDark) Color(0xD0090B10) else Color(0xD0E2E8F0)
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+
+    val cardShape = RoundedCornerShape(16.dp)
+    val baseCardBg = if (isDark) {
+        if (isAmoledTheme()) Color(0xF405070A) else Color(0xEE111827)
+    } else {
+        Color(0xF6F8FAFC)
+    }
+
+    val cardGradient = Brush.linearGradient(
+        colors = listOf(
+            primaryAccent.copy(alpha = if (isDark) 0.16f else 0.10f),
+            baseCardBg,
+            baseCardBg,
+            primaryAccent.copy(alpha = if (isDark) 0.08f else 0.04f)
+        ),
+        start = Offset(0f, 0f),
+        end = Offset(800f, 800f)
+    )
+
+    val borderBrush = Brush.linearGradient(
+        colors = listOf(
+            primaryAccent.copy(alpha = 0.70f),
+            primaryAccent.copy(alpha = 0.30f),
+            if (isDark) Color(0x20FFFFFF) else Color(0x18000000)
+        )
+    )
 
     val effectiveVote = remember(vote, isOwn) {
         (vote ?: VoteData(own = isOwn)).copy(own = isOwn)
@@ -85,15 +125,20 @@ fun ItemVoteDialog(
             Box(
                 modifier = Modifier
                     .padding(horizontal = 24.dp, vertical = 24.dp)
-                    .widthIn(max = 420.dp)
+                    .widthIn(max = dialogMaxWidth)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    isDark = isDark,
-                    shape = RoundedCornerShape(16.dp),
-                    glowColor = primaryAccent.copy(alpha = 0.25f)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(cardShape)
+                        .background(cardGradient)
+                        .border(width = 1.dp, brush = borderBrush, shape = cardShape),
+                    color = Color.Transparent,
+                    shape = cardShape,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp
                 ) {
                     Column(
                         modifier = Modifier
