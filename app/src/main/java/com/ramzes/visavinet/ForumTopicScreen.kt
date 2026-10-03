@@ -1492,24 +1492,6 @@ fun PostVoteDialog(
                             isDark = isDark,
                             isCompact = false
                         )
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        // Кнопка Закрыть
-                        GlassButton(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(38.dp),
-                            isDark = isDark
-                        ) {
-                            Text(
-                                text = "Закрыть",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = textColor
-                            )
-                        }
                     }
                 }
             }
