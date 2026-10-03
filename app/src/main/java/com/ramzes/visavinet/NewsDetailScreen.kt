@@ -56,6 +56,7 @@ import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VoteButton
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
+import com.ramzes.visavinet.ui.dialogs.ItemVoteDialog
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.*
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -102,6 +103,11 @@ fun NewsDetailScreen(
     var isFullscreenModalOpen by remember { mutableStateOf(false) }
     var lightboxImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var lightboxInitialIndex by remember { mutableIntStateOf(0) }
+
+    var votingCommentId by remember { mutableStateOf<Int?>(null) }
+    val currentVotingComment = remember(votingCommentId, viewModel.comments) {
+        votingCommentId?.let { id -> viewModel.comments.find { it.id == id } }
+    }
 
     // Состояние свернутых веток комментариев (по умолчанию пусто = все развернуты)
     var collapsedCommentIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -396,6 +402,7 @@ fun NewsDetailScreen(
                                 onNewsClick = onNewsClick,
                                 onDownClick = onDownClick,
                                 onPhotoClick = onPhotoClick,
+                                onVoteClick = { clickedComment -> votingCommentId = clickedComment.id },
                                 onReplyClick = {
                                     replyingToCommentId = comment.id
                                     isFullscreenModalOpen = true
@@ -541,6 +548,47 @@ fun NewsDetailScreen(
                 initialPage = lightboxInitialIndex,
                 title = displayNews.title,
                 onDismiss = { lightboxImages = emptyList() }
+            )
+        }
+
+        if (currentVotingComment != null) {
+            val isMyComment = currentLogin != null && (
+                currentVotingComment.user?.login.equals(currentLogin, ignoreCase = true) ||
+                currentVotingComment.user?.authorLogin.equals(currentLogin, ignoreCase = true)
+            )
+            ItemVoteDialog(
+                title = "Оценка комментария",
+                author = currentVotingComment.user?.displayName ?: currentVotingComment.user?.login ?: "Пользователь",
+                createdAt = currentVotingComment.createdAt,
+                textSnippet = remember(currentVotingComment.text) {
+                    currentVotingComment.text?.let { stripHtml(it).take(120).trim() }?.ifBlank { null }
+                },
+                rating = currentVotingComment.rating,
+                vote = currentVotingComment.vote,
+                isOwn = isMyComment,
+                isVoting = currentVotingComment.id in viewModel.votingCommentIds,
+                isDark = isDark,
+                onVoteUp = {
+                    viewModel.voteComment(
+                        context = context,
+                        commentId = currentVotingComment.id,
+                        vote = "+",
+                        onError = { err ->
+                            android.widget.Toast.makeText(context, err, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                },
+                onVoteDown = {
+                    viewModel.voteComment(
+                        context = context,
+                        commentId = currentVotingComment.id,
+                        vote = "-",
+                        onError = { err ->
+                            android.widget.Toast.makeText(context, err, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                },
+                onDismiss = { votingCommentId = null }
             )
         }
     }
@@ -834,6 +882,7 @@ fun NewsCommentCard(
     onNewsClick: (newsId: Int) -> Unit = {},
     onDownClick: (downId: Int) -> Unit = {},
     onPhotoClick: (photoId: Int) -> Unit = {},
+    onVoteClick: (NewsCommentItem) -> Unit = {},
     onReplyClick: () -> Unit,
     onImageClick: (String) -> Unit,
     onImagesClick: ((List<String>, Int) -> Unit)? = null
@@ -956,6 +1005,32 @@ fun NewsCommentCard(
                                     authorLogin?.let { onUserClick(it) }
                                 }
                             )
+
+                            if (comment.rating != 0) {
+                                val ratingColor = if (comment.rating > 0) Color(0xFF10B981) else Color(0xFFEF4444)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .padding(start = 6.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable { onVoteClick(comment) }
+                                        .padding(horizontal = 3.dp, vertical = 1.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Рейтинг",
+                                        tint = ratingColor,
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = if (comment.rating > 0) "+${comment.rating}" else "${comment.rating}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ratingColor
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(6.dp))
@@ -1042,12 +1117,19 @@ fun NewsCommentCard(
                                             )
                                         }
 
-                                        Text(
-                                            text = formatUnixTime(created),
-                                            fontSize = 10.sp,
-                                            color = secondaryTextColor,
-                                            fontWeight = FontWeight.Medium
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .clickable { onVoteClick(comment) }
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = formatUnixTime(created),
+                                                fontSize = 10.sp,
+                                                color = secondaryTextColor,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
                                     }
                                 }
                             }

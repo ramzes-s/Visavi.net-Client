@@ -74,6 +74,10 @@ class GalleryViewModel : ViewModel() {
     var votingPhotoIds by mutableStateOf<Set<Int>>(emptySet())
         private set
 
+    // Набор id комментариев, за которые в данный момент отправляется голос
+    var votingCommentIds by mutableStateOf<Set<Int>>(emptySet())
+        private set
+
     // --- Добавление новой фотографии ---
     var isUploadingPhoto by mutableStateOf(false)
         private set
@@ -552,9 +556,68 @@ class GalleryViewModel : ViewModel() {
         }
     }
 
+    fun voteComment(
+        context: Context,
+        commentId: Int,
+        vote: String,
+        onSuccess: ((newRating: Int) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (commentId in votingCommentIds) return
+
+        viewModelScope.launch {
+            votingCommentIds = votingCommentIds + commentId
+            try {
+                val targetComment = comments.find { it.id == commentId }
+                val actualType = targetComment?.vote?.type?.ifBlank { null } ?: "comments"
+                val actualId = targetComment?.vote?.id ?: commentId
+
+                val response = VisaviApi.vote(
+                    type = actualType,
+                    id = actualId,
+                    vote = vote
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val newRating = body?.rating ?: 0
+                    val isCancelled = body?.cancel == true
+                    val newValue = if (isCancelled) null else vote
+
+                    val updatedVote = targetComment?.vote?.copy(value = newValue)
+                        ?: VoteData(type = actualType, id = commentId, value = newValue)
+
+                    comments = comments.map { item ->
+                        if (item.id == commentId) {
+                            item.copy(
+                                rating = newRating,
+                                vote = updatedVote
+                            )
+                        } else {
+                            item
+                        }
+                    }
+
+                    onSuccess?.invoke(newRating)
+                } else {
+                    val errorMsg = if (response.code() == 422) {
+                        "Комментарий не найден или вы уже за него голосовали"
+                    } else {
+                        response.extractErrorMessage("Не удалось проголосовать за комментарий")
+                    }
+                    onError?.invoke(errorMsg)
+                }
+            } catch (e: Exception) {
+                onError?.invoke("Ошибка сети: ${e.localizedMessage ?: "не удалось отправить голос"}")
+            } finally {
+                votingCommentIds = votingCommentIds - commentId
+            }
+        }
+    }
+
     fun selectPhoto(photo: PhotoItem?) {
         currentPhoto = photo
         comments = emptyList()
+        votingCommentIds = emptySet()
         commentsCurrentPage = 1
         commentsLastPage = 1
     }

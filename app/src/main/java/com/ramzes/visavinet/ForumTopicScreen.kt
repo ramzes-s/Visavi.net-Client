@@ -72,6 +72,7 @@ import com.ramzes.visavinet.ui.components.GlassTextField
 import com.ramzes.visavinet.ui.components.VoteDualButton
 import com.ramzes.visavinet.ui.dialogs.FullscreenInputModal
 import com.ramzes.visavinet.ui.dialogs.ImageLightboxDialog
+import com.ramzes.visavinet.ui.dialogs.ItemVoteDialog
 import com.ramzes.visavinet.ui.dialogs.QuoteInfo
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.ensureParagraphTags
@@ -536,9 +537,20 @@ fun ForumTopicScreen(
     }
 
     if (currentVotingPost != null) {
-        PostVoteDialog(
-            post = currentVotingPost,
-            currentLogin = currentLogin,
+        val isMyPost = currentLogin != null && (
+            currentVotingPost.authorLogin.equals(currentLogin, ignoreCase = true) ||
+            currentVotingPost.authorName.equals(currentLogin, ignoreCase = true)
+        )
+        ItemVoteDialog(
+            title = "Оценка сообщения",
+            author = currentVotingPost.authorName ?: currentVotingPost.authorLogin ?: "Аноним",
+            createdAt = currentVotingPost.createdAt,
+            textSnippet = remember(currentVotingPost.text) {
+                currentVotingPost.text?.let { stripHtml(it).take(120).trim() }?.ifBlank { null }
+            },
+            rating = currentVotingPost.rating,
+            vote = currentVotingPost.vote,
+            isOwn = isMyPost,
             isVoting = currentVotingPost.id in viewModel.votingPostIds,
             isDark = isDark,
             onVoteUp = {
@@ -1325,176 +1337,6 @@ fun ForumFileItem(file: FileData, isDark: Boolean) {
         Column(modifier = Modifier.weight(1f)) {
             Text(text = file.name ?: "Файл", fontSize = 12.sp, color = fileNameColor, maxLines = 1)
             Text(text = formatFileSize(file.size), fontSize = 10.sp, color = fileSizeColor)
-        }
-    }
-}
-
-@Composable
-fun PostVoteDialog(
-    post: ForumPost,
-    currentLogin: String?,
-    isVoting: Boolean,
-    isDark: Boolean,
-    onVoteUp: () -> Unit,
-    onVoteDown: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val primaryAccent = getPrimaryAccentColor()
-    val backdropColor = if (isDark) Color(0xC0090B10) else Color(0xC0F0F4F8)
-    val textColor = if (isDark) Color.White else LightText
-    val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
-
-    val isMyPost = currentLogin != null && (post.authorLogin == currentLogin || post.authorName == currentLogin)
-    val effectiveVote = remember(post.vote, isMyPost) {
-        (post.vote ?: VoteData(type = "posts", id = post.id, own = isMyPost)).copy(own = isMyPost)
-    }
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true,
-            usePlatformDefaultWidth = false
-        )
-    ) {
-        var blurModifier = Modifier
-            .fillMaxSize()
-            .background(backdropColor)
-            .clickable(onClick = onDismiss)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            blurModifier = blurModifier.blur(20.dp)
-        }
-
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(modifier = blurModifier)
-
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 24.dp)
-                    .widthIn(max = 420.dp)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    isDark = isDark,
-                    shape = RoundedCornerShape(16.dp),
-                    glowColor = primaryAccent.copy(alpha = 0.25f)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Верхняя панель: Заголовок и кнопка закрыть
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = primaryAccent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Оценка сообщения",
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textColor
-                                )
-                            }
-
-                            IconButton(
-                                onClick = onDismiss,
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Закрыть",
-                                    tint = secondaryTextColor,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 12.dp),
-                            color = if (isDark) Color(0x18FFFFFF) else Color(0x10000000)
-                        )
-
-                        // Информация об авторе и дате
-                        val author = post.authorName ?: post.authorLogin ?: "Аноним"
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = author,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = primaryAccent
-                            )
-
-                            post.createdAt?.let { time ->
-                                Text(
-                                    text = formatUnixTime(time),
-                                    fontSize = 11.sp,
-                                    color = secondaryTextColor,
-                                    fontWeight = FontWeight.Normal
-                                )
-                            }
-                        }
-
-                        // Превью текста сообщения
-                        val snippet = remember(post.text) {
-                            post.text?.let { stripHtml(it).take(120).trim() }?.ifBlank { null }
-                        }
-                        if (!snippet.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isDark) Color(0x12FFFFFF) else Color(0x08000000),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "«$snippet»",
-                                    fontSize = 12.sp,
-                                    fontStyle = FontStyle.Italic,
-                                    color = textColor.copy(alpha = 0.85f),
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        // Компонент VoteDualButton
-                        VoteDualButton(
-                            vote = effectiveVote,
-                            rating = post.rating,
-                            onVoteUp = onVoteUp,
-                            onVoteDown = onVoteDown,
-                            isLoading = isVoting,
-                            isDark = isDark,
-                            isCompact = false
-                        )
-                    }
-                }
-            }
         }
     }
 }
