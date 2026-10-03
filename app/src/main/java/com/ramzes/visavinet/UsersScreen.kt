@@ -39,6 +39,7 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.UserData
 import com.ramzes.visavinet.ui.components.GlassBadge
 import com.ramzes.visavinet.ui.components.GlassCard
+import com.ramzes.visavinet.ui.components.getUserRoleBadgeInfo
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.formatUnixTime
@@ -432,16 +433,7 @@ private fun UserCardItem(
     val lastLogin = user.lastLogin
     val statusText = user.status?.takeIf { it.isNotBlank() }
 
-    val roleBadge = remember(user.level) {
-        when (user.level?.lowercase()) {
-            "boss" -> "BOSS" to Color(0xFF8B5CF6)
-            "admin" -> "АДМИНИСТРАТОР" to FieryRed
-            "moder", "moderator" -> "МОДЕРАТОР" to AmberGold
-            "editor" -> "РЕДАКТОР" to EmeraldGreen
-            "banned" -> "ЗАБЛОКИРОВАН" to Color(0xFF7F1D1D)
-            else -> null
-        }
-    }
+    val roleBadge = remember(user.level) { getUserRoleBadgeInfo(user.level) }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         GlassCard(

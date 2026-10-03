@@ -1,6 +1,7 @@
 package com.ramzes.visavinet
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,7 +30,9 @@ import coil.request.ImageRequest
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.ramzes.visavinet.network.OnlineUser
+import com.ramzes.visavinet.ui.components.GlassBadge
 import com.ramzes.visavinet.ui.components.GlassCard
+import com.ramzes.visavinet.ui.components.getUserRoleBadgeInfo
 import com.ramzes.visavinet.ui.theme.*
 import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.parseInlineHtmlTags
@@ -274,46 +277,50 @@ private fun OnlineUserItem(
     secondaryTextColor: Color,
     onUserClick: (String) -> Unit
 ) {
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onUserClick(user.login) },
-        isDark = isDark,
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
+    val roleBadge = remember(user.level) { getUserRoleBadgeInfo(user.level) }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        GlassCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .clickable { onUserClick(user.login) },
+            isDark = isDark,
+            shape = RoundedCornerShape(8.dp)
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(user.avatar ?: R.drawable.ic_default_avatar)
-                    .placeholder(R.drawable.ic_default_avatar)
-                    .error(R.drawable.ic_default_avatar)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .memoryCachePolicy(CachePolicy.ENABLED)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = "Аватар",
+            Row(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(user.avatar ?: R.drawable.ic_default_avatar)
+                        .placeholder(R.drawable.ic_default_avatar)
+                        .error(R.drawable.ic_default_avatar)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Аватар",
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
                 ) {
+                    val endReservedPadding = if (roleBadge != null) {
+                        if (roleBadge.first.length > 6) 96.dp else 56.dp
+                    } else {
+                        0.dp
+                    }
+
                     Text(
                         text = user.displayName,
                         color = textColor,
@@ -321,36 +328,49 @@ private fun OnlineUserItem(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = endReservedPadding)
                     )
 
-                    if (!user.level.isNullOrBlank() && user.level.lowercase() != "user") {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        RoleBadge(level = user.level, isDark = isDark)
+                    if (!user.name.isNullOrBlank() && user.name != user.login) {
+                        Text(
+                            text = "@${user.login}",
+                            fontSize = 11.sp,
+                            color = secondaryTextColor,
+                            maxLines = 1
+                        )
+                    }
+
+                    val cleanStatus = remember(user.status) { user.status?.let { stripHtml(it) }?.trim() }
+                    if (!cleanStatus.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = cleanStatus,
+                            fontSize = 12.sp,
+                            color = if (isDark) Color.White else Color.Black,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-
-                if (!user.name.isNullOrBlank() && user.name != user.login) {
-                    Text(
-                        text = "@${user.login}",
-                        fontSize = 11.sp,
-                        color = secondaryTextColor,
-                        maxLines = 1
-                    )
-                }
-
-                val cleanStatus = remember(user.status) { user.status?.let { stripHtml(it) }?.trim() }
-                if (!cleanStatus.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = cleanStatus,
-                        fontSize = 12.sp,
-                        color = if (isDark) Color.White else Color.Black,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
+        }
+
+        // Плашка роли в правом верхнем углу блока (BOSS, Администратор, Модератор) — как в списке всех пользователей
+        if (roleBadge != null) {
+            GlassBadge(
+                text = roleBadge.first,
+                color = roleBadge.second,
+                isDark = isDark,
+                shape = RoundedCornerShape(topEnd = 8.dp, bottomStart = 8.dp),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onUserClick(user.login) }
+            )
         }
     }
 }

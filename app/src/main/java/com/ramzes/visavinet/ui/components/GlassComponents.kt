@@ -413,6 +413,18 @@ fun GlassBadge(
 }
 
 /**
+ * Единое сопоставление уровня пользователя (level) с названием и цветом бейджика роли
+ */
+fun getUserRoleBadgeInfo(level: String?): Pair<String, Color>? = when (level?.lowercase()) {
+    "boss" -> "BOSS" to Color(0xFF8B5CF6)
+    "admin" -> "АДМИНИСТРАТОР" to FieryRed
+    "moder", "moderator" -> "МОДЕРАТОР" to AmberGold
+    "editor" -> "РЕДАКТОР" to EmeraldGreen
+    "banned" -> "ЗАБЛОКИРОВАН" to Color(0xFF7F1D1D)
+    else -> null
+}
+
+/**
  * Стеклянное текстовое поле ввода GlassTextField с уменьшенным скруглением (6.dp)
  */
 @Composable
