@@ -301,5 +301,27 @@ class FormatAndUtilityTest {
         assertEquals(630.dp, com.ramzes.visavinet.util.DeviceUtils.TABLET_DIALOG_MAX_WIDTH)
         assertEquals(420.dp, com.ramzes.visavinet.util.DeviceUtils.DEFAULT_DIALOG_MAX_WIDTH)
     }
+
+    @Test
+    fun testPingStateModels() {
+        val idle: PingState = PingState.Idle
+        assertSame(PingState.Idle, idle)
+
+        val pinging: PingState = PingState.Pinging
+        assertSame(PingState.Pinging, pinging)
+
+        val success = PingState.Success(latencyMs = 85L, statusCode = 200)
+        assertEquals(85L, success.latencyMs)
+        assertEquals(200, success.statusCode)
+
+        val error = PingState.Error(message = "Network error", statusCode = 0)
+        assertEquals("Network error", error.message)
+        assertEquals(0, error.statusCode)
+    }
+
+    @Test
+    fun testPingCooldownConstant() {
+        assertEquals(2L * 60 * 1000L, SettingsViewModel.PING_COOLDOWN_MS)
+    }
 }
 

@@ -45,6 +45,10 @@ class NewMessagesService : Service() {
         private val _siteStats = MutableStateFlow<StatsResponse?>(null)
         val siteStats: StateFlow<StatsResponse?> = _siteStats.asStateFlow()
 
+        fun updateSiteStats(stats: StatsResponse) {
+            _siteStats.value = stats
+        }
+
         /**
          * Приложение на переднем плане: пока оно открыто, heads-up уведомление о новом
          * сообщении не показываем (бейдж в меню обновляется), баннер появится после

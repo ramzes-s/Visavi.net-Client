@@ -54,6 +54,13 @@ sealed class UpdateDownloadState {
     data class Error(val message: String) : UpdateDownloadState()
 }
 
+sealed class PingState {
+    object Idle : PingState()
+    object Pinging : PingState()
+    data class Success(val latencyMs: Long, val statusCode: Int) : PingState()
+    data class Error(val message: String, val statusCode: Int? = null) : PingState()
+}
+
 class SettingsViewModel : ViewModel() {
 
     var apiToken: String? by mutableStateOf(null)
@@ -65,14 +72,111 @@ class SettingsViewModel : ViewModel() {
     var updateDownloadState by mutableStateOf<UpdateDownloadState>(UpdateDownloadState.Idle)
         private set
 
+    var pingState by mutableStateOf<PingState>(PingState.Idle)
+        private set
+
     var showUpdateDialog by mutableStateOf(false)
         private set
 
     var remainingCheckSeconds by mutableStateOf(0L)
         private set
 
+    var remainingPingCooldownSeconds by mutableStateOf(0L)
+        private set
+
     private var downloadJob: Job? = null
     private var downloadCall: Call? = null
+
+    fun updateRemainingPingCooldown(context: Context) {
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val lastPingTime = prefs.getLong("last_manual_ping_time", 0L)
+        if (lastPingTime <= 0L) {
+            remainingPingCooldownSeconds = 0L
+            return
+        }
+        val elapsed = System.currentTimeMillis() - lastPingTime
+        remainingPingCooldownSeconds = if (elapsed < PING_COOLDOWN_MS) {
+            ((PING_COOLDOWN_MS - elapsed) / 1000L).coerceAtLeast(1L)
+        } else {
+            0L
+        }
+    }
+
+    fun pingApi(
+        context: Context,
+        onComplete: ((code: Int, time: Long) -> Unit)? = null
+    ) {
+        if (pingState is PingState.Pinging) return
+
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val lastPingTime = prefs.getLong("last_manual_ping_time", 0L)
+        val now = System.currentTimeMillis()
+        val elapsed = now - lastPingTime
+
+        if (lastPingTime > 0L && elapsed < PING_COOLDOWN_MS) {
+            val remSec = ((PING_COOLDOWN_MS - elapsed) / 1000L).coerceAtLeast(1L)
+            remainingPingCooldownSeconds = remSec
+            return
+        }
+
+        pingState = PingState.Pinging
+
+        viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
+            try {
+                val response = withContext(Dispatchers.IO) {
+                    VisaviApi.instance.getStats()
+                }
+                val latencyMs = System.currentTimeMillis() - startTime
+                val code = response.code()
+                val pingTimestamp = System.currentTimeMillis()
+
+                prefs.edit()
+                    .putLong("last_manual_ping_time", pingTimestamp)
+                    .putLong("last_stats_check_time", pingTimestamp)
+                    .putInt("last_stats_response_code", code)
+                    .apply()
+
+                withContext(Dispatchers.Main) {
+                    updateRemainingPingCooldown(context)
+                }
+
+                if (response.isSuccessful) {
+                    response.body()?.let { body ->
+                        com.ramzes.visavinet.service.NewMessagesService.updateSiteStats(body)
+                    }
+                    pingState = PingState.Success(latencyMs = latencyMs, statusCode = code)
+                } else {
+                    pingState = PingState.Error(
+                        message = "Ошибка сервера: $code",
+                        statusCode = code
+                    )
+                }
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(code, pingTimestamp)
+                }
+            } catch (e: Exception) {
+                val pingTimestamp = System.currentTimeMillis()
+                prefs.edit()
+                    .putLong("last_manual_ping_time", pingTimestamp)
+                    .putLong("last_stats_check_time", pingTimestamp)
+                    .putInt("last_stats_response_code", 0)
+                    .apply()
+
+                withContext(Dispatchers.Main) {
+                    updateRemainingPingCooldown(context)
+                }
+
+                pingState = PingState.Error(
+                    message = e.localizedMessage ?: "Ошибка соединения",
+                    statusCode = 0
+                )
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(0, pingTimestamp)
+                }
+            }
+        }
+    }
 
     fun updateRemainingCheckTime(context: Context) {
         val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
@@ -380,6 +484,7 @@ class SettingsViewModel : ViewModel() {
         const val AUTO_UPDATE_CHECK_INTERVAL_MS = 24L * 60 * 60 * 1000L // 24 часа для автоматической проверки
         const val MANUAL_UPDATE_CHECK_INTERVAL_MS = 6L * 60 * 60 * 1000L // 6 часов для ручной проверки
         const val UPDATE_CHECK_INTERVAL_MS = AUTO_UPDATE_CHECK_INTERVAL_MS // Для обратной совместимости
+        const val PING_COOLDOWN_MS = 2L * 60 * 1000L // 2 минуты защиты от спама сервера API
 
         fun formatRemainingTime(remainingSec: Long): String {
             val hours = remainingSec / 3600
