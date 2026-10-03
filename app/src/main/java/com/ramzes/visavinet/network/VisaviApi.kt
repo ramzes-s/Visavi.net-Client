@@ -250,11 +250,17 @@ data class DialogueData(
 }
 
 data class PaginationMeta(
-    @SerializedName("current_page") val currentPage: Int,
-    @SerializedName("last_page") val lastPage: Int,
-    @SerializedName("total") val total: Int,
-    @SerializedName("per_page") val perPage: Int,
+    @SerializedName("current_page") val currentPage: Int = 1,
+    @SerializedName("last_page") val lastPage: Int = 1,
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("per_page") val perPage: Int = 10,
     @SerializedName("path") val path: String? = null
+)
+
+data class UsersListResponse(
+    @SerializedName("data") val data: List<UserData>? = null,
+    @SerializedName("links") val links: DialogueLinks? = null,
+    @SerializedName("meta") val meta: PaginationMeta? = null
 )
 
 data class DialoguesData(
@@ -1187,6 +1193,13 @@ interface VisaviApiService {
         @Query("page") page: Int = 1,
         @Query("per_page") perPage: Int = 10
     ): Response<OnlineResponse>
+
+    @GET("api/users")
+    suspend fun getUsers(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20,
+        @Query("sort") sort: String? = null
+    ): Response<UsersListResponse>
 }
 
 object VisaviApi {

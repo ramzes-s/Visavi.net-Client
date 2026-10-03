@@ -323,5 +323,95 @@ class FormatAndUtilityTest {
     fun testPingCooldownConstant() {
         assertEquals(2L * 60 * 1000L, SettingsViewModel.PING_COOLDOWN_MS)
     }
+
+    @Test
+    fun testUserSortOptions() {
+        assertEquals("point", UserSort.POINT.key)
+        assertEquals("rating", UserSort.RATING.key)
+        assertEquals("created", UserSort.CREATED.key)
+        assertEquals("updated", UserSort.UPDATED.key)
+        assertEquals("Актив", UserSort.POINT.title)
+        assertEquals("Авторитет", UserSort.RATING.title)
+        assertEquals("Новые", UserSort.CREATED.title)
+        assertEquals("Активность", UserSort.UPDATED.title)
+    }
+
+    @Test
+    fun testUsersListResponseDeserialization() {
+        val json = """
+            {
+                "data": [
+                    {
+                        "login": "TestUser",
+                        "name": "Тестовый",
+                        "level": "admin",
+                        "point": 1500,
+                        "rating": 45,
+                        "money": 75000,
+                        "color": "#00FF00"
+                    }
+                ],
+                "meta": {
+                    "current_page": 1,
+                    "last_page": 50,
+                    "total": 500,
+                    "per_page": 10
+                }
+            }
+        """.trimIndent()
+        val gson = com.google.gson.Gson()
+        val response = gson.fromJson(json, com.ramzes.visavinet.network.UsersListResponse::class.java)
+
+        assertNotNull(response)
+        assertNotNull(response.data)
+        assertEquals(1, response.data?.size)
+        val user = response.data?.first()
+        assertEquals("TestUser", user?.login)
+        assertEquals("Тестовый", user?.name)
+        assertEquals("admin", user?.level)
+        assertEquals(1500, user?.point)
+        assertEquals(45, user?.rating)
+        assertEquals(75000L, user?.money)
+        assertEquals("#00FF00", user?.color)
+
+        assertNotNull(response.meta)
+        assertEquals(1, response.meta?.currentPage)
+        assertEquals(50, response.meta?.lastPage)
+        assertEquals(500, response.meta?.total)
+        assertEquals(10, response.meta?.perPage)
+    }
+
+    @Test
+    fun testUsersSearchResponseDeserialization() {
+        val json = """
+            {
+                "data": [
+                    {
+                        "login": "findme",
+                        "name": "Найдёныш",
+                        "level": "moder",
+                        "color": "#FF0000",
+                        "avatar": "/uploads/avatars/1.png",
+                        "status": "Online status"
+                    }
+                ]
+            }
+        """.trimIndent()
+        val gson = com.google.gson.Gson()
+        val response = gson.fromJson(json, com.ramzes.visavinet.network.UsersSearchResponse::class.java)
+
+        assertNotNull(response)
+        assertNotNull(response.data)
+        assertEquals(1, response.data?.size)
+        val searchUser = response.data?.first()
+        assertEquals("findme", searchUser?.login)
+        assertEquals("Найдёныш", searchUser?.name)
+        assertEquals("Найдёныш", searchUser?.displayName)
+        assertEquals("moder", searchUser?.level)
+        assertEquals("#FF0000", searchUser?.color)
+        assertEquals("https://visavi.net/uploads/avatars/1.png", searchUser?.avatarUrl)
+        assertEquals("Online status", searchUser?.status)
+    }
 }
+
 

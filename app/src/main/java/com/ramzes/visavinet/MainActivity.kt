@@ -142,21 +142,23 @@ class MainActivity : ComponentActivity() {
 private fun DrawerItemLabel(
     title: String,
     badgeCount: Long = 0L,
-    badgeColor: Color
+    badgeColor: Color,
+    badgeText: String? = null
 ) {
+    val displayBadge = badgeText ?: if (badgeCount > 0) "+$badgeCount" else null
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        if (badgeCount > 0) {
+        if (displayBadge != null) {
             Surface(
                 color = badgeColor,
                 shape = CircleShape
             ) {
                 Text(
-                    text = "+$badgeCount",
+                    text = displayBadge,
                     color = Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -167,7 +169,7 @@ private fun DrawerItemLabel(
     }
 }
 
-enum class Screen { Profile, Feed, Online, News, Gallery, Downs, Private, Forum, Settings }
+enum class Screen { Profile, Feed, Online, Users, News, Gallery, Downs, Private, Forum, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,6 +181,7 @@ fun MainNavigation(
     val viewModel: MainViewModel = viewModel()
     val feedViewModel: FeedViewModel = viewModel()
     val onlineViewModel: OnlineViewModel = viewModel()
+    val usersViewModel: UsersViewModel = viewModel()
     val dialoguesViewModel: DialoguesViewModel = viewModel()
     val forumViewModel: ForumViewModel = viewModel()
     val newsViewModel: NewsViewModel = viewModel()
@@ -225,6 +228,7 @@ fun MainNavigation(
         showGalleryDetailScreen = false
         selectedPhoto = null
         dialoguesViewModel.backToDialogues()
+        usersViewModel.closeSearch()
     }
 
     // История переходов между разделами: кнопка «назад» возвращает на предыдущий раздел
@@ -349,6 +353,13 @@ fun MainNavigation(
                             navigateBackToPreviousScreen()
                         }
                     }
+                    currentScreen == Screen.Users -> {
+                        if (usersViewModel.isSearchActive) {
+                            usersViewModel.closeSearch()
+                        } else {
+                            navigateBackToPreviousScreen()
+                        }
+                    }
                     currentScreen == Screen.Online -> {
                         navigateBackToPreviousScreen()
                     }
@@ -368,14 +379,15 @@ fun MainNavigation(
         }
     }
 
-    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level, downsViewModel.navigationLevel, navigationHistory.size) {
+    LaunchedEffect(showMessagesScreen, showForumTopicScreen, showNewsDetailScreen, showGalleryDetailScreen, currentScreen, forumViewModel.navigationState.level, downsViewModel.navigationLevel, usersViewModel.isSearchActive, navigationHistory.size) {
         // «Назад» доступен, если есть что закрыть: подэкраны/вложенные уровни или предыдущий раздел в истории
         val hasNestedLevel =
             (currentScreen == Screen.Private && showMessagesScreen) ||
                 (currentScreen == Screen.Forum && forumViewModel.navigationState.level != ForumNavigationLevel.SECTIONS) ||
                 (currentScreen == Screen.News && showNewsDetailScreen) ||
                 (currentScreen == Screen.Gallery && showGalleryDetailScreen) ||
-                (currentScreen == Screen.Downs && downsViewModel.navigationLevel != DownsNavigationLevel.CATEGORIES)
+                (currentScreen == Screen.Downs && downsViewModel.navigationLevel != DownsNavigationLevel.CATEGORIES) ||
+                (currentScreen == Screen.Users && usersViewModel.isSearchActive)
         backCallback.isEnabled = hasNestedLevel || navigationHistory.isNotEmpty()
         onBackPressedDispatcher?.addCallback(backCallback)
     }
@@ -770,6 +782,18 @@ fun MainNavigation(
                     )
                     Spacer(Modifier.height(2.dp))
                     NavigationDrawerItem(
+                        label = { Text(text = "ПОЛЬЗОВАТЕЛИ", fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        selected = currentScreen == Screen.Users,
+                        shape = RectangleShape,
+                        modifier = Modifier.fillMaxWidth().height(itemHeight),
+                        onClick = {
+                            navigateTo(Screen.Users)
+                            if (!showPermanentDrawer) scope.launch { drawerState.close() }
+                        },
+                        colors = itemColors
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    NavigationDrawerItem(
                         label = {
                             DrawerItemLabel(
                                 title = "СЕЙЧАС НА САЙТЕ",
@@ -880,6 +904,29 @@ fun MainNavigation(
                                 Screen.Online -> {
                                     OnlineScreen(
                                         viewModel = onlineViewModel,
+                                        onUserClick = { login ->
+                                            userProfileLoading = true
+                                            userProfileError = null
+                                            dialoguesViewModel.loadUserProfile(
+                                                context = context.applicationContext,
+                                                login = login,
+                                                onSuccess = { user ->
+                                                    userProfileData = user
+                                                    userProfileLoading = false
+                                                    showUserProfile = true
+                                                },
+                                                onError = { error ->
+                                                    userProfileError = error
+                                                    userProfileLoading = false
+                                                    showUserProfile = true
+                                                }
+                                            )
+                                        }
+                                    )
+                                }
+                                Screen.Users -> {
+                                    UsersScreen(
+                                        viewModel = usersViewModel,
                                         onUserClick = { login ->
                                             userProfileLoading = true
                                             userProfileError = null
