@@ -377,6 +377,7 @@ data class ForumPost(
     @SerializedName("name") val authorName: String? = null,
     @SerializedName("text") val text: String? = null,
     @SerializedName("rating") val rating: Int = 0,
+    @SerializedName("vote") val vote: VoteData? = null,
     @SerializedName("files") val filesRaw: List<FileData>? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null

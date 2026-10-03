@@ -60,6 +60,9 @@ class ForumViewModel : ViewModel() {
     var posts by mutableStateOf<List<ForumPost>>(emptyList())
         private set
 
+    var votingPostIds by mutableStateOf<Set<Int>>(emptySet())
+        private set
+
     var firstTopicPost by mutableStateOf<ForumPost?>(null)
         private set
 
@@ -680,6 +683,72 @@ class ForumViewModel : ViewModel() {
         }
     }
 
+    fun votePost(
+        context: Context,
+        postId: Int,
+        vote: String,
+        onSuccess: ((newRating: Int) -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (postId in votingPostIds) return
+
+        viewModelScope.launch {
+            votingPostIds = votingPostIds + postId
+            try {
+                val targetPost = firstTopicPost?.takeIf { it.id == postId }
+                    ?: posts.find { it.id == postId }
+                val actualType = targetPost?.vote?.type?.ifBlank { null } ?: "posts"
+                val actualId = targetPost?.vote?.id ?: postId
+
+                val response = VisaviApi.vote(
+                    type = actualType,
+                    id = actualId,
+                    vote = vote
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val newRating = body?.rating ?: 0
+                    val isCancelled = body?.cancel == true
+                    val newValue = if (isCancelled) null else vote
+
+                    val updatedVote = targetPost?.vote?.copy(value = newValue)
+                        ?: VoteData(type = actualType, id = postId, value = newValue)
+
+                    if (firstTopicPost?.id == postId) {
+                        firstTopicPost = firstTopicPost?.copy(
+                            rating = newRating,
+                            vote = updatedVote
+                        )
+                    }
+
+                    posts = posts.map { item ->
+                        if (item.id == postId) {
+                            item.copy(
+                                rating = newRating,
+                                vote = updatedVote
+                            )
+                        } else {
+                            item
+                        }
+                    }
+
+                    onSuccess?.invoke(newRating)
+                } else {
+                    val errorMsg = if (response.code() == 422) {
+                        "Сообщение не найдено или вы уже за него голосовали"
+                    } else {
+                        response.extractErrorMessage("Не удалось проголосовать за сообщение")
+                    }
+                    onError?.invoke(errorMsg)
+                }
+            } catch (e: Exception) {
+                onError?.invoke("Ошибка сети: ${e.localizedMessage ?: "не удалось отправить голос"}")
+            } finally {
+                votingPostIds = votingPostIds - postId
+            }
+        }
+    }
+
     fun clear() {
         rootSections = emptyList()
         currentSection = null
@@ -688,6 +757,7 @@ class ForumViewModel : ViewModel() {
         currentTopic = null
         posts = emptyList()
         firstTopicPost = null
+        votingPostIds = emptySet()
         navigationState = ForumNavigationState()
         errorMessage = null
         backStack.clear()
