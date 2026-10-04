@@ -795,137 +795,128 @@ private fun parseNestedTags(
     }
 
     var currentPosition = 0
-    
     val openTagRegex = Regex("<(strong|b|i|u|s|code|span|a|img)(?:\\s+[^>]*)?>", RegexOption.IGNORE_CASE)
-    val match = openTagRegex.find(text, currentPosition) ?: run {
-        builder.appendWithStyles(text, activeStyles, isDark, currentUrl)
-        return
-    }
-    
-    if (match.range.first > currentPosition) {
-        val beforeText = text.substring(currentPosition, match.range.first)
-        builder.appendWithStyles(beforeText, activeStyles, isDark, currentUrl)
-    }
-    
-    val tagName = match.groupValues[1].lowercase()
 
-    if (tagName == "img") {
-        val (src, alt) = parseImgSrcAndAlt(match.value)
-        if (!src.isNullOrBlank() && inlineMap != null) {
-            val inlineId = "img_${builder.length}_${src.hashCode()}"
-            builder.appendInlineContent(inlineId, alt ?: "smile")
-            inlineMap[inlineId] = InlineTextContent(
-                Placeholder(
-                    width = 20.sp,
-                    height = 20.sp,
-                    placeholderVerticalAlign = PlaceholderVerticalAlign.Center
-                )
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(src)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = alt,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+    while (currentPosition < text.length) {
+        val remainingText = text.substring(currentPosition)
+        val match = openTagRegex.find(remainingText)
+        if (match == null) {
+            builder.appendWithStyles(remainingText, activeStyles, isDark, currentUrl)
+            break
         }
-        currentPosition = match.range.last + 1
-        if (currentPosition < text.length) {
-            val remainingText = text.substring(currentPosition)
-            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, inlineMap, depth + 1)
-        }
-        return
-    }
 
-    var nodeUrl: String? = currentUrl
-
-    if (tagName == "a") {
-        parseHrefFromATag(match.value)?.let { nodeUrl = it }
-    }
-    
-    val closeTagRegex = Regex("</${tagName}>", RegexOption.IGNORE_CASE)
-    var searchPos = match.range.last + 1
-    var nestingLevel = 1
-    var closeTagPos = -1
-    
-    while (nestingLevel > 0 && searchPos < text.length) {
-        val remainingText = text.substring(searchPos)
-        val nextOpen = openTagRegex.find(remainingText)
-        val nextClose = closeTagRegex.find(remainingText)
-        
-        when {
-            nextClose == null -> break
-            nextOpen != null && nextOpen.range.first < nextClose.range.first && 
-                nextOpen.groupValues[1].lowercase() == tagName -> {
-                nestingLevel++
-                searchPos += nextOpen.range.last + 1
-            }
-            else -> {
-                nestingLevel--
-                if (nestingLevel == 0) {
-                    closeTagPos = searchPos + nextClose.range.first
-                }
-                searchPos += nextClose.range.last + 1
-            }
+        if (match.range.first > 0) {
+            val beforeText = remainingText.substring(0, match.range.first)
+            builder.appendWithStyles(beforeText, activeStyles, isDark, currentUrl)
         }
-    }
-    
-    if (closeTagPos > 0) {
-        val innerStart = match.range.last + 1
-        val innerText = text.substring(innerStart, closeTagPos)
-        
-        val newStyle = when (tagName) {
-            "strong", "b" -> SpanStyle(fontWeight = FontWeight.Bold)
-            "i" -> SpanStyle(fontStyle = FontStyle.Italic)
-            "u" -> SpanStyle(textDecoration = TextDecoration.Underline)
-            "s" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
-            "code" -> SpanStyle(
-                fontFamily = FontFamily.Monospace,
-                background = if (isDark) Color(0x401E3A8A) else Color(0x201E40AF),
-                color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E40AF)
-            )
-            "span" -> {
-                // Цветной текст можно отключить в настройках (Функция: Игнорировать цветной текст)
-                val spanColor = if (TextRenderPrefs.ignoreColoredText) {
-                    null
-                } else {
-                    parseColorFromSpanTag(match.value)
-                }
-                val spanFontSize = parseFontSizeFromSpanTag(match.value)
-                if (spanColor != null || spanFontSize != null) {
-                    SpanStyle(
-                        color = spanColor ?: Color.Unspecified,
-                        fontSize = spanFontSize ?: TextUnit.Unspecified
+
+        val matchAbsoluteEnd = currentPosition + match.range.last + 1
+        val tagName = match.groupValues[1].lowercase()
+
+        if (tagName == "img") {
+            val (src, alt) = parseImgSrcAndAlt(match.value)
+            if (!src.isNullOrBlank() && inlineMap != null) {
+                val inlineId = "img_${builder.length}_${src.hashCode()}"
+                builder.appendInlineContent(inlineId, alt ?: "smile")
+                inlineMap[inlineId] = InlineTextContent(
+                    Placeholder(
+                        width = 20.sp,
+                        height = 20.sp,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.Center
                     )
-                } else null
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(src)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = alt,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
-            "a" -> SpanStyle(
-                color = if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2),
-                textDecoration = TextDecoration.Underline
-            )
-            else -> null
+            currentPosition = matchAbsoluteEnd
+            continue
         }
-        
-        val newActiveStyles = if (newStyle != null) activeStyles + newStyle else activeStyles
-        
-        parseNestedTags(builder, innerText, isDark, newActiveStyles, nodeUrl, inlineMap, depth + 1)
-        
-        val afterClosePos = closeTagPos + "</${tagName}>".length
-        currentPosition = afterClosePos
-        
-        if (currentPosition < text.length) {
-            val remainingText = text.substring(currentPosition)
-            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, inlineMap, depth + 1)
+
+        var nodeUrl: String? = currentUrl
+        if (tagName == "a") {
+            parseHrefFromATag(match.value)?.let { nodeUrl = it }
         }
-    } else {
-        currentPosition = match.range.last + 1
-        if (currentPosition < text.length) {
-            val remainingText = text.substring(currentPosition)
-            parseNestedTags(builder, remainingText, isDark, activeStyles, currentUrl, inlineMap, depth + 1)
+
+        val closeTagRegex = Regex("</${tagName}>", RegexOption.IGNORE_CASE)
+        var searchPos = matchAbsoluteEnd
+        var nestingLevel = 1
+        var closeTagPos = -1
+
+        while (nestingLevel > 0 && searchPos < text.length) {
+            val searchRemaining = text.substring(searchPos)
+            val nextOpen = openTagRegex.find(searchRemaining)
+            val nextClose = closeTagRegex.find(searchRemaining)
+
+            when {
+                nextClose == null -> break
+                nextOpen != null && nextOpen.range.first < nextClose.range.first -> {
+                    if (nextOpen.groupValues[1].lowercase() == tagName) {
+                        nestingLevel++
+                    }
+                    searchPos += nextOpen.range.last + 1
+                }
+                else -> {
+                    nestingLevel--
+                    if (nestingLevel == 0) {
+                        closeTagPos = searchPos + nextClose.range.first
+                    }
+                    searchPos += nextClose.range.last + 1
+                }
+            }
+        }
+
+        if (closeTagPos > 0) {
+            val innerText = text.substring(matchAbsoluteEnd, closeTagPos)
+
+            val newStyle = when (tagName) {
+                "strong", "b" -> SpanStyle(fontWeight = FontWeight.Bold)
+                "i" -> SpanStyle(fontStyle = FontStyle.Italic)
+                "u" -> SpanStyle(textDecoration = TextDecoration.Underline)
+                "s" -> SpanStyle(textDecoration = TextDecoration.LineThrough)
+                "code" -> SpanStyle(
+                    fontFamily = FontFamily.Monospace,
+                    background = if (isDark) Color(0x401E3A8A) else Color(0x201E40AF),
+                    color = if (isDark) Color(0xFF93C5FD) else Color(0xFF1E40AF)
+                )
+                "span" -> {
+                    // Цветной текст можно отключить в настройках (Функция: Игнорировать цветной текст)
+                    val spanColor = if (TextRenderPrefs.ignoreColoredText) {
+                        null
+                    } else {
+                        parseColorFromSpanTag(match.value)
+                    }
+                    val spanFontSize = parseFontSizeFromSpanTag(match.value)
+                    if (spanColor != null || spanFontSize != null) {
+                        SpanStyle(
+                            color = spanColor ?: Color.Unspecified,
+                            fontSize = spanFontSize ?: TextUnit.Unspecified
+                        )
+                    } else null
+                }
+                "a" -> SpanStyle(
+                    color = if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2),
+                    textDecoration = TextDecoration.Underline
+                )
+                else -> null
+            }
+
+            val newActiveStyles = if (newStyle != null) activeStyles + newStyle else activeStyles
+
+            parseNestedTags(builder, innerText, isDark, newActiveStyles, nodeUrl, inlineMap, depth + 1)
+
+            val afterClosePos = closeTagPos + "</${tagName}>".length
+            currentPosition = afterClosePos
+        } else {
+            currentPosition = matchAbsoluteEnd
         }
     }
 }
