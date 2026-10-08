@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -14,20 +15,28 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -45,6 +54,7 @@ import com.ramzes.visavinet.ui.theme.LightText
 import com.ramzes.visavinet.ui.theme.LightTextSecondary
 import com.ramzes.visavinet.ui.theme.TextLightGray
 import com.ramzes.visavinet.ui.theme.ProvideContentFontScale
+import com.ramzes.visavinet.ui.theme.getPrimaryAccentColor
 import com.ramzes.visavinet.network.VisaviApi
 import java.time.Instant
 import java.time.LocalDate
@@ -66,11 +76,18 @@ fun parseVisaviUrl(url: String): VisaviUrlTarget {
     val clean = url.trim()
     val hostPattern = Regex.escape(VisaviApi.BASE_HOST)
 
-    // 1. Профиль пользователя: /users/login или https://domain/users/login
-    val userRegex = Regex("(?:https?://$hostPattern)?/users/([^/?#]+)", RegexOption.IGNORE_CASE)
+    // 1. Профиль пользователя: /users/login или /user/login или https://domain/users/login или @login
+    val userRegex = Regex("(?:https?://$hostPattern)?/?(?:users|user)/@?([^/?#]+)", RegexOption.IGNORE_CASE)
     userRegex.find(clean)?.let { match ->
         val login = match.groupValues[1]
         if (login.isNotBlank()) return VisaviUrlTarget.User(login)
+    }
+
+    if (clean.startsWith("@") && clean.length > 1) {
+        val login = clean.removePrefix("@").trim()
+        if (login.isNotBlank() && !login.contains(" ") && !login.contains("/")) {
+            return VisaviUrlTarget.User(login)
+        }
     }
 
     // 2. Тема форума: /topics/44999?page=2#post_717088 или /forum/topic/44999
@@ -197,30 +214,18 @@ fun ClickableAndSelectableText(
     onPhotoClick: ((photoId: Int) -> Unit)? = null
 ) {
     val context = LocalContext.current
+    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
-    SelectionContainer(modifier = modifier) {
-        if (inlineContent.isNotEmpty()) {
-            BasicText(
-                text = text,
-                inlineContent = inlineContent,
-                style = TextStyle(
-                    color = color,
-                    fontSize = fontSize,
-                    fontStyle = fontStyle,
-                    fontWeight = fontWeight
-                )
-            )
-        } else {
-            ClickableText(
-                text = text,
-                style = TextStyle(
-                    color = color,
-                    fontSize = fontSize,
-                    fontStyle = fontStyle,
-                    fontWeight = fontWeight
-                ),
-                onClick = { offset ->
-                    text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+    val hasUrls = remember(text) {
+        text.getStringAnnotations(tag = "URL", start = 0, end = text.length).isNotEmpty()
+    }
+
+    val clickModifier = if (hasUrls) {
+        Modifier.pointerInput(text) {
+            detectTapGestures { offset ->
+                layoutResult?.let { layout ->
+                    val position = layout.getOffsetForPosition(offset)
+                    text.getStringAnnotations(tag = "URL", start = position, end = position)
                         .firstOrNull()?.let { annotation ->
                             val url = annotation.item
                             if (url.isNotBlank()) {
@@ -236,8 +241,23 @@ fun ClickableAndSelectableText(
                             }
                         }
                 }
-            )
+            }
         }
+    } else Modifier
+
+    SelectionContainer(modifier = modifier) {
+        BasicText(
+            text = text,
+            modifier = clickModifier,
+            inlineContent = inlineContent,
+            onTextLayout = { layoutResult = it },
+            style = TextStyle(
+                color = color,
+                fontSize = fontSize,
+                fontStyle = fontStyle,
+                fontWeight = fontWeight
+            )
+        )
     }
 }
 
@@ -684,8 +704,9 @@ private fun TextBlock(
     onDownClick: ((downId: Int) -> Unit)? = null,
     onPhotoClick: ((photoId: Int) -> Unit)? = null
 ) {
+    val primaryAccent = getPrimaryAccentColor()
     val sourceText = html ?: text
-    val (annotatedText, inlineMap) = parseInlineHtmlTags(sourceText, isDark)
+    val (annotatedText, inlineMap) = parseInlineHtmlTags(sourceText, isDark, primaryAccent)
 
     ClickableAndSelectableText(
         text = annotatedText,
@@ -704,14 +725,18 @@ private fun TextBlock(
 /**
  * Парсинг inline HTML тегов (strong, b, i, u, s, code, a, img) в AnnotatedString
  */
-fun parseInlineHtmlTags(text: String, isDark: Boolean): Pair<AnnotatedString, Map<String, InlineTextContent>> {
+fun parseInlineHtmlTags(
+    text: String,
+    isDark: Boolean,
+    accentColor: Color? = null
+): Pair<AnnotatedString, Map<String, InlineTextContent>> {
     val inlineMap = mutableMapOf<String, InlineTextContent>()
     val cleanText = processListTags(text)
         .replace(Regex("<div[^>]*>", RegexOption.IGNORE_CASE), "")
         .replace(Regex("</div>", RegexOption.IGNORE_CASE), "")
         .trim()
     val annotated = buildAnnotatedString {
-        parseNestedTags(this, cleanText, isDark, emptyList(), inlineMap = inlineMap)
+        parseNestedTags(this, cleanText, isDark, emptyList(), inlineMap = inlineMap, accentColor = accentColor)
     }
     return Pair(annotated, inlineMap)
 }
@@ -787,7 +812,8 @@ private fun parseNestedTags(
     activeStyles: List<SpanStyle>,
     currentUrl: String? = null,
     inlineMap: MutableMap<String, InlineTextContent>? = null,
-    depth: Int = 0
+    depth: Int = 0,
+    accentColor: Color? = null
 ) {
     if (depth >= 15 || text.isEmpty()) {
         builder.appendWithStyles(text, activeStyles, isDark, currentUrl)
@@ -875,7 +901,48 @@ private fun parseNestedTags(
         }
 
         if (closeTagPos > 0) {
-            val innerText = text.substring(matchAbsoluteEnd, closeTagPos)
+            val rawInnerText = text.substring(matchAbsoluteEnd, closeTagPos)
+
+            val isUserLink = tagName == "a" && !rawInnerText.isBlank() && nodeUrl != null && parseVisaviUrl(nodeUrl) is VisaviUrlTarget.User
+
+            val innerText = if (isUserLink) {
+                val stripped = rawInnerText.replaceFirst(Regex("^(\\s*)@\\s*"), "$1")
+                if (stripped.isNotBlank()) stripped else rawInnerText
+            } else {
+                rawInnerText
+            }
+
+            val iconStart = builder.length
+            if (isUserLink && inlineMap != null) {
+                val userIconId = "user_icon_${builder.length}_${nodeUrl.hashCode()}"
+                val effectiveAccent = accentColor ?: (if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2))
+                builder.appendInlineContent(userIconId)
+                inlineMap[userIconId] = InlineTextContent(
+                    Placeholder(
+                        width = 13.sp,
+                        height = 12.sp,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Reply,
+                            contentDescription = "Обращение",
+                            tint = effectiveAccent,
+                            modifier = Modifier.size(10.5.dp)
+                        )
+                    }
+                }
+                builder.addStringAnnotation(
+                    tag = "URL",
+                    annotation = nodeUrl,
+                    start = iconStart,
+                    end = builder.length
+                )
+            }
 
             val newStyle = when (tagName) {
                 "strong", "b" -> SpanStyle(fontWeight = FontWeight.Bold)
@@ -902,16 +969,27 @@ private fun parseNestedTags(
                         )
                     } else null
                 }
-                "a" -> SpanStyle(
-                    color = if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2),
-                    textDecoration = TextDecoration.Underline
-                )
+                "a" -> {
+                    if (isUserLink) {
+                        val effectiveAccent = accentColor ?: (if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2))
+                        SpanStyle(
+                            color = effectiveAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        SpanStyle(
+                            color = if (isDark) Color(0xFF64B5F6) else Color(0xFF1976D2),
+                            textDecoration = TextDecoration.Underline
+                        )
+                    }
+                }
                 else -> null
             }
 
             val newActiveStyles = if (newStyle != null) activeStyles + newStyle else activeStyles
 
-            parseNestedTags(builder, innerText, isDark, newActiveStyles, nodeUrl, inlineMap, depth + 1)
+            parseNestedTags(builder, innerText, isDark, newActiveStyles, nodeUrl, inlineMap, depth + 1, accentColor)
 
             val afterClosePos = closeTagPos + "</${tagName}>".length
             currentPosition = afterClosePos
@@ -1019,6 +1097,8 @@ private fun QuoteBlock(
     val backgroundColor = Color(0x17D67904)
     val textColor = if (isDark) Color.White else LightText
 
+    val primaryAccent = getPrimaryAccentColor()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1035,7 +1115,7 @@ private fun QuoteBlock(
     ) {
         if (quoteText.isNotBlank()) {
             val quoteSourceText = quoteHtml ?: quoteText
-            val (annotatedQuote, inlineMapQuote) = parseInlineHtmlTags(quoteSourceText, isDark)
+            val (annotatedQuote, inlineMapQuote) = parseInlineHtmlTags(quoteSourceText, isDark, primaryAccent)
             ClickableAndSelectableText(
                 text = annotatedQuote,
                 isDark = isDark,
@@ -1065,7 +1145,7 @@ private fun QuoteBlock(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val (annotatedAuthor, inlineMapAuthor) = parseInlineHtmlTags(authorPart, isDark)
+                val (annotatedAuthor, inlineMapAuthor) = parseInlineHtmlTags(authorPart, isDark, primaryAccent)
                 ClickableAndSelectableText(
                     text = annotatedAuthor,
                     isDark = isDark,
@@ -1254,8 +1334,11 @@ fun RenderFeedPreview(
 
 @Composable
 private fun PreviewTextBlock(block: ContentBlock.TextBlock, isDark: Boolean) {
+    val primaryAccent = getPrimaryAccentColor()
     val source = block.html ?: block.text
-    val (annotated, inlineMap) = remember(source, isDark) { parseInlineHtmlTags(source, isDark) }
+    val (annotated, inlineMap) = remember(source, isDark, primaryAccent) {
+        parseInlineHtmlTags(source, isDark, primaryAccent)
+    }
 
     BasicText(
         text = annotated,
@@ -1273,6 +1356,7 @@ private fun PreviewTextBlock(block: ContentBlock.TextBlock, isDark: Boolean) {
 
 @Composable
 private fun PreviewQuoteBlock(block: ContentBlock.QuoteBlock, isDark: Boolean) {
+    val primaryAccent = getPrimaryAccentColor()
     val textColor = if (isDark) Color.White else LightText
 
     Column(
@@ -1285,7 +1369,9 @@ private fun PreviewQuoteBlock(block: ContentBlock.QuoteBlock, isDark: Boolean) {
     ) {
         if (block.quoteText.isNotBlank()) {
             val source = block.quoteHtml ?: block.quoteText
-            val (annotatedQuote, inlineMapQuote) = remember(source, isDark) { parseInlineHtmlTags(source, isDark) }
+            val (annotatedQuote, inlineMapQuote) = remember(source, isDark, primaryAccent) {
+                parseInlineHtmlTags(source, isDark, primaryAccent)
+            }
             BasicText(
                 text = annotatedQuote,
                 inlineContent = inlineMapQuote,
@@ -1313,8 +1399,8 @@ private fun PreviewQuoteBlock(block: ContentBlock.QuoteBlock, isDark: Boolean) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val (annotatedAuthor, inlineMapAuthor) = remember(authorPart, isDark) {
-                        parseInlineHtmlTags(authorPart, isDark)
+                    val (annotatedAuthor, inlineMapAuthor) = remember(authorPart, isDark, primaryAccent) {
+                        parseInlineHtmlTags(authorPart, isDark, primaryAccent)
                     }
                     BasicText(
                         text = annotatedAuthor,

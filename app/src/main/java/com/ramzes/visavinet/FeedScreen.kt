@@ -286,12 +286,10 @@ fun FeedCardItem(
                 .fillMaxWidth()
                 .clickable(onClick = onItemClick),
             isDark = isDark,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(8.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // Верхняя строка: Заголовок темы / материала
                 // (бейдж типа события теперь лежит в углу карточки и сюда не входит)
@@ -304,7 +302,10 @@ fun FeedCardItem(
                             fontWeight = FontWeight.Bold,
                             color = textColor,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(end = 76.dp)
                         )
                     }
                 }
@@ -550,7 +551,7 @@ fun FeedCardItem(
             color = badgeColor,
             icon = badgeIcon,
             isDark = isDark,
-            shape = RoundedCornerShape(topEnd = 12.dp, bottomStart = 8.dp),
+            shape = RoundedCornerShape(topEnd = 8.dp, bottomStart = 8.dp),
             modifier = Modifier.align(Alignment.TopEnd)
         )
     }

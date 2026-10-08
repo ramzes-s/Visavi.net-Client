@@ -629,10 +629,10 @@ fun DownsMainContentCard(
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         isDark = isDark,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         glowColor = Color.Transparent
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             // Название загрузки
             Text(
                 text = down.title ?: "Без названия",
@@ -1076,9 +1076,7 @@ fun DownCommentCard(
             glowColor = if (isHighlighted) getPrimaryAccentColor().copy(alpha = 0.6f) else Color.Transparent
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(if (actualIsReply) 8.dp else 10.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 if (comment.deleted) {
                     Text(

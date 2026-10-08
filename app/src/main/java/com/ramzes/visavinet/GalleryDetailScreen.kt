@@ -659,10 +659,10 @@ fun GalleryMainContentCard(
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
         isDark = isDark,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         glowColor = Color.Transparent
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             // Медиа-контент: Видео или Картинка (одно или горизонтальный пейджер)
             if (mediaFiles.isNotEmpty()) {
                 if (mediaFiles.size == 1) {
@@ -1001,9 +1001,7 @@ fun GalleryCommentCard(
             glowColor = if (isHighlighted) getPrimaryAccentColor().copy(alpha = 0.6f) else Color.Transparent
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(if (isReply) 8.dp else 10.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 if (comment.deleted) {
                     Text(

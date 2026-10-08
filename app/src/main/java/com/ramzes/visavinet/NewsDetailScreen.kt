@@ -642,9 +642,7 @@ fun NewsMainContentCard(
         glowColor = if (news.top) getPrimaryAccentColor().copy(alpha = 0.2f) else Color.Transparent
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             // Закреплено
             if (news.top) {
@@ -949,9 +947,7 @@ fun NewsCommentCard(
             glowColor = if (isHighlighted) getPrimaryAccentColor().copy(alpha = 0.6f) else Color.Transparent
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(if (isReply) 8.dp else 10.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 if (comment.deleted) {
                     Text(

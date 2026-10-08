@@ -206,9 +206,7 @@ fun DownsCategoriesView(
                                     glowColor = getPrimaryAccentColor().copy(alpha = 0.25f)
                                 ) {
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                                        modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
@@ -279,9 +277,7 @@ fun DownsCategoryCard(
         glowColor = Color.Transparent
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -631,9 +627,7 @@ fun DownItemCard(
         glowColor = Color.Transparent
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
             // Превью скриншота или иконка файла

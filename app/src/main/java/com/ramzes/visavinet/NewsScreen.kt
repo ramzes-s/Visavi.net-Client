@@ -242,9 +242,7 @@ fun NewsItemCard(
             glowColor = if (news.top) getPrimaryAccentColor().copy(alpha = 0.25f) else Color.Transparent
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // Закрепленный статус
                 if (news.top) {

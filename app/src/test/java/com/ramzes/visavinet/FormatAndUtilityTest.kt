@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import com.ramzes.visavinet.network.parseIsoDateTime
 import com.ramzes.visavinet.ui.components.applyTagToTextFieldValue
 import com.ramzes.visavinet.ui.components.findEnclosingCodeBlock
@@ -104,6 +106,18 @@ class FormatAndUtilityTest {
         assertTrue(userTarget is com.ramzes.visavinet.util.VisaviUrlTarget.User)
         assertEquals("ramzes", (userTarget as com.ramzes.visavinet.util.VisaviUrlTarget.User).login)
 
+        val atUserTarget = com.ramzes.visavinet.util.parseVisaviUrl("@ramzes")
+        assertTrue(atUserTarget is com.ramzes.visavinet.util.VisaviUrlTarget.User)
+        assertEquals("ramzes", (atUserTarget as com.ramzes.visavinet.util.VisaviUrlTarget.User).login)
+
+        val userAtTarget = com.ramzes.visavinet.util.parseVisaviUrl("/users/@ramzes")
+        assertTrue(userAtTarget is com.ramzes.visavinet.util.VisaviUrlTarget.User)
+        assertEquals("ramzes", (userAtTarget as com.ramzes.visavinet.util.VisaviUrlTarget.User).login)
+
+        val fullUserTarget = com.ramzes.visavinet.util.parseVisaviUrl("https://visavi.net/user/ramzes")
+        assertTrue(fullUserTarget is com.ramzes.visavinet.util.VisaviUrlTarget.User)
+        assertEquals("ramzes", (fullUserTarget as com.ramzes.visavinet.util.VisaviUrlTarget.User).login)
+
         val topicUrl = "https://visavi.net/topics/44999?page=2#post_717088"
         val topicTarget = com.ramzes.visavinet.util.parseVisaviUrl(topicUrl)
         assertTrue(topicTarget is com.ramzes.visavinet.util.VisaviUrlTarget.Topic)
@@ -111,6 +125,20 @@ class FormatAndUtilityTest {
         assertEquals(44999, topic.topicId)
         assertEquals(2, topic.page)
         assertEquals(717088, topic.postId)
+    }
+
+    @Test
+    fun testUserMentionRemovesLeadingAt() {
+        val html = "<a class=\"user\" href=\"/users/ramzes\">@ramzes</a>"
+        val (annotated, inlineMap) = com.ramzes.visavinet.util.parseInlineHtmlTags(html, isDark = true)
+        assertEquals("\uFFFDramzes", annotated.text)
+        assertFalse(annotated.text.contains("@"))
+        assertTrue(annotated.text.endsWith("ramzes"))
+        assertTrue(inlineMap.isNotEmpty())
+        val urlAnnotations = annotated.getStringAnnotations("URL", 0, annotated.length)
+        assertTrue(urlAnnotations.any { it.item == "/users/ramzes" })
+        val spanStyles = annotated.spanStyles
+        assertTrue(spanStyles.any { it.item.fontSize == 12.sp && it.item.fontWeight == FontWeight.Bold })
     }
 
     @Test

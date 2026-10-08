@@ -252,6 +252,7 @@ fun DialogueItem(
     val hasUnread = !isRead && dialogue.allReading == false
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+    val primaryAccent = getPrimaryAccentColor()
     val unreadColor = getSecondaryAccentColor()
     val readCheckColor = DarkNavyBlue
 
@@ -327,16 +328,17 @@ fun DialogueItem(
                     }
 
                     dialogue.text?.let { text ->
-                        val annotatedPreview = remember(text, isDark, TextRenderPrefs.ignoreColoredText) {
+                        val (annotatedPreview, inlineMap) = remember(text, isDark, primaryAccent, TextRenderPrefs.ignoreColoredText) {
                             val cleanHtml = text
                                 .replace(Regex("</?p[^>]*>", RegexOption.IGNORE_CASE), " ")
                                 .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")
                                 .trim()
-                            parseInlineHtmlTags(cleanHtml, isDark).first
+                            parseInlineHtmlTags(cleanHtml, isDark, primaryAccent)
                         }
 
                         Text(
                             text = annotatedPreview,
+                            inlineContent = inlineMap,
                             fontSize = 13.sp,
                             color = if (hasUnread) textColor else secondaryTextColor,
                             maxLines = 1,
