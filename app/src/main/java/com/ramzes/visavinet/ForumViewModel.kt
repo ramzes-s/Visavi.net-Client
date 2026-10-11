@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.ramzes.visavinet.network.*
 import com.ramzes.visavinet.util.FileUtils
 import kotlinx.coroutines.launch
@@ -30,6 +32,13 @@ data class ForumNavigationState(
 
 class ForumViewModel : ViewModel() {
 
+    companion object {
+        private const val CACHE_DURATION_MS = 15 * 60 * 1000L // 15 минут
+    }
+
+    private var newTopicsCacheTimestamp: Long = 0L
+    private var bookmarksCacheTimestamp: Long = 0L
+
     var selectedTab by mutableStateOf(ForumTab.SECTIONS)
         private set
 
@@ -42,14 +51,10 @@ class ForumViewModel : ViewModel() {
                 }
             }
             ForumTab.NEW_TOPICS -> {
-                if (newTopics.isEmpty()) {
-                    loadNewTopics(context)
-                }
+                loadNewTopics(context, refresh = false)
             }
             ForumTab.BOOKMARKS -> {
-                if (bookmarks.isEmpty()) {
-                    loadBookmarks(context)
-                }
+                loadBookmarks(context, refresh = false)
             }
         }
     }
@@ -201,8 +206,61 @@ class ForumViewModel : ViewModel() {
         }
     }
 
+    fun isNewTopicsCacheValid(context: Context): Boolean {
+        if (newTopicsCacheTimestamp > 0L && (System.currentTimeMillis() - newTopicsCacheTimestamp) < CACHE_DURATION_MS) {
+            return true
+        }
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val spTime = prefs.getLong("forum_new_topics_timestamp", 0L)
+        return (System.currentTimeMillis() - spTime) < CACHE_DURATION_MS
+    }
+
+    fun loadCachedNewTopics(context: Context): Boolean {
+        if (newTopics.isNotEmpty()) {
+            return isNewTopicsCacheValid(context)
+        }
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val timestamp = prefs.getLong("forum_new_topics_timestamp", 0L)
+            val json = prefs.getString("forum_new_topics_json", null)
+            if (!json.isNullOrBlank()) {
+                val type = object : TypeToken<List<ForumTopic>>() {}.type
+                val list: List<ForumTopic> = Gson().fromJson(json, type)
+                if (list.isNotEmpty()) {
+                    newTopics = list
+                    newTopicsCurrentPage = 1
+                    newTopicsLastPage = prefs.getInt("forum_new_topics_last_page", 1)
+                    newTopicsCacheTimestamp = timestamp
+                    return (System.currentTimeMillis() - timestamp) < CACHE_DURATION_MS
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return false
+    }
+
+    private fun saveNewTopicsCache(context: Context, topics: List<ForumTopic>, lastPage: Int) {
+        val now = System.currentTimeMillis()
+        newTopicsCacheTimestamp = now
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val json = Gson().toJson(topics)
+            prefs.edit()
+                .putString("forum_new_topics_json", json)
+                .putLong("forum_new_topics_timestamp", now)
+                .putInt("forum_new_topics_last_page", lastPage)
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun loadNewTopics(context: Context, refresh: Boolean = false) {
         if (isLoadingNewTopics) return
+        if (!refresh && loadCachedNewTopics(context)) {
+            return
+        }
         viewModelScope.launch {
             isLoadingNewTopics = true
             newTopicsErrorMessage = null
@@ -217,10 +275,14 @@ class ForumViewModel : ViewModel() {
                 )
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
-                    newTopics = body.data ?: emptyList()
-                    body.meta?.let { meta ->
-                        newTopicsCurrentPage = meta.currentPage
-                        newTopicsLastPage = meta.lastPage
+                    val loadedList = body.data ?: emptyList()
+                    newTopics = loadedList
+                    val curPage = body.meta?.currentPage ?: 1
+                    val lastPage = body.meta?.lastPage ?: 1
+                    newTopicsCurrentPage = curPage
+                    newTopicsLastPage = lastPage
+                    if (loadedList.isNotEmpty()) {
+                        saveNewTopicsCache(context, loadedList, lastPage)
                     }
                 } else {
                     newTopicsErrorMessage = response.extractErrorMessage("Ошибка загрузки последних тем")
@@ -261,11 +323,65 @@ class ForumViewModel : ViewModel() {
         }
     }
 
+    fun isBookmarksCacheValid(context: Context): Boolean {
+        if (bookmarksCacheTimestamp > 0L && (System.currentTimeMillis() - bookmarksCacheTimestamp) < CACHE_DURATION_MS) {
+            return true
+        }
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val spTime = prefs.getLong("forum_bookmarks_timestamp", 0L)
+        return (System.currentTimeMillis() - spTime) < CACHE_DURATION_MS
+    }
+
+    fun loadCachedBookmarks(context: Context): Boolean {
+        if (VisaviApi.getToken().isNullOrBlank()) return false
+        if (bookmarks.isNotEmpty()) {
+            return isBookmarksCacheValid(context)
+        }
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val timestamp = prefs.getLong("forum_bookmarks_timestamp", 0L)
+            val json = prefs.getString("forum_bookmarks_json", null)
+            if (!json.isNullOrBlank()) {
+                val type = object : TypeToken<List<ForumTopic>>() {}.type
+                val list: List<ForumTopic> = Gson().fromJson(json, type)
+                if (list.isNotEmpty()) {
+                    bookmarks = list
+                    bookmarksCurrentPage = 1
+                    bookmarksLastPage = prefs.getInt("forum_bookmarks_last_page", 1)
+                    bookmarksCacheTimestamp = timestamp
+                    return (System.currentTimeMillis() - timestamp) < CACHE_DURATION_MS
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return false
+    }
+
+    private fun saveBookmarksCache(context: Context, items: List<ForumTopic>, lastPage: Int) {
+        val now = System.currentTimeMillis()
+        bookmarksCacheTimestamp = now
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val json = Gson().toJson(items)
+            prefs.edit()
+                .putString("forum_bookmarks_json", json)
+                .putLong("forum_bookmarks_timestamp", now)
+                .putInt("forum_bookmarks_last_page", lastPage)
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     fun loadBookmarks(context: Context, refresh: Boolean = false) {
         if (isLoadingBookmarks) return
         if (VisaviApi.getToken().isNullOrBlank()) {
             bookmarks = emptyList()
             bookmarksErrorMessage = "Для просмотра закладок необходимо войти в аккаунт"
+            return
+        }
+        if (!refresh && loadCachedBookmarks(context)) {
             return
         }
         viewModelScope.launch {
@@ -282,10 +398,14 @@ class ForumViewModel : ViewModel() {
                 )
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
-                    bookmarks = body.data ?: emptyList()
-                    body.meta?.let { meta ->
-                        bookmarksCurrentPage = meta.currentPage
-                        bookmarksLastPage = meta.lastPage
+                    val loadedList = body.data ?: emptyList()
+                    bookmarks = loadedList
+                    val curPage = body.meta?.currentPage ?: 1
+                    val lastPage = body.meta?.lastPage ?: 1
+                    bookmarksCurrentPage = curPage
+                    bookmarksLastPage = lastPage
+                    if (loadedList.isNotEmpty()) {
+                        saveBookmarksCache(context, loadedList, lastPage)
                     }
                 } else {
                     bookmarksErrorMessage = response.extractErrorMessage("Ошибка загрузки закладок")

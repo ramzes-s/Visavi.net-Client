@@ -45,6 +45,7 @@ import com.ramzes.visavinet.util.TextRenderPrefs
 import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.parseInlineHtmlTags
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -58,38 +59,6 @@ fun UsersScreen(
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(alpha = 0.7f) else LightTextSecondary
     val primaryAccent = getPrimaryAccentColor()
-
-    val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = viewModel.scrollItemIndex,
-        initialFirstVisibleItemScrollOffset = viewModel.scrollOffset
-    )
-    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = viewModel.isLoading)
-
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .collect { (index, offset) ->
-                viewModel.scrollItemIndex = index
-                viewModel.scrollOffset = offset
-            }
-    }
-
-    LaunchedEffect(Unit) {
-        if (viewModel.users.isEmpty()) {
-            viewModel.loadUsers(context, 1)
-        }
-    }
-
-    LaunchedEffect(viewModel.users.size, viewModel.isLoadingMore) {
-        if (viewModel.users.isEmpty() || viewModel.isLoadingMore) return@LaunchedEffect
-
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .distinctUntilChanged()
-            .collect { lastVisibleIndex ->
-                if (lastVisibleIndex != null && lastVisibleIndex >= viewModel.users.size - 3) {
-                    viewModel.loadMore(context)
-                }
-            }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -317,99 +286,151 @@ fun UsersScreen(
                     }
                 }
             } else {
-                SwipeRefresh(
-                    state = swipeRefreshState,
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .weight(1f),
-                    onRefresh = { viewModel.refresh(context) }
+                        .weight(1f)
                 ) {
-                    when {
-                        viewModel.isLoading && viewModel.users.isEmpty() -> {
+                    UserListPage(
+                        sort = viewModel.currentSort,
+                        viewModel = viewModel,
+                        isDark = isDark,
+                        textColor = textColor,
+                        secondaryTextColor = secondaryTextColor,
+                        primaryAccent = primaryAccent,
+                        onUserClick = onUserClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserListPage(
+    sort: UserSort,
+    viewModel: UsersViewModel,
+    isDark: Boolean,
+    textColor: Color,
+    secondaryTextColor: Color,
+    primaryAccent: Color,
+    onUserClick: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val users = viewModel.getUsers(sort)
+    val isLoading = viewModel.isLoading(sort)
+    val isLoadingMore = viewModel.isLoadingMore(sort)
+    val errorMessage = viewModel.getErrorMessage(sort)
+
+    val listState = rememberLazyListState()
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = isLoading)
+
+    LaunchedEffect(sort) {
+        if (users.isEmpty()) {
+            viewModel.loadUsers(context, 1, sort)
+        }
+    }
+
+    LaunchedEffect(users.size, isLoadingMore) {
+        if (users.isEmpty() || isLoadingMore) return@LaunchedEffect
+
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .distinctUntilChanged()
+            .collect { lastVisibleIndex ->
+                if (lastVisibleIndex != null && lastVisibleIndex >= users.size - 3) {
+                    viewModel.loadMore(context, sort)
+                }
+            }
+    }
+
+    SwipeRefresh(
+        state = swipeRefreshState,
+        modifier = Modifier.fillMaxSize(),
+        onRefresh = { viewModel.refresh(context, sort) }
+    ) {
+        when {
+            isLoading && users.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = primaryAccent,
+                        modifier = Modifier.size(36.dp),
+                        strokeWidth = 3.dp
+                    )
+                }
+            }
+            errorMessage != null && users.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = errorMessage,
+                            color = Color(0xFFEF4444),
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.refresh(context, sort) },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryAccent)
+                        ) {
+                            Text("Повторить", color = Color.White)
+                        }
+                    }
+                }
+            }
+            users.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Пользователи не найдены",
+                        color = secondaryTextColor,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+            else -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(
+                        items = users,
+                        key = { "${sort.key}_${it.login ?: it.displayName}" }
+                    ) { user ->
+                        UserCardItem(
+                            user = user,
+                            currentSort = sort,
+                            isDark = isDark,
+                            textColor = textColor,
+                            secondaryTextColor = secondaryTextColor,
+                            primaryAccent = primaryAccent,
+                            onUserClick = onUserClick
+                        )
+                    }
+
+                    if (isLoadingMore) {
+                        item {
                             Box(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
                                     color = primaryAccent,
-                                    modifier = Modifier.size(36.dp),
-                                    strokeWidth = 3.dp
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
                                 )
-                            }
-                        }
-                        viewModel.errorMessage != null && viewModel.users.isEmpty() -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = viewModel.errorMessage ?: "Ошибка загрузки",
-                                        color = Color(0xFFEF4444),
-                                        fontSize = 14.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(
-                                        onClick = { viewModel.refresh(context) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = primaryAccent)
-                                    ) {
-                                        Text("Повторить", color = Color.White)
-                                    }
-                                }
-                            }
-                        }
-                        viewModel.users.isEmpty() -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Пользователи не найдены",
-                                    color = secondaryTextColor,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                        else -> {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(
-                                    items = viewModel.users,
-                                    key = { it.login ?: it.displayName }
-                                ) { user ->
-                                    UserCardItem(
-                                        user = user,
-                                        currentSort = viewModel.currentSort,
-                                        isDark = isDark,
-                                        textColor = textColor,
-                                        secondaryTextColor = secondaryTextColor,
-                                        primaryAccent = primaryAccent,
-                                        onUserClick = onUserClick
-                                    )
-                                }
-
-                                if (viewModel.isLoadingMore) {
-                                    item {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            CircularProgressIndicator(
-                                                color = primaryAccent,
-                                                modifier = Modifier.size(24.dp),
-                                                strokeWidth = 2.dp
-                                            )
-                                        }
-                                    }
-                                }
                             }
                         }
                     }

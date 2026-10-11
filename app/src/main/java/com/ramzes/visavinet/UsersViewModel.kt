@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.ramzes.visavinet.network.PaginationMeta
 import com.ramzes.visavinet.network.UserData
 import com.ramzes.visavinet.network.VisaviApi
@@ -25,35 +27,52 @@ enum class UserSort(val key: String, val title: String) {
 
 class UsersViewModel : ViewModel() {
 
-    private var loadJob: Job? = null
-    private var searchJob: Job? = null
+    companion object {
+        private const val CACHE_DURATION_MS = 15 * 60 * 1000L // 15 минут
+        private val CACHED_SORTS = setOf(UserSort.POINT, UserSort.RATING, UserSort.CREATED)
+    }
 
-    var users by mutableStateOf<List<UserData>>(emptyList())
+    private val loadJobs = mutableMapOf<UserSort, Job>()
+    private var searchJob: Job? = null
+    private var cacheTimestampBySort: Map<UserSort, Long> = emptyMap()
+
+    var usersBySort by mutableStateOf<Map<UserSort, List<UserData>>>(emptyMap())
         private set
+
+    var isLoadingBySort by mutableStateOf<Map<UserSort, Boolean>>(emptyMap())
+        private set
+
+    var isLoadingMoreBySort by mutableStateOf<Map<UserSort, Boolean>>(emptyMap())
+        private set
+
+    var errorBySort by mutableStateOf<Map<UserSort, String?>>(emptyMap())
+        private set
+
+    var pageBySort by mutableStateOf<Map<UserSort, Int>>(emptyMap())
+        private set
+
+    var lastPageBySort by mutableStateOf<Map<UserSort, Int>>(emptyMap())
+        private set
+
+    fun getUsers(sort: UserSort): List<UserData> = usersBySort[sort] ?: emptyList()
+    fun isLoading(sort: UserSort): Boolean = isLoadingBySort[sort] == true
+    fun isLoadingMore(sort: UserSort): Boolean = isLoadingMoreBySort[sort] == true
+    fun getErrorMessage(sort: UserSort): String? = errorBySort[sort]
+    fun hasNextPage(sort: UserSort): Boolean = (pageBySort[sort] ?: 1) < (lastPageBySort[sort] ?: 1)
 
     var meta by mutableStateOf<PaginationMeta?>(null)
         private set
 
-    var isLoading by mutableStateOf(false)
-        private set
-
-    var isLoadingMore by mutableStateOf(false)
-        private set
-
-    var errorMessage by mutableStateOf<String?>(null)
-        private set
-
-    var currentPage by mutableIntStateOf(1)
-        private set
-
-    var lastPage by mutableIntStateOf(1)
-        private set
-
-    var hasNextPage by mutableStateOf(false)
-        private set
-
     var currentSort by mutableStateOf(UserSort.POINT)
         private set
+
+    val users: List<UserData> get() = getUsers(currentSort)
+    val isLoading: Boolean get() = isLoading(currentSort)
+    val isLoadingMore: Boolean get() = isLoadingMore(currentSort)
+    val errorMessage: String? get() = getErrorMessage(currentSort)
+    val currentPage: Int get() = pageBySort[currentSort] ?: 1
+    val lastPage: Int get() = lastPageBySort[currentSort] ?: 1
+    val hasNextPage: Boolean get() = hasNextPage(currentSort)
 
     var scrollItemIndex by mutableIntStateOf(0)
     var scrollOffset by mutableIntStateOf(0)
@@ -139,16 +158,76 @@ class UsersViewModel : ViewModel() {
         return prefs.getInt("items_per_page", 20).coerceAtLeast(10)
     }
 
-    fun loadUsers(context: Context, page: Int = 1, sort: UserSort = currentSort) {
-        if (page == 1) {
-            loadJob?.let { running ->
-                loadJob = null
-                running.cancel()
+    fun isCacheValid(context: Context, sort: UserSort): Boolean {
+        if (sort !in CACHED_SORTS) return false
+        val memTime = cacheTimestampBySort[sort]
+        if (memTime != null && (System.currentTimeMillis() - memTime) < CACHE_DURATION_MS) {
+            return true
+        }
+        val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+        val spTime = prefs.getLong("users_cache_${sort.key}_timestamp", 0L)
+        return (System.currentTimeMillis() - spTime) < CACHE_DURATION_MS
+    }
+
+    fun loadCachedUsers(context: Context, sort: UserSort): Boolean {
+        if (sort !in CACHED_SORTS) return false
+        val currentList = usersBySort[sort]
+        if (!currentList.isNullOrEmpty()) {
+            return isCacheValid(context, sort)
+        }
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val timestamp = prefs.getLong("users_cache_${sort.key}_timestamp", 0L)
+            val json = prefs.getString("users_cache_${sort.key}_json", null)
+            if (!json.isNullOrBlank()) {
+                val type = object : TypeToken<List<UserData>>() {}.type
+                val list: List<UserData> = Gson().fromJson(json, type)
+                if (list.isNotEmpty()) {
+                    usersBySort = usersBySort + (sort to list)
+                    pageBySort = pageBySort + (sort to 1)
+                    lastPageBySort = lastPageBySort + (sort to prefs.getInt("users_cache_${sort.key}_last_page", 1))
+                    cacheTimestampBySort = cacheTimestampBySort + (sort to timestamp)
+                    return (System.currentTimeMillis() - timestamp) < CACHE_DURATION_MS
+                }
             }
-            isLoading = true
-            errorMessage = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return false
+    }
+
+    private fun saveUsersCache(context: Context, sort: UserSort, users: List<UserData>, lastPage: Int) {
+        if (sort !in CACHED_SORTS) return
+        val now = System.currentTimeMillis()
+        cacheTimestampBySort = cacheTimestampBySort + (sort to now)
+        try {
+            val prefs = context.getSharedPreferences("visavi_prefs", Context.MODE_PRIVATE)
+            val json = Gson().toJson(users)
+            prefs.edit()
+                .putString("users_cache_${sort.key}_json", json)
+                .putLong("users_cache_${sort.key}_timestamp", now)
+                .putInt("users_cache_${sort.key}_last_page", lastPage)
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun loadUsers(
+        context: Context,
+        page: Int = 1,
+        sort: UserSort = currentSort,
+        force: Boolean = false
+    ) {
+        if (page == 1) {
+            if (!force && loadCachedUsers(context, sort)) {
+                return
+            }
+            loadJobs[sort]?.cancel()
+            isLoadingBySort = isLoadingBySort + (sort to true)
+            errorBySort = errorBySort + (sort to null)
         } else {
-            isLoadingMore = true
+            isLoadingMoreBySort = isLoadingMoreBySort + (sort to true)
         }
 
         val perPage = getPerPage(context)
@@ -161,61 +240,52 @@ class UsersViewModel : ViewModel() {
                     val newUsers = body?.data ?: emptyList()
                     meta = body?.meta
 
-                    if (page == 1) {
-                        users = newUsers
-                    } else {
-                        users = users + newUsers
-                    }
+                    val currentList = if (page == 1) emptyList() else (usersBySort[sort] ?: emptyList())
+                    usersBySort = usersBySort + (sort to (currentList + newUsers))
 
-                    currentPage = body?.meta?.currentPage ?: page
-                    lastPage = body?.meta?.lastPage ?: 1
-                    hasNextPage = currentPage < lastPage
-                    errorMessage = null
+                    val curPage = body?.meta?.currentPage ?: page
+                    val maxPage = body?.meta?.lastPage ?: 1
+                    pageBySort = pageBySort + (sort to curPage)
+                    lastPageBySort = lastPageBySort + (sort to maxPage)
+                    errorBySort = errorBySort + (sort to null)
+
+                    if (page == 1 && newUsers.isNotEmpty()) {
+                        saveUsersCache(context, sort, newUsers, maxPage)
+                    }
                 } else {
                     val err = response.extractErrorMessage("Не удалось загрузить список пользователей")
                     if (page == 1) {
-                        errorMessage = err
+                        errorBySort = errorBySort + (sort to err)
                     }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 if (page == 1) {
-                    errorMessage = e.message ?: "Ошибка сети"
+                    errorBySort = errorBySort + (sort to (e.message ?: "Ошибка сети"))
                 }
             } finally {
-                if (loadJob === coroutineContext[Job]) {
-                    isLoading = false
-                    isLoadingMore = false
-                }
+                isLoadingBySort = isLoadingBySort + (sort to false)
+                isLoadingMoreBySort = isLoadingMoreBySort + (sort to false)
             }
         }
-        loadJob = job
+        loadJobs[sort] = job
     }
 
-    fun refresh(context: Context) {
-        currentPage = 1
-        lastPage = 1
-        hasNextPage = false
-        scrollItemIndex = 0
-        scrollOffset = 0
-        loadUsers(context, 1, currentSort)
+    fun refresh(context: Context, sort: UserSort = currentSort) {
+        pageBySort = pageBySort + (sort to 1)
+        lastPageBySort = lastPageBySort + (sort to 1)
+        loadUsers(context, 1, sort, force = true)
     }
 
     fun setSort(context: Context, sort: UserSort) {
-        if (currentSort == sort && users.isNotEmpty()) return
         currentSort = sort
-        currentPage = 1
-        lastPage = 1
-        hasNextPage = false
-        scrollItemIndex = 0
-        scrollOffset = 0
-        users = emptyList()
-        loadUsers(context, 1, sort)
+        loadUsers(context, 1, sort, force = false)
     }
 
-    fun loadMore(context: Context) {
-        if (isLoading || isLoadingMore || !hasNextPage) return
-        loadUsers(context, currentPage + 1, currentSort)
+    fun loadMore(context: Context, sort: UserSort = currentSort) {
+        if (isLoading(sort) || isLoadingMore(sort) || !hasNextPage(sort)) return
+        val nextPage = (pageBySort[sort] ?: 1) + 1
+        loadUsers(context, nextPage, sort)
     }
 }

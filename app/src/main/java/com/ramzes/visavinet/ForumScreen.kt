@@ -47,6 +47,7 @@ import com.ramzes.visavinet.util.formatUnixTime
 import com.ramzes.visavinet.util.isDateRecent
 import com.ramzes.visavinet.util.isDateToday
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 @Composable
 fun ForumScreen(
@@ -64,18 +65,6 @@ fun ForumScreen(
     var showCreateTopicDialog by remember { mutableStateOf(false) }
     var createTopicError by remember { mutableStateOf<String?>(null) }
 
-    val swipeRefreshState = rememberSwipeRefreshState(
-        isRefreshing = when (viewModel.navigationState.level) {
-            ForumNavigationLevel.SECTIONS -> when (viewModel.selectedTab) {
-                ForumTab.SECTIONS -> viewModel.isLoadingSections
-                ForumTab.NEW_TOPICS -> viewModel.isLoadingNewTopics
-                ForumTab.BOOKMARKS -> viewModel.isLoadingBookmarks
-            }
-            ForumNavigationLevel.SECTION -> viewModel.isLoadingSection
-            ForumNavigationLevel.TOPIC -> viewModel.isLoadingPosts
-        }
-    )
-
     LaunchedEffect(viewModel.navigationState.level, viewModel.selectedTab) {
         viewModel.loadSortPreference(context)
         if (viewModel.navigationState.level == ForumNavigationLevel.SECTIONS) {
@@ -86,37 +75,12 @@ fun ForumScreen(
                     }
                 }
                 ForumTab.NEW_TOPICS -> {
-                    if (viewModel.newTopics.isEmpty()) {
-                        viewModel.loadNewTopics(context)
-                    }
+                    viewModel.loadNewTopics(context, refresh = false)
                 }
                 ForumTab.BOOKMARKS -> {
-                    if (viewModel.bookmarks.isEmpty()) {
-                        viewModel.loadBookmarks(context)
-                    }
+                    viewModel.loadBookmarks(context, refresh = false)
                 }
             }
-        }
-    }
-
-    LaunchedEffect(
-        viewModel.isLoadingSections,
-        viewModel.isLoadingNewTopics,
-        viewModel.isLoadingBookmarks,
-        viewModel.isLoadingSection,
-        viewModel.isLoadingPosts
-    ) {
-        val isRefreshing = when (viewModel.navigationState.level) {
-            ForumNavigationLevel.SECTIONS -> when (viewModel.selectedTab) {
-                ForumTab.SECTIONS -> viewModel.isLoadingSections
-                ForumTab.NEW_TOPICS -> viewModel.isLoadingNewTopics
-                ForumTab.BOOKMARKS -> viewModel.isLoadingBookmarks
-            }
-            ForumNavigationLevel.SECTION -> viewModel.isLoadingSection
-            ForumNavigationLevel.TOPIC -> viewModel.isLoadingPosts
-        }
-        if (!isRefreshing && swipeRefreshState.isRefreshing) {
-            viewModel.refresh(context)
         }
     }
 
@@ -128,15 +92,17 @@ fun ForumScreen(
                 isDark = isDark
             )
 
-            SwipeRefresh(
-                state = swipeRefreshState,
-                modifier = Modifier.fillMaxSize().weight(1f),
-                onRefresh = { viewModel.refresh(context) }
-            ) {
-                when (viewModel.navigationState.level) {
-                    ForumNavigationLevel.SECTIONS -> {
-                        when (viewModel.selectedTab) {
-                            ForumTab.SECTIONS -> {
+            when (viewModel.navigationState.level) {
+                ForumNavigationLevel.SECTIONS -> {
+                    when (viewModel.selectedTab) {
+                        ForumTab.SECTIONS -> {
+                            SwipeRefresh(
+                                state = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingSections),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f),
+                                onRefresh = { viewModel.loadRootSections(context) }
+                            ) {
                                 ForumSectionsList(
                                     viewModel = viewModel,
                                     sections = viewModel.displayedRootSections,
@@ -149,7 +115,15 @@ fun ForumScreen(
                                     isDark = isDark
                                 )
                             }
-                            ForumTab.NEW_TOPICS -> {
+                        }
+                        ForumTab.NEW_TOPICS -> {
+                            SwipeRefresh(
+                                state = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingNewTopics),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f),
+                                onRefresh = { viewModel.loadNewTopics(context, refresh = true) }
+                            ) {
                                 ForumTopicsList(
                                     topics = viewModel.newTopics,
                                     currentLogin = currentLogin,
@@ -169,22 +143,31 @@ fun ForumScreen(
                                     isDark = isDark
                                 )
                             }
-                            ForumTab.BOOKMARKS -> {
-                                if (VisaviApi.getToken().isNullOrBlank()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(24.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "Для просмотра закладок необходимо войти в аккаунт",
-                                            fontSize = 14.sp,
-                                            color = if (isDark) TextLightGray else LightTextSecondary,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                        )
-                                    }
-                                } else {
+                        }
+                        ForumTab.BOOKMARKS -> {
+                            if (VisaviApi.getToken().isNullOrBlank()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .weight(1f)
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Для просмотра закладок необходимо войти в аккаунт",
+                                        fontSize = 14.sp,
+                                        color = if (isDark) TextLightGray else LightTextSecondary,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            } else {
+                                SwipeRefresh(
+                                    state = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingBookmarks),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .weight(1f),
+                                    onRefresh = { viewModel.loadBookmarks(context, refresh = true) }
+                                ) {
                                     ForumTopicsList(
                                         topics = viewModel.bookmarks,
                                         currentLogin = currentLogin,
@@ -207,7 +190,17 @@ fun ForumScreen(
                             }
                         }
                     }
-                    ForumNavigationLevel.SECTION -> {
+                }
+                ForumNavigationLevel.SECTION -> {
+                    SwipeRefresh(
+                        state = rememberSwipeRefreshState(isRefreshing = viewModel.isLoadingSection),
+                        modifier = Modifier.fillMaxSize().weight(1f),
+                        onRefresh = {
+                            viewModel.navigationState.sectionId?.let {
+                                viewModel.loadSection(context, it)
+                            }
+                        }
+                    ) {
                         ForumSectionContent(
                             viewModel = viewModel,
                             sectionInfo = viewModel.currentSection,
@@ -230,16 +223,16 @@ fun ForumScreen(
                             isDark = isDark
                         )
                     }
-                    ForumNavigationLevel.TOPIC -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Загрузка сообщений...",
-                                color = textColor
-                            )
-                        }
+                }
+                ForumNavigationLevel.TOPIC -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize().weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Загрузка сообщений...",
+                            color = textColor
+                        )
                     }
                 }
             }
