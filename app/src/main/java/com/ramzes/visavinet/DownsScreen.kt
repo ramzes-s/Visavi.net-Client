@@ -728,8 +728,8 @@ fun DownItemCard(
                     Text(
                         text = down.user?.displayName ?: "Автор",
                         color = authorColor,
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.clickable(enabled = authorLogin != null) {

@@ -874,7 +874,7 @@ fun GalleryMainContentCard(
                     Text(
                         text = photo.user?.displayName ?: "Пользователь",
                         color = authorColor,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1049,7 +1049,7 @@ fun GalleryCommentCard(
                             Text(
                                 text = comment.user?.displayName ?: "Пользователь",
                                 color = authorColor,
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,

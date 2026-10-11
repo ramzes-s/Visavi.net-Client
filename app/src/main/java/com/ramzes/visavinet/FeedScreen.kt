@@ -289,10 +289,12 @@ fun FeedCardItem(
             shape = RoundedCornerShape(8.dp)
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
             ) {
                 // Верхняя строка: Заголовок темы / материала
-                // (бейдж типа события теперь лежит в углу карточки и сюда не входит)
+                // (бейдж типа события лежит в верхнем углу карточки выше заголовка)
                 val titleText = item.title ?: item.relate?.title ?: ""
                 if (titleText.isNotBlank()) {
                     ProvideContentFontScale {
@@ -303,9 +305,7 @@ fun FeedCardItem(
                             color = textColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(end = 76.dp)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -451,7 +451,7 @@ fun FeedCardItem(
                             Text(
                                 text = user.displayName,
                                 color = primaryAccent,
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,

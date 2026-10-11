@@ -423,7 +423,7 @@ fun GalleryGridItem(
                     Text(
                         text = photo.user?.displayName ?: "Пользователь",
                         color = authorColor,
-                        fontSize = 11.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

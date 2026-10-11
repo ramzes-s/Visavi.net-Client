@@ -708,7 +708,7 @@ fun NewsMainContentCard(
                 Text(
                     text = news.user?.displayName ?: "Администратор",
                     color = authorColor,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.clickable(enabled = authorLogin != null) {
                         authorLogin?.let { onUserClick(it) }
@@ -995,7 +995,7 @@ fun NewsCommentCard(
                             Text(
                                 text = comment.user?.displayName ?: "Пользователь",
                                 color = authorColor,
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
