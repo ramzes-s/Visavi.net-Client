@@ -2,6 +2,7 @@
 
 package com.ramzes.visavinet
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import com.ramzes.visavinet.network.VisaviApi
 import com.ramzes.visavinet.network.ForumInfo
 import com.ramzes.visavinet.network.ForumSection
 import com.ramzes.visavinet.network.TextLimits
@@ -64,26 +66,52 @@ fun ForumScreen(
 
     val swipeRefreshState = rememberSwipeRefreshState(
         isRefreshing = when (viewModel.navigationState.level) {
-            ForumNavigationLevel.SECTIONS -> viewModel.isLoadingSections
+            ForumNavigationLevel.SECTIONS -> when (viewModel.selectedTab) {
+                ForumTab.SECTIONS -> viewModel.isLoadingSections
+                ForumTab.NEW_TOPICS -> viewModel.isLoadingNewTopics
+                ForumTab.BOOKMARKS -> viewModel.isLoadingBookmarks
+            }
             ForumNavigationLevel.SECTION -> viewModel.isLoadingSection
             ForumNavigationLevel.TOPIC -> viewModel.isLoadingPosts
         }
     )
 
-    LaunchedEffect(viewModel.navigationState.level) {
+    LaunchedEffect(viewModel.navigationState.level, viewModel.selectedTab) {
         viewModel.loadSortPreference(context)
         if (viewModel.navigationState.level == ForumNavigationLevel.SECTIONS) {
-            viewModel.loadRootSections(context)
+            when (viewModel.selectedTab) {
+                ForumTab.SECTIONS -> {
+                    if (viewModel.rootSections.isEmpty()) {
+                        viewModel.loadRootSections(context)
+                    }
+                }
+                ForumTab.NEW_TOPICS -> {
+                    if (viewModel.newTopics.isEmpty()) {
+                        viewModel.loadNewTopics(context)
+                    }
+                }
+                ForumTab.BOOKMARKS -> {
+                    if (viewModel.bookmarks.isEmpty()) {
+                        viewModel.loadBookmarks(context)
+                    }
+                }
+            }
         }
     }
 
     LaunchedEffect(
         viewModel.isLoadingSections,
+        viewModel.isLoadingNewTopics,
+        viewModel.isLoadingBookmarks,
         viewModel.isLoadingSection,
         viewModel.isLoadingPosts
     ) {
         val isRefreshing = when (viewModel.navigationState.level) {
-            ForumNavigationLevel.SECTIONS -> viewModel.isLoadingSections
+            ForumNavigationLevel.SECTIONS -> when (viewModel.selectedTab) {
+                ForumTab.SECTIONS -> viewModel.isLoadingSections
+                ForumTab.NEW_TOPICS -> viewModel.isLoadingNewTopics
+                ForumTab.BOOKMARKS -> viewModel.isLoadingBookmarks
+            }
             ForumNavigationLevel.SECTION -> viewModel.isLoadingSection
             ForumNavigationLevel.TOPIC -> viewModel.isLoadingPosts
         }
@@ -107,17 +135,77 @@ fun ForumScreen(
             ) {
                 when (viewModel.navigationState.level) {
                     ForumNavigationLevel.SECTIONS -> {
-                        ForumSectionsList(
-                            viewModel = viewModel,
-                            sections = viewModel.displayedRootSections,
-                            isLoading = viewModel.isLoadingSections,
-                            errorMessage = viewModel.errorMessage,
-                            onSectionClick = { section ->
-                                viewModel.navigateToSection(section, context)
-                            },
-                            onRefresh = { viewModel.loadRootSections(context) },
-                            isDark = isDark
-                        )
+                        when (viewModel.selectedTab) {
+                            ForumTab.SECTIONS -> {
+                                ForumSectionsList(
+                                    viewModel = viewModel,
+                                    sections = viewModel.displayedRootSections,
+                                    isLoading = viewModel.isLoadingSections,
+                                    errorMessage = viewModel.errorMessage,
+                                    onSectionClick = { section ->
+                                        viewModel.navigateToSection(section, context)
+                                    },
+                                    onRefresh = { viewModel.loadRootSections(context) },
+                                    isDark = isDark
+                                )
+                            }
+                            ForumTab.NEW_TOPICS -> {
+                                ForumTopicsList(
+                                    topics = viewModel.newTopics,
+                                    currentLogin = currentLogin,
+                                    isLoading = viewModel.isLoadingNewTopics,
+                                    isLoadingMore = viewModel.isLoadingMoreNewTopics,
+                                    errorMessage = viewModel.newTopicsErrorMessage,
+                                    emptyText = "Тем пока нет",
+                                    scrollIndex = viewModel.newTopicsScrollIndex,
+                                    scrollOffset = viewModel.newTopicsScrollOffset,
+                                    onScrollPositionChanged = { idx, off ->
+                                        viewModel.newTopicsScrollIndex = idx
+                                        viewModel.newTopicsScrollOffset = off
+                                    },
+                                    onTopicClick = onTopicClick,
+                                    onLoadMore = { viewModel.loadMoreNewTopics(context) },
+                                    onRefresh = { viewModel.loadNewTopics(context, refresh = true) },
+                                    isDark = isDark
+                                )
+                            }
+                            ForumTab.BOOKMARKS -> {
+                                if (VisaviApi.getToken().isNullOrBlank()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Для просмотра закладок необходимо войти в аккаунт",
+                                            fontSize = 14.sp,
+                                            color = if (isDark) TextLightGray else LightTextSecondary,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
+                                } else {
+                                    ForumTopicsList(
+                                        topics = viewModel.bookmarks,
+                                        currentLogin = currentLogin,
+                                        isLoading = viewModel.isLoadingBookmarks,
+                                        isLoadingMore = viewModel.isLoadingMoreBookmarks,
+                                        errorMessage = viewModel.bookmarksErrorMessage,
+                                        emptyText = "У вас пока нет закладок",
+                                        scrollIndex = viewModel.bookmarksScrollIndex,
+                                        scrollOffset = viewModel.bookmarksScrollOffset,
+                                        onScrollPositionChanged = { idx, off ->
+                                            viewModel.bookmarksScrollIndex = idx
+                                            viewModel.bookmarksScrollOffset = off
+                                        },
+                                        onTopicClick = onTopicClick,
+                                        onLoadMore = { viewModel.loadMoreBookmarks(context) },
+                                        onRefresh = { viewModel.loadBookmarks(context, refresh = true) },
+                                        isDark = isDark
+                                    )
+                                }
+                            }
+                        }
                     }
                     ForumNavigationLevel.SECTION -> {
                         ForumSectionContent(
@@ -218,47 +306,92 @@ fun ForumTopBar(
     isDark: Boolean
 ) {
     val context = LocalContext.current
+    val primaryAccent = getPrimaryAccentColor()
+    val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Color.Transparent
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (viewModel.navigationState.level != ForumNavigationLevel.SECTIONS) {
-                IconButton(onClick = { viewModel.navigateBack(context.applicationContext) }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = getSecondaryAccentColor()
-                    )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (viewModel.navigationState.level != ForumNavigationLevel.SECTIONS) {
+                    IconButton(onClick = { viewModel.navigateBack(context.applicationContext) }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = getSecondaryAccentColor()
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(16.dp))
                 }
-            } else {
-                Spacer(modifier = Modifier.width(16.dp))
+
+                val title = when (viewModel.navigationState.level) {
+                    ForumNavigationLevel.SECTIONS -> "Форум"
+                    ForumNavigationLevel.SECTION -> {
+                        viewModel.currentSection?.title 
+                            ?: viewModel.navigationState.sectionTitle 
+                            ?: "Подразделы"
+                    }
+                    ForumNavigationLevel.TOPIC -> "Тема"
+                }
+                
+                Text(
+                    text = title,
+                    color = textColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
-            val title = when (viewModel.navigationState.level) {
-                ForumNavigationLevel.SECTIONS -> "Разделы форума"
-                ForumNavigationLevel.SECTION -> {
-                    viewModel.currentSection?.title 
-                        ?: viewModel.navigationState.sectionTitle 
-                        ?: "Подразделы"
+            if (viewModel.navigationState.level == ForumNavigationLevel.SECTIONS) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ForumTab.entries.forEach { tab ->
+                        val isSelected = viewModel.selectedTab == tab
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    if (!isSelected) {
+                                        viewModel.selectTab(tab, context)
+                                    }
+                                }
+                                .padding(top = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = tab.title,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) primaryAccent else secondaryTextColor
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.5.dp)
+                                    .background(
+                                        if (isSelected) primaryAccent
+                                        else (if (isDark) Color(0x18FFFFFF) else Color(0x10000000))
+                                    )
+                            )
+                        }
+                    }
                 }
-                ForumNavigationLevel.TOPIC -> "Тема"
             }
-            
-            Text(
-                text = title,
-                color = textColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                maxLines = 1,
-                modifier = Modifier.weight(1f)
-            )
         }
     }
 }
@@ -655,18 +788,145 @@ fun ForumSubsectionItem(
 }
 
 @Composable
+fun ForumTopicsList(
+    topics: List<ForumTopic>,
+    currentLogin: String?,
+    isLoading: Boolean,
+    isLoadingMore: Boolean,
+    errorMessage: String?,
+    emptyText: String,
+    scrollIndex: Int,
+    scrollOffset: Int,
+    onScrollPositionChanged: (Int, Int) -> Unit,
+    onTopicClick: (ForumTopic) -> Unit,
+    onLoadMore: () -> Unit,
+    onRefresh: () -> Unit,
+    isDark: Boolean
+) {
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = scrollIndex,
+        initialFirstVisibleItemScrollOffset = scrollOffset
+    )
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                onScrollPositionChanged(index, offset)
+            }
+    }
+
+    LaunchedEffect(topics.size, isLoadingMore) {
+        if (topics.isEmpty() || isLoadingMore) return@LaunchedEffect
+
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .distinctUntilChanged()
+            .collect { lastVisibleIndex ->
+                if (lastVisibleIndex != null && lastVisibleIndex >= topics.size - 5) {
+                    onLoadMore()
+                }
+            }
+    }
+
+    when {
+        isLoading && topics.isEmpty() -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = getPrimaryAccentColor())
+            }
+        }
+        errorMessage != null && topics.isEmpty() -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = errorMessage,
+                        color = Color(0xFFCF6679),
+                        fontSize = 14.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Button(
+                        onClick = onRefresh,
+                        colors = ButtonDefaults.buttonColors(containerColor = getPrimaryAccentColor())
+                    ) {
+                        Text(text = "Повторить", color = if (isDark) Color.Black else Color.White)
+                    }
+                }
+            }
+        }
+        topics.isEmpty() -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = emptyText,
+                    color = if (isDark) TextLightGray else LightTextSecondary,
+                    fontSize = 14.sp
+                )
+            }
+        }
+        else -> {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = listState,
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(topics, key = { "topic_${it.id}" }) { topic ->
+                    ForumTopicItem(
+                        topic = topic,
+                        currentLogin = currentLogin,
+                        onClick = { onTopicClick(topic) },
+                        isDark = isDark,
+                        showForumTitle = true
+                    )
+                }
+
+                if (isLoadingMore) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = if (isDark) NeonCyan else LightAccent,
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ForumTopicItem(
     topic: ForumTopic,
     currentLogin: String? = null,
     onClick: () -> Unit,
-    isDark: Boolean
+    isDark: Boolean,
+    showForumTitle: Boolean = false
 ) {
     val textColor = if (isDark) Color.White else LightText
     val secondaryTextColor = if (isDark) TextLightGray.copy(0.7f) else LightTextSecondary
     val closedTitleColor = if (isDark) Color(0xFF8E8E93) else Color(0xFF7C7C80)
     val primaryAccent = getPrimaryAccentColor()
 
-    val isMyTopic = currentLogin != null && (topic.authorLogin == currentLogin || topic.authorName == currentLogin)
+    val author = topic.user?.authorLogin ?: topic.authorLogin ?: topic.authorName
+    val isMyTopic = currentLogin != null && (author.equals(currentLogin, ignoreCase = true) || topic.user?.displayName.equals(currentLogin, ignoreCase = true))
     val glowColor = if (isMyTopic) primaryAccent.copy(alpha = 0.22f) else Color.Transparent
 
     val titleColor = when {
@@ -685,6 +945,18 @@ fun ForumTopicItem(
         onClick = onClick
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            if (showForumTitle && !topic.forum?.title.isNullOrBlank()) {
+                Text(
+                    text = topic.forum?.title ?: "",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = primaryAccent,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -740,7 +1012,21 @@ fun ForumTopicItem(
                         color = secondaryTextColor,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(text = "💬 ${topic.postsCount}", fontSize = 11.sp, color = secondaryTextColor)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = "💬 ${topic.postsCount}", fontSize = 11.sp, color = secondaryTextColor)
+                        val newPosts = topic.bookmark?.newPosts
+                        if (newPosts != null && newPosts > 0) {
+                            Text(
+                                text = "+$newPosts",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = primaryAccent
+                            )
+                        }
+                    }
                     Text(text = "👁 ${topic.visits}", fontSize = 11.sp, color = secondaryTextColor)
                 }
 

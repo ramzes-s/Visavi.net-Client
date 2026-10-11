@@ -341,12 +341,18 @@ data class ForumSection(
     fun getSubsections(): List<ForumSection> = children ?: emptyList()
 }
 
+data class TopicBookmarkData(
+    @SerializedName("count_posts") val countPosts: Int? = null,
+    @SerializedName("new_posts") val newPosts: Int? = null
+)
+
 data class ForumTopic(
     @SerializedName("id") val id: Int,
     @SerializedName("forum_id") val forumId: Int? = null,
     @SerializedName("section_id") val sectionId: Int? = null,
     @SerializedName("forum") val forum: ForumSection? = null,
     @SerializedName("title") val title: String? = null,
+    @SerializedName("user") val user: NewsAuthor? = null,
     @SerializedName("login") val authorLogin: String? = null,
     @SerializedName("name") val authorName: String? = null,
     @SerializedName("closed") val closed: Boolean = false,
@@ -355,15 +361,19 @@ data class ForumTopic(
     @SerializedName("visits") val visits: Int = 0,
     @SerializedName("moderators") val moderators: String? = null,
     @SerializedName("note") val note: String? = null,
+    @SerializedName("bookmark") val bookmark: TopicBookmarkData? = null,
     @SerializedName("last_post_id") val lastPostId: Int? = null,
+    @SerializedName("last_post_user") val lastPostUser: NewsAuthor? = null,
     @SerializedName("last_post_user_login") val lastPostUserLogin: String? = null,
     @SerializedName("last_post_user_name") val lastPostUserName: String? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
     val lastPostAuthor: String?
-        get() = lastPostUserName?.ifBlank { null }
+        get() = lastPostUser?.displayName
+            ?: lastPostUserName?.ifBlank { null }
             ?: lastPostUserLogin?.ifBlank { null }
+            ?: user?.displayName
             ?: authorName?.ifBlank { null }
             ?: authorLogin?.ifBlank { null }
 
@@ -424,6 +434,7 @@ data class TopicInfo(
     @SerializedName("section_id") val sectionId: Int? = null,
     @SerializedName("forum") val forum: ForumSection? = null,
     @SerializedName("title") val title: String? = null,
+    @SerializedName("user") val user: NewsAuthor? = null,
     @SerializedName("login") val authorLogin: String? = null,
     @SerializedName("name") val authorName: String? = null,
     @SerializedName("closed") val closed: Boolean = false,
@@ -432,12 +443,22 @@ data class TopicInfo(
     @SerializedName("visits") val visits: Int = 0,
     @SerializedName("moderators") val moderators: String? = null,
     @SerializedName("note") val note: String? = null,
+    @SerializedName("bookmark") val bookmark: TopicBookmarkData? = null,
     @SerializedName("last_post_id") val lastPostId: Int? = null,
+    @SerializedName("last_post_user") val lastPostUser: NewsAuthor? = null,
     @SerializedName("last_post_user_login") val lastPostUserLogin: String? = null,
     @SerializedName("last_post_user_name") val lastPostUserName: String? = null,
     @SerializedName("created_at") val createdAtRaw: String? = null,
     @SerializedName("updated_at") val updatedAtRaw: String? = null
 ) {
+    val lastPostAuthor: String?
+        get() = lastPostUser?.displayName
+            ?: lastPostUserName?.ifBlank { null }
+            ?: lastPostUserLogin?.ifBlank { null }
+            ?: user?.displayName
+            ?: authorName?.ifBlank { null }
+            ?: authorLogin?.ifBlank { null }
+
     val realForumId: Int?
         get() = forumId ?: sectionId ?: forum?.id
 
@@ -1032,6 +1053,22 @@ interface VisaviApiService {
         @Path("id") sectionId: Int,
         @Query("page") page: Int = 1,
         @Query("per_page") perPage: Int = 30
+    ): Response<ForumTopicsData>
+
+    @GET("api/topics")
+    suspend fun getNewTopics(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 30,
+        @Query("sort") sort: String = "date",
+        @Query("order") order: String = "desc",
+        @Query("user") user: String? = null
+    ): Response<ForumTopicsData>
+
+    @GET("api/bookmarks")
+    suspend fun getBookmarks(
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 30,
+        @Query("order") order: String = "desc"
     ): Response<ForumTopicsData>
 
     @Multipart

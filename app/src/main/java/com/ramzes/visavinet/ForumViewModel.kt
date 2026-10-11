@@ -10,6 +10,12 @@ import com.ramzes.visavinet.network.*
 import com.ramzes.visavinet.util.FileUtils
 import kotlinx.coroutines.launch
 
+enum class ForumTab(val title: String) {
+    SECTIONS("Разделы"),
+    NEW_TOPICS("Последние"),
+    BOOKMARKS("Закладки")
+}
+
 enum class ForumNavigationLevel {
     SECTIONS, SECTION, TOPIC
 }
@@ -23,6 +29,60 @@ data class ForumNavigationState(
 )
 
 class ForumViewModel : ViewModel() {
+
+    var selectedTab by mutableStateOf(ForumTab.SECTIONS)
+        private set
+
+    fun selectTab(tab: ForumTab, context: Context) {
+        selectedTab = tab
+        when (tab) {
+            ForumTab.SECTIONS -> {
+                if (rootSections.isEmpty()) {
+                    loadRootSections(context)
+                }
+            }
+            ForumTab.NEW_TOPICS -> {
+                if (newTopics.isEmpty()) {
+                    loadNewTopics(context)
+                }
+            }
+            ForumTab.BOOKMARKS -> {
+                if (bookmarks.isEmpty()) {
+                    loadBookmarks(context)
+                }
+            }
+        }
+    }
+
+    var newTopics by mutableStateOf<List<ForumTopic>>(emptyList())
+        private set
+    var isLoadingNewTopics by mutableStateOf(false)
+        private set
+    var isLoadingMoreNewTopics by mutableStateOf(false)
+        private set
+    var newTopicsCurrentPage by mutableStateOf(1)
+        private set
+    var newTopicsLastPage by mutableStateOf(1)
+        private set
+    var newTopicsErrorMessage by mutableStateOf<String?>(null)
+        private set
+    var newTopicsScrollIndex by mutableStateOf(0)
+    var newTopicsScrollOffset by mutableStateOf(0)
+
+    var bookmarks by mutableStateOf<List<ForumTopic>>(emptyList())
+        private set
+    var isLoadingBookmarks by mutableStateOf(false)
+        private set
+    var isLoadingMoreBookmarks by mutableStateOf(false)
+        private set
+    var bookmarksCurrentPage by mutableStateOf(1)
+        private set
+    var bookmarksLastPage by mutableStateOf(1)
+        private set
+    var bookmarksErrorMessage by mutableStateOf<String?>(null)
+        private set
+    var bookmarksScrollIndex by mutableStateOf(0)
+    var bookmarksScrollOffset by mutableStateOf(0)
 
     var rootSections by mutableStateOf<List<ForumSection>>(emptyList())
         private set
@@ -134,7 +194,137 @@ class ForumViewModel : ViewModel() {
         posts = emptyList()
         firstTopicPost = null
         navigationState = ForumNavigationState(level = ForumNavigationLevel.SECTIONS)
-        loadRootSections(context)
+        when (selectedTab) {
+            ForumTab.SECTIONS -> loadRootSections(context)
+            ForumTab.NEW_TOPICS -> loadNewTopics(context, refresh = true)
+            ForumTab.BOOKMARKS -> loadBookmarks(context, refresh = true)
+        }
+    }
+
+    fun loadNewTopics(context: Context, refresh: Boolean = false) {
+        if (isLoadingNewTopics) return
+        viewModelScope.launch {
+            isLoadingNewTopics = true
+            newTopicsErrorMessage = null
+            if (refresh) {
+                newTopicsCurrentPage = 1
+            }
+            try {
+                val itemsPerPage = getItemsPerPage(context)
+                val response = VisaviApi.instance.getNewTopics(
+                    page = 1,
+                    perPage = itemsPerPage
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    newTopics = body.data ?: emptyList()
+                    body.meta?.let { meta ->
+                        newTopicsCurrentPage = meta.currentPage
+                        newTopicsLastPage = meta.lastPage
+                    }
+                } else {
+                    newTopicsErrorMessage = response.extractErrorMessage("Ошибка загрузки последних тем")
+                }
+            } catch (e: Exception) {
+                newTopicsErrorMessage = "Ошибка сети: ${e.message}"
+            } finally {
+                isLoadingNewTopics = false
+            }
+        }
+    }
+
+    fun loadMoreNewTopics(context: Context) {
+        if (isLoadingMoreNewTopics || isLoadingNewTopics || newTopicsCurrentPage >= newTopicsLastPage) return
+        viewModelScope.launch {
+            isLoadingMoreNewTopics = true
+            try {
+                val nextPage = newTopicsCurrentPage + 1
+                val itemsPerPage = getItemsPerPage(context)
+                val response = VisaviApi.instance.getNewTopics(
+                    page = nextPage,
+                    perPage = itemsPerPage
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    val moreTopics = body.data ?: emptyList()
+                    newTopics = (newTopics + moreTopics).distinctBy { it.id }
+                    body.meta?.let { meta ->
+                        newTopicsCurrentPage = meta.currentPage
+                        newTopicsLastPage = meta.lastPage
+                    }
+                }
+            } catch (e: Exception) {
+                // Ошибка сети при подгрузке
+            } finally {
+                isLoadingMoreNewTopics = false
+            }
+        }
+    }
+
+    fun loadBookmarks(context: Context, refresh: Boolean = false) {
+        if (isLoadingBookmarks) return
+        if (VisaviApi.getToken().isNullOrBlank()) {
+            bookmarks = emptyList()
+            bookmarksErrorMessage = "Для просмотра закладок необходимо войти в аккаунт"
+            return
+        }
+        viewModelScope.launch {
+            isLoadingBookmarks = true
+            bookmarksErrorMessage = null
+            if (refresh) {
+                bookmarksCurrentPage = 1
+            }
+            try {
+                val itemsPerPage = getItemsPerPage(context)
+                val response = VisaviApi.instance.getBookmarks(
+                    page = 1,
+                    perPage = itemsPerPage
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    bookmarks = body.data ?: emptyList()
+                    body.meta?.let { meta ->
+                        bookmarksCurrentPage = meta.currentPage
+                        bookmarksLastPage = meta.lastPage
+                    }
+                } else {
+                    bookmarksErrorMessage = response.extractErrorMessage("Ошибка загрузки закладок")
+                }
+            } catch (e: Exception) {
+                bookmarksErrorMessage = "Ошибка сети: ${e.message}"
+            } finally {
+                isLoadingBookmarks = false
+            }
+        }
+    }
+
+    fun loadMoreBookmarks(context: Context) {
+        if (isLoadingMoreBookmarks || isLoadingBookmarks || bookmarksCurrentPage >= bookmarksLastPage) return
+        if (VisaviApi.getToken().isNullOrBlank()) return
+        viewModelScope.launch {
+            isLoadingMoreBookmarks = true
+            try {
+                val nextPage = bookmarksCurrentPage + 1
+                val itemsPerPage = getItemsPerPage(context)
+                val response = VisaviApi.instance.getBookmarks(
+                    page = nextPage,
+                    perPage = itemsPerPage
+                )
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    val moreBookmarks = body.data ?: emptyList()
+                    bookmarks = (bookmarks + moreBookmarks).distinctBy { it.id }
+                    body.meta?.let { meta ->
+                        bookmarksCurrentPage = meta.currentPage
+                        bookmarksLastPage = meta.lastPage
+                    }
+                }
+            } catch (e: Exception) {
+                // Ошибка сети при подгрузке
+            } finally {
+                isLoadingMoreBookmarks = false
+            }
+        }
     }
 
     fun loadSection(context: Context, sectionId: Int, page: Int = 1, append: Boolean = false) {
@@ -421,10 +611,12 @@ class ForumViewModel : ViewModel() {
 
     fun navigateToTopic(topic: ForumTopic, context: Context) {
         backStack.add(navigationState)
+        val targetSectionId = topic.realForumId ?: navigationState.sectionId
+        val targetSectionTitle = topic.forum?.title ?: navigationState.sectionTitle
         navigationState = ForumNavigationState(
             level = ForumNavigationLevel.TOPIC,
-            sectionId = navigationState.sectionId,
-            sectionTitle = navigationState.sectionTitle,
+            sectionId = targetSectionId,
+            sectionTitle = targetSectionTitle,
             topicId = topic.id,
             topicTitle = topic.title
         )
@@ -550,7 +742,13 @@ class ForumViewModel : ViewModel() {
 
     fun refresh(context: Context) {
         when (navigationState.level) {
-            ForumNavigationLevel.SECTIONS -> loadRootSections(context)
+            ForumNavigationLevel.SECTIONS -> {
+                when (selectedTab) {
+                    ForumTab.SECTIONS -> loadRootSections(context)
+                    ForumTab.NEW_TOPICS -> loadNewTopics(context, refresh = true)
+                    ForumTab.BOOKMARKS -> loadBookmarks(context, refresh = true)
+                }
+            }
             ForumNavigationLevel.SECTION -> {
                 navigationState.sectionId?.let {
                     sectionCurrentPage = 1
@@ -750,7 +948,10 @@ class ForumViewModel : ViewModel() {
     }
 
     fun clear() {
+        selectedTab = ForumTab.SECTIONS
         rootSections = emptyList()
+        newTopics = emptyList()
+        bookmarks = emptyList()
         currentSection = null
         subsections = emptyList()
         topics = emptyList()
@@ -760,6 +961,8 @@ class ForumViewModel : ViewModel() {
         votingPostIds = emptySet()
         navigationState = ForumNavigationState()
         errorMessage = null
+        newTopicsErrorMessage = null
+        bookmarksErrorMessage = null
         backStack.clear()
     }
 
